@@ -19,20 +19,20 @@ export const Step1LandArea = ({ landArea, setLandArea, onNext, error }: Step1Pro
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in">
-      <div className="text-center space-y-3 mb-8">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center mx-auto shadow-glow">
-          <Ruler className="w-8 h-8 text-white" />
-        </div>
-        <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
-          What's Your Land Area?
-        </h2>
-        <p className="text-muted-foreground max-w-md mx-auto">
-          Enter the total area of your plot in square feet
-        </p>
-      </div>
-
-      <Card className="border-border/50">
+      <Card className="glass-card border-2">
         <CardContent className="p-6 sm:p-8">
+          <div className="text-center space-y-3 mb-8">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center mx-auto shadow-glow">
+              <Ruler className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
+              What's Your Land Area?
+            </h2>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Enter the total area of your plot in square feet
+            </p>
+          </div>
+
           <div className="space-y-4">
             <Label htmlFor="landArea" className="text-lg font-semibold">
               Total Land Area (sq ft)
@@ -84,19 +84,19 @@ export const Step1LandArea = ({ landArea, setLandArea, onNext, error }: Step1Pro
               </ul>
             </div>
           </div>
+
+          <Button
+            type="submit"
+            variant="hero"
+            size="lg"
+            className="w-full group glass-button mt-6"
+            disabled={!landArea || parseFloat(landArea) < 100}
+          >
+            Continue to Room Selection
+            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+          </Button>
         </CardContent>
       </Card>
-
-      <Button
-        type="submit"
-        variant="hero"
-        size="lg"
-        className="w-full group"
-        disabled={!landArea || parseFloat(landArea) < 100}
-      >
-        Continue to Room Selection
-        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-      </Button>
     </form>
   );
 };
