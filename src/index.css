@@ -46,6 +46,11 @@ All colors MUST be HSL.
     --shadow-glow: 0 20px 60px -15px hsl(350 80% 65% / 0.3);
     --shadow-soft: 0 10px 30px -10px hsl(315 55% 18% / 0.1);
     
+    /* Glass Effect */
+    --glass-bg: hsla(var(--background) / 0.7);
+    --glass-border: hsla(var(--border) / 0.3);
+    --glass-blur: blur(12px);
+    
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     --sidebar-background: 0 0% 98%;
@@ -100,6 +105,11 @@ All colors MUST be HSL.
     
     --shadow-glow: 0 20px 60px -15px hsl(350 80% 65% / 0.4);
     --shadow-soft: 0 10px 30px -10px hsl(315 55% 8% / 0.5);
+    
+    /* Glass Effect */
+    --glass-bg: hsla(var(--background) / 0.6);
+    --glass-border: hsla(var(--border) / 0.2);
+    
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -119,4 +129,25 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Glass Effect Utilities */
+.glass-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.glass-button {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  transition: var(--transition-smooth);
+}
+
+.glass-button:hover {
+  background: hsla(var(--primary) / 0.1);
+  border-color: hsl(var(--primary) / 0.5);
 }

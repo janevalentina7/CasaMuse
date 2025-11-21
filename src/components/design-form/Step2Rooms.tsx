@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowRight, ArrowLeft, Plus, Minus, Home } from "lucide-react";
 import { ROOM_DATA } from "@/data/roomSizes";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,7 @@ export interface RoomSelection {
   roomId: string;
   count: number;
   size: "small" | "medium" | "large";
+  attachedBathroom?: boolean;
 }
 
 interface Step2Props {
@@ -67,6 +69,19 @@ export const Step2Rooms = ({ rooms, setRooms, onNext, onPrev }: Step2Props) => {
     }
   };
 
+  const toggleAttachedBathroom = (roomId: string) => {
+    setRooms(
+      rooms.map((room) =>
+        room.roomId === roomId
+          ? { ...room, attachedBathroom: !room.attachedBathroom }
+          : room
+      )
+    );
+  };
+
+  const isBedroom = (roomId: string) =>
+    roomId === "master_bedroom" || roomId === "bedroom" || roomId === "guest_room";
+
   const hasMinimumRooms = () => {
     const hasLiving = rooms.some(r => r.roomId === "living_room" && r.count > 0);
     const hasBedroom = rooms.some(r => ["master_bedroom", "bedroom"].includes(r.roomId) && r.count > 0);
@@ -84,7 +99,7 @@ export const Step2Rooms = ({ rooms, setRooms, onNext, onPrev }: Step2Props) => {
     return (
       <Card
         className={cn(
-          "border-2 transition-all duration-300 hover:shadow-soft",
+          "border-2 transition-all duration-300 hover:shadow-soft glass-card",
           count > 0 ? "border-primary shadow-glow" : "border-border/50"
         )}
       >
@@ -150,6 +165,23 @@ export const Step2Rooms = ({ rooms, setRooms, onNext, onPrev }: Step2Props) => {
               </SelectContent>
             </Select>
           )}
+
+          {/* Attached Bathroom Option for Bedrooms */}
+          {count > 0 && isBedroom(roomId) && (
+            <div className="flex items-center space-x-2 p-3 rounded-lg bg-muted/30">
+              <Checkbox
+                id={`bathroom-${roomId}`}
+                checked={selection?.attachedBathroom || false}
+                onCheckedChange={() => toggleAttachedBathroom(roomId)}
+              />
+              <label
+                htmlFor={`bathroom-${roomId}`}
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              >
+                Attached Bathroom
+              </label>
+            </div>
+          )}
         </CardContent>
       </Card>
     );
@@ -157,21 +189,23 @@ export const Step2Rooms = ({ rooms, setRooms, onNext, onPrev }: Step2Props) => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="text-center space-y-3 mb-6">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center mx-auto shadow-glow">
-          <Home className="w-8 h-8 text-white" />
-        </div>
-        <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
-          Select Your Rooms
-        </h2>
-        <p className="text-muted-foreground max-w-md mx-auto">
-          Choose rooms and specify quantity and size
-        </p>
-      </div>
+      <Card className="glass-card border-2">
+        <CardContent className="p-8">
+          <div className="text-center space-y-3 mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center mx-auto shadow-glow">
+              <Home className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
+              Select Your Rooms
+            </h2>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Choose rooms and specify quantity and size
+            </p>
+          </div>
 
-      <div className="space-y-6">
-        {/* Essential Rooms */}
-        <div>
+          <div className="space-y-6">
+            {/* Essential Rooms */}
+            <div>
           <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-primary" />
             Essential Rooms
@@ -207,38 +241,40 @@ export const Step2Rooms = ({ rooms, setRooms, onNext, onPrev }: Step2Props) => {
               <RoomCard key={id} roomId={id} roomData={data} />
             ))}
           </div>
-        </div>
-      </div>
+            </div>
+          </div>
 
-      {!hasMinimumRooms() && (
-        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-sm text-destructive">
-          ⚠️ Please select at least: Living Room, 1 Bedroom, Kitchen, and 1 Bathroom
-        </div>
-      )}
+          {!hasMinimumRooms() && (
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-sm text-destructive">
+              ⚠️ Please select at least: Living Room, 1 Bedroom, Kitchen, and 1 Bathroom
+            </div>
+          )}
 
-      <div className="flex gap-3 pt-4">
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          onClick={onPrev}
-          className="flex-1"
-        >
-          <ArrowLeft className="w-5 h-5 mr-2" />
-          Back
-        </Button>
-        <Button
-          type="button"
-          variant="hero"
-          size="lg"
-          onClick={onNext}
-          disabled={!hasMinimumRooms()}
-          className="flex-1 group"
-        >
-          Continue
-          <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-        </Button>
-      </div>
+          <div className="flex gap-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              onClick={onPrev}
+              className="flex-1 glass-button"
+            >
+              <ArrowLeft className="w-5 h-5 mr-2" />
+              Back
+            </Button>
+            <Button
+              type="button"
+              variant="hero"
+              size="lg"
+              onClick={onNext}
+              disabled={!hasMinimumRooms()}
+              className="flex-1 group glass-button"
+            >
+              Continue
+              <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

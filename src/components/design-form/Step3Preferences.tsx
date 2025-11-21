@@ -45,21 +45,23 @@ export const Step3Preferences = ({
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="text-center space-y-3 mb-6">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center mx-auto shadow-glow">
-          <Palette className="w-8 h-8 text-white" />
-        </div>
-        <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
-          Design Preferences
-        </h2>
-        <p className="text-muted-foreground max-w-md mx-auto">
-          Customize your house style and features
-        </p>
-      </div>
+      <Card className="glass-card border-2">
+        <CardContent className="p-8">
+          <div className="text-center space-y-3 mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center mx-auto shadow-glow">
+              <Palette className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
+              Design Preferences
+            </h2>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Customize your house style and features
+            </p>
+          </div>
 
-      <div className="space-y-6">
-        {/* Architectural Style */}
-        <Card className="border-border/50">
+          <div className="space-y-6">
+            {/* Architectural Style */}
+            <Card className="border-border/50 glass-card">
           <CardContent className="p-6 space-y-4">
             <div className="flex items-center gap-2 mb-3">
               <Palette className="w-5 h-5 text-primary" />
@@ -82,10 +84,10 @@ export const Step3Preferences = ({
               ))}
             </div>
           </CardContent>
-        </Card>
+            </Card>
 
-        {/* Number of Floors */}
-        <Card className="border-border/50">
+            {/* Number of Floors */}
+            <Card className="border-border/50 glass-card">
           <CardContent className="p-6 space-y-4">
             <div className="flex items-center gap-2 mb-3">
               <Layers className="w-5 h-5 text-primary" />
@@ -111,10 +113,10 @@ export const Step3Preferences = ({
               ))}
             </div>
           </CardContent>
-        </Card>
+            </Card>
 
-        {/* Outdoor Features */}
-        <Card className="border-border/50">
+            {/* Outdoor Features */}
+            <Card className="border-border/50 glass-card">
           <CardContent className="p-6 space-y-4">
             <h3 className="font-semibold text-lg mb-3">Outdoor Features</h3>
             <div className="grid sm:grid-cols-2 gap-3">
@@ -150,10 +152,10 @@ export const Step3Preferences = ({
               })}
             </div>
           </CardContent>
-        </Card>
+            </Card>
 
-        {/* Toggle Options */}
-        <Card className="border-border/50">
+            {/* Toggle Options */}
+            <Card className="border-border/50 glass-card">
           <CardContent className="p-6 space-y-4">
             <h3 className="font-semibold text-lg mb-3">Additional Options</h3>
             
@@ -195,32 +197,34 @@ export const Step3Preferences = ({
               </div>
             </div>
           </CardContent>
-        </Card>
-      </div>
+            </Card>
+          </div>
 
-      <div className="flex gap-3 pt-4">
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          onClick={onPrev}
-          className="flex-1"
-        >
-          <ArrowLeft className="w-5 h-5 mr-2" />
-          Back
-        </Button>
-        <Button
-          type="button"
-          variant="hero"
-          size="lg"
-          onClick={onNext}
-          disabled={!preferences.style}
-          className="flex-1 group"
-        >
-          Review & Generate
-          <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-        </Button>
-      </div>
+          <div className="flex gap-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              onClick={onPrev}
+              className="flex-1 glass-button"
+            >
+              <ArrowLeft className="w-5 h-5 mr-2" />
+              Back
+            </Button>
+            <Button
+              type="button"
+              variant="hero"
+              size="lg"
+              onClick={onNext}
+              disabled={!preferences.style}
+              className="flex-1 group glass-button"
+            >
+              Review & Generate
+              <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

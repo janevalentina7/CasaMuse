@@ -1,14 +1,18 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { FormProgress } from "./FormProgress";
 import { Step1LandArea } from "./Step1LandArea";
 import { Step2Rooms, RoomSelection } from "./Step2Rooms";
 import { Step3Preferences, DesignPreferences } from "./Step3Preferences";
 import { Step4Review } from "./Step4Review";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { ROOM_DATA } from "@/data/roomSizes";
 
 const STEPS = ["Land Area", "Rooms", "Preferences", "Review"];
 
 export const DesignForm = () => {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [landArea, setLandArea] = useState("");
   const [rooms, setRooms] = useState<RoomSelection[]>([]);
@@ -19,6 +23,7 @@ export const DesignForm = () => {
     dynamicScaling: true,
     outdoorFeatures: [],
   });
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const handleStep1Next = () => {
     const area = parseFloat(landArea);
@@ -48,26 +53,62 @@ export const DesignForm = () => {
     toast.success("Preferences saved!");
   };
 
-  const handleSubmit = () => {
-    // Here you would normally send the data to your backend/AI service
-    toast.success("Generating your design! This may take a moment...", {
-      duration: 5000,
-    });
-    
-    // Log the complete form data
-    console.log("Design Form Submission:", {
-      landArea,
-      rooms,
-      preferences,
+  const handleSubmit = async () => {
+    setIsGenerating(true);
+    toast.info("Generating your professional floor plan...", {
+      description: "This may take 20-30 seconds",
+      duration: 3000,
     });
 
-    // Simulate processing
-    setTimeout(() => {
-      toast.success("Your floor plan is ready!", {
-        description: "Check your email for the complete design package.",
-        duration: 5000,
+    try {
+      // Prepare room data with full details
+      const roomsWithDetails = rooms.map((room) => {
+        const roomData = ROOM_DATA[room.roomId];
+        const sizeData = roomData.sizes[room.size];
+        return {
+          roomId: room.roomId,
+          roomName: roomData.name,
+          count: room.count,
+          size: room.size,
+          width: sizeData.width,
+          height: sizeData.height,
+          attachedBathroom: room.attachedBathroom,
+        };
       });
-    }, 3000);
+
+      // Call the edge function to generate floor plan
+      const { data, error } = await supabase.functions.invoke('generate-floor-plan', {
+        body: {
+          landArea,
+          rooms: roomsWithDetails,
+          preferences,
+        },
+      });
+
+      if (error) throw error;
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to generate floor plan');
+      }
+
+      toast.success("Floor plan generated successfully!");
+
+      // Navigate to results page with the generated image
+      navigate('/floor-plan-result', {
+        state: {
+          imageUrl: data.imageUrl,
+          description: data.description,
+        },
+      });
+
+    } catch (error) {
+      console.error('Error generating floor plan:', error);
+      toast.error("Failed to generate floor plan", {
+        description: error instanceof Error ? error.message : "Please try again",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -112,6 +153,7 @@ export const DesignForm = () => {
             preferences={preferences}
             onPrev={() => setCurrentStep(3)}
             onSubmit={handleSubmit}
+            isGenerating={isGenerating}
           />
         )}
       </div>

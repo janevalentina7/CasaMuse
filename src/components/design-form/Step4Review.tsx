@@ -13,6 +13,7 @@ interface Step4Props {
   preferences: DesignPreferences;
   onPrev: () => void;
   onSubmit: () => void;
+  isGenerating?: boolean;
 }
 
 export const Step4Review = ({
@@ -21,6 +22,7 @@ export const Step4Review = ({
   preferences,
   onPrev,
   onSubmit,
+  isGenerating = false,
 }: Step4Props) => {
   const calculateTotalArea = () => {
     let total = 0;
@@ -58,27 +60,29 @@ export const Step4Review = ({
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="text-center space-y-3 mb-6">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center mx-auto shadow-glow">
-          <CheckCircle className="w-8 h-8 text-white" />
-        </div>
-        <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
-          Review Your Design
-        </h2>
-        <p className="text-muted-foreground max-w-md mx-auto">
-          Verify all details before generating your floor plan
-        </p>
-      </div>
+      <Card className="glass-card border-2">
+        <CardContent className="p-8">
+          <div className="text-center space-y-3 mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center mx-auto shadow-glow">
+              <CheckCircle className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
+              Review Your Design
+            </h2>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Verify all details before generating your floor plan
+            </p>
+          </div>
 
-      {/* Area Summary */}
-      <Card
-        className={cn(
-          "border-2",
-          exceedsArea
-            ? "border-destructive/50 bg-destructive/5"
-            : "border-primary/50 bg-primary/5"
-        )}
-      >
+          {/* Area Summary */}
+          <Card
+            className={cn(
+              "border-2 glass-card",
+              exceedsArea
+                ? "border-destructive/50 bg-destructive/5"
+                : "border-primary/50 bg-primary/5"
+            )}
+          >
         <CardContent className="p-6">
           <div className="space-y-4">
             <div className="flex justify-between items-center">
@@ -133,8 +137,8 @@ export const Step4Review = ({
         </Alert>
       )}
 
-      {/* Room Summary */}
-      <Card className="border-border/50">
+          {/* Room Summary */}
+          <Card className="border-border/50 glass-card">
         <CardContent className="p-6 space-y-4">
           <h3 className="font-semibold text-lg mb-3">Selected Rooms</h3>
           <div className="space-y-2">
@@ -160,8 +164,8 @@ export const Step4Review = ({
         </CardContent>
       </Card>
 
-      {/* Preferences Summary */}
-      <Card className="border-border/50">
+          {/* Preferences Summary */}
+          <Card className="border-border/50 glass-card">
         <CardContent className="p-6 space-y-4">
           <h3 className="font-semibold text-lg mb-3">Design Preferences</h3>
           <div className="grid sm:grid-cols-2 gap-3">
@@ -206,30 +210,32 @@ export const Step4Review = ({
         </CardContent>
       </Card>
 
-      <div className="flex gap-3 pt-4">
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          onClick={onPrev}
-          className="flex-1"
-        >
-          <ArrowLeft className="w-5 h-5 mr-2" />
-          Back
-        </Button>
-        <Button
-          type="button"
-          variant="hero"
-          size="xl"
-          onClick={onSubmit}
-          disabled={needsScaling}
-          className="flex-1 group"
-        >
-          <Sparkles className="w-5 h-5 mr-2" />
-          Generate Design
-          <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-        </Button>
-      </div>
+          <div className="flex gap-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              onClick={onPrev}
+              className="flex-1 glass-button"
+            >
+              <ArrowLeft className="w-5 h-5 mr-2" />
+              Back
+            </Button>
+            <Button
+              type="button"
+              variant="hero"
+              size="xl"
+              onClick={onSubmit}
+              disabled={needsScaling || isGenerating}
+              className="flex-1 group glass-button"
+            >
+              <Sparkles className="w-5 h-5 mr-2" />
+              {isGenerating ? "Generating..." : "Generate Design"}
+              <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
