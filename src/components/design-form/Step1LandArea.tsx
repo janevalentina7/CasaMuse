@@ -89,7 +89,7 @@ export const Step1LandArea = ({ landArea, setLandArea, onNext, error }: Step1Pro
             type="submit"
             variant="hero"
             size="lg"
-            className="w-full group glass-button mt-6"
+            className="w-full group mt-6 bg-primary text-white hover:bg-primary/90"
             disabled={!landArea || parseFloat(landArea) < 100}
           >
             Continue to Room Selection

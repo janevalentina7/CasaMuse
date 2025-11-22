@@ -206,7 +206,7 @@ export const Step3Preferences = ({
               variant="outline"
               size="lg"
               onClick={onPrev}
-              className="flex-1 glass-button"
+              className="flex-1"
             >
               <ArrowLeft className="w-5 h-5 mr-2" />
               Back
@@ -217,7 +217,7 @@ export const Step3Preferences = ({
               size="lg"
               onClick={onNext}
               disabled={!preferences.style}
-              className="flex-1 group glass-button"
+              className="flex-1 group bg-primary text-white hover:bg-primary/90"
             >
               Review & Generate
               <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
