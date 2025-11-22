@@ -47,6 +47,13 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        palette: {
+          coral: "hsl(var(--palette-coral))",
+          pink: "hsl(var(--palette-pink))",
+          peach: "hsl(var(--palette-peach))",
+          sage: "hsl(var(--palette-sage))",
+          teal: "hsl(var(--palette-teal))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -67,6 +74,7 @@ export default {
         'gradient-primary': 'var(--gradient-primary)',
         'gradient-hero': 'var(--gradient-hero)',
         'gradient-dark': 'var(--gradient-dark)',
+        'gradient-warm': 'var(--gradient-warm)',
       },
       boxShadow: {
         'glow': 'var(--shadow-glow)',

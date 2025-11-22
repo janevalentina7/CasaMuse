@@ -100,7 +100,9 @@ export const Step2Rooms = ({ rooms, setRooms, onNext, onPrev }: Step2Props) => {
       <Card
         className={cn(
           "border-2 transition-all duration-300 hover:shadow-soft glass-card",
-          count > 0 ? "border-primary shadow-glow" : "border-border/50"
+          count > 0 
+            ? "border-primary ring-4 ring-primary/20 shadow-glow" 
+            : "border-border/50 hover:border-primary/30"
         )}
       >
         <CardContent className="p-4 space-y-3">
@@ -131,19 +133,19 @@ export const Step2Rooms = ({ rooms, setRooms, onNext, onPrev }: Step2Props) => {
               type="button"
               variant="outline"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 glass-button hover:bg-primary hover:text-primary-foreground"
               onClick={() => updateRoom(roomId, Math.max(0, count - 1), size)}
             >
               <Minus className="w-4 h-4" />
             </Button>
-            <div className="flex-1 text-center font-semibold">
+            <div className="flex-1 text-center font-semibold text-foreground">
               {count} {count === 1 ? "room" : "rooms"}
             </div>
             <Button
               type="button"
               variant="outline"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 glass-button hover:bg-primary hover:text-primary-foreground"
               onClick={() => updateRoom(roomId, count + 1, size)}
             >
               <Plus className="w-4 h-4" />

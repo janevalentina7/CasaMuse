@@ -32,7 +32,19 @@ serve(async (req) => {
     const outdoorFeatures = preferences.outdoorFeatures?.join(", ") || "None";
 
     // Create comprehensive architectural prompt
-    const prompt = `Create a professional, architect-grade 2D floor plan with the following specifications:
+    const prompt = `Create a professional, architect-grade 2D floor plan image with the following specifications:
+
+CRITICAL LABELING REQUIREMENTS:
+- Every room MUST have a clear, readable label showing:
+  * Room name (e.g., "Living Room", "Master Bedroom")
+  * Dimensions in feet (e.g., "12' × 16'")
+- Labels must be positioned centrally in each room
+- Use large, bold, professional font for all labels
+- Add dimension arrows on walls showing measurements
+- Include a clear legend/key explaining symbols
+- Add total built-up area calculation at bottom
+
+FLOOR PLAN SPECIFICATIONS:
 
 PLOT DETAILS:
 - Total Land Area: ${landArea} sq ft

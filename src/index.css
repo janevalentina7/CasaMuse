@@ -9,45 +9,53 @@ All colors MUST be HSL.
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 315 55% 18%;
+    --foreground: 222 13% 20%;
 
     --card: 0 0% 100%;
-    --card-foreground: 315 55% 18%;
+    --card-foreground: 222 13% 20%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 315 55% 18%;
+    --popover-foreground: 222 13% 20%;
 
-    --primary: 350 80% 65%;
+    --primary: 351 99% 64%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 20 85% 70%;
-    --secondary-foreground: 315 55% 18%;
+    --secondary: 168 22% 60%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 350 20% 96%;
-    --muted-foreground: 315 30% 50%;
+    --accent: 16 92% 77%;
+    --accent-foreground: 222 13% 20%;
 
-    --accent: 315 55% 18%;
-    --accent-foreground: 0 0% 100%;
+    --muted: 60 10% 80%;
+    --muted-foreground: 222 13% 50%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 350 30% 90%;
-    --input: 350 30% 95%;
-    --ring: 350 80% 65%;
+    --border: 60 10% 88%;
+    --input: 60 10% 95%;
+    --ring: 351 99% 64%;
 
     --radius: 0.75rem;
     
-    /* Custom design tokens */
-    --gradient-primary: linear-gradient(135deg, hsl(350 80% 65%), hsl(20 85% 70%));
-    --gradient-hero: linear-gradient(135deg, hsl(350 80% 65% / 0.1), hsl(20 85% 70% / 0.1));
-    --gradient-dark: linear-gradient(135deg, hsl(315 55% 18%), hsl(315 45% 25%));
+    /* Color palette from image */
+    --palette-coral: 351 99% 64%;
+    --palette-pink: 352 95% 80%;
+    --palette-peach: 16 92% 77%;
+    --palette-sage: 60 10% 80%;
+    --palette-teal: 168 22% 60%;
     
-    --shadow-glow: 0 20px 60px -15px hsl(350 80% 65% / 0.3);
-    --shadow-soft: 0 10px 30px -10px hsl(315 55% 18% / 0.1);
+    /* Custom design tokens */
+    --gradient-primary: linear-gradient(135deg, hsl(351 99% 64%), hsl(352 95% 80%));
+    --gradient-hero: linear-gradient(135deg, hsl(351 99% 64% / 0.1), hsl(16 92% 77% / 0.1));
+    --gradient-dark: linear-gradient(135deg, hsl(168 22% 60%), hsl(168 22% 50%));
+    --gradient-warm: linear-gradient(135deg, hsl(351 99% 64%), hsl(16 92% 77%));
+    
+    --shadow-glow: 0 20px 60px -15px hsl(351 99% 64% / 0.3);
+    --shadow-soft: 0 10px 30px -10px hsl(222 13% 20% / 0.1);
     
     /* Glass Effect */
-    --glass-bg: hsla(var(--background) / 0.7);
+    --glass-bg: hsla(var(--background) / 0.8);
     --glass-border: hsla(var(--border) / 0.3);
     --glass-blur: blur(12px);
     
@@ -71,43 +79,44 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 315 55% 12%;
+    --background: 222 13% 10%;
     --foreground: 0 0% 98%;
 
-    --card: 315 45% 16%;
+    --card: 222 13% 15%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 315 45% 16%;
+    --popover: 222 13% 15%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 350 80% 65%;
+    --primary: 351 99% 64%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 20 85% 70%;
-    --secondary-foreground: 315 55% 18%;
+    --secondary: 168 22% 60%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 315 45% 20%;
-    --muted-foreground: 350 20% 70%;
+    --accent: 16 92% 77%;
+    --accent-foreground: 222 13% 20%;
 
-    --accent: 315 55% 18%;
-    --accent-foreground: 0 0% 100%;
+    --muted: 222 13% 20%;
+    --muted-foreground: 60 10% 70%;
 
     --destructive: 0 62.8% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 315 45% 25%;
-    --input: 315 45% 20%;
-    --ring: 350 80% 65%;
+    --border: 222 13% 25%;
+    --input: 222 13% 20%;
+    --ring: 351 99% 64%;
     
-    --gradient-primary: linear-gradient(135deg, hsl(350 80% 65%), hsl(20 85% 70%));
-    --gradient-hero: linear-gradient(135deg, hsl(350 80% 65% / 0.15), hsl(20 85% 70% / 0.15));
-    --gradient-dark: linear-gradient(135deg, hsl(315 55% 12%), hsl(315 45% 18%));
+    --gradient-primary: linear-gradient(135deg, hsl(351 99% 64%), hsl(352 95% 80%));
+    --gradient-hero: linear-gradient(135deg, hsl(351 99% 64% / 0.15), hsl(16 92% 77% / 0.15));
+    --gradient-dark: linear-gradient(135deg, hsl(222 13% 10%), hsl(222 13% 15%));
+    --gradient-warm: linear-gradient(135deg, hsl(351 99% 64%), hsl(16 92% 77%));
     
-    --shadow-glow: 0 20px 60px -15px hsl(350 80% 65% / 0.4);
-    --shadow-soft: 0 10px 30px -10px hsl(315 55% 8% / 0.5);
+    --shadow-glow: 0 20px 60px -15px hsl(351 99% 64% / 0.4);
+    --shadow-soft: 0 10px 30px -10px hsl(222 13% 8% / 0.5);
     
     /* Glass Effect */
-    --glass-bg: hsla(var(--background) / 0.6);
+    --glass-bg: hsla(var(--background) / 0.7);
     --glass-border: hsla(var(--border) / 0.2);
     
     --sidebar-background: 240 5.9% 10%;
