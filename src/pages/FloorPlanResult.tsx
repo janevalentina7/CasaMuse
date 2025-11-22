@@ -1,12 +1,17 @@
 import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Home, Download, ArrowLeft, Share2 } from "lucide-react";
+import { Home, Download, ArrowLeft, Share2, Box } from "lucide-react";
 import { toast } from "sonner";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const FloorPlanResult = () => {
   const location = useLocation();
-  const { imageUrl, description } = location.state || {};
+  const { imageUrl, description, formData } = location.state || {};
+  const [is3DGenerating, setIs3DGenerating] = useState(false);
+  const [model3DUrl, setModel3DUrl] = useState<string | null>(null);
+  const [model3DDescription, setModel3DDescription] = useState<string>("");
 
   const handleDownload = () => {
     if (!imageUrl) return;
@@ -34,6 +39,42 @@ const FloorPlanResult = () => {
       }
     } else {
       toast.info("Sharing not supported on this browser");
+    }
+  };
+
+  const handleGenerate3D = async () => {
+    if (!imageUrl || !formData) {
+      toast.error("Floor plan data not available");
+      return;
+    }
+
+    setIs3DGenerating(true);
+    toast.info("Generating 3D model... This may take a moment.");
+
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-3d-model', {
+        body: {
+          floorPlanImageUrl: imageUrl,
+          landArea: formData.landArea,
+          rooms: formData.rooms,
+          preferences: formData.preferences,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data?.imageUrl) {
+        setModel3DUrl(data.imageUrl);
+        setModel3DDescription(data.description);
+        toast.success("3D model generated successfully!");
+      } else {
+        throw new Error(data?.error || "Failed to generate 3D model");
+      }
+    } catch (error) {
+      console.error('Error generating 3D model:', error);
+      toast.error(error instanceof Error ? error.message : "Failed to generate 3D model. Please try again.");
+    } finally {
+      setIs3DGenerating(false);
     }
   };
 
@@ -123,6 +164,18 @@ const FloorPlanResult = () => {
               <Download className="w-5 h-5 mr-2" />
               Download Floor Plan
             </Button>
+            {!model3DUrl && (
+              <Button
+                variant="hero"
+                size="lg"
+                onClick={handleGenerate3D}
+                disabled={is3DGenerating}
+                className="glass-button group bg-gradient-warm"
+              >
+                <Box className="w-5 h-5 mr-2" />
+                {is3DGenerating ? "Generating 3D Model..." : "Generate 3D Model"}
+              </Button>
+            )}
             <Button
               variant="outline"
               size="lg"
@@ -139,6 +192,29 @@ const FloorPlanResult = () => {
               </Button>
             </Link>
           </div>
+
+          {/* 3D Model Display */}
+          {model3DUrl && (
+            <Card className="glass-card border-2 mt-8">
+              <CardContent className="p-6">
+                <h2 className="text-2xl font-bold mb-4 text-center">
+                  Your 3D Model
+                </h2>
+                {model3DDescription && (
+                  <p className="text-muted-foreground text-center mb-4">
+                    {model3DDescription}
+                  </p>
+                )}
+                <div className="relative rounded-lg overflow-hidden bg-white">
+                  <img
+                    src={model3DUrl}
+                    alt="Generated 3D Model"
+                    className="w-full h-auto"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Info Cards */}
           <div className="grid sm:grid-cols-3 gap-4 mt-12">

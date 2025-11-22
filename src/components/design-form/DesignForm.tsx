@@ -98,6 +98,11 @@ export const DesignForm = () => {
         state: {
           imageUrl: data.imageUrl,
           description: data.description,
+          formData: {
+            landArea,
+            rooms: roomsWithDetails,
+            preferences,
+          },
         },
       });
 

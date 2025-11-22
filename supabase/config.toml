@@ -1,1 +1,7 @@
 project_id = "xdcdpcjzopicpjolfews"
+
+[functions.generate-floor-plan]
+verify_jwt = false
+
+[functions.generate-3d-model]
+verify_jwt = false
