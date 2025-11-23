@@ -101,7 +101,7 @@ export const Step2Rooms = ({ rooms, setRooms, onNext, onPrev }: Step2Props) => {
         className={cn(
           "border-2 transition-all duration-300 hover:shadow-soft glass-card",
           count > 0 
-            ? "border-primary ring-4 ring-primary/20 shadow-glow" 
+            ? "border-primary ring-4 ring-primary/20 shadow-glow bg-primary/5" 
             : "border-border/50 hover:border-primary/30"
         )}
       >

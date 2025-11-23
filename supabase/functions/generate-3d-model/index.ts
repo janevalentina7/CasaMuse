@@ -20,256 +20,350 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    // Build detailed room list for prompt
-    const roomDetails = rooms.map((room: any) => {
-      const roomInfo = `${room.count}x ${room.roomName} (${room.size} size: ${room.width}'×${room.height}')`;
-      if (room.attachedBathroom) {
-        return `${roomInfo} with attached bathroom`;
-      }
-      return roomInfo;
-    }).join(", ");
+    const roomsDescription = rooms.map((room: any) => {
+      const roomInfo = `${room.count}x ${room.roomName} (${room.size}: ${room.width}'×${room.height}')`;
+      return room.attachedBathroom ? `${roomInfo} with attached bathroom` : roomInfo;
+    }).join('\n   ');
 
-    const outdoorFeatures = preferences.outdoorFeatures?.join(", ") || "None";
+    const outdoorDescription = preferences.outdoorFeatures?.length > 0 
+      ? `\nOUTDOOR FEATURES:\n   ${preferences.outdoorFeatures.join(', ')}` 
+      : '';
 
-    // Create comprehensive 3D modeling prompt
-    const prompt = `Generate a photorealistic, VR-ready 3D model of a house EXACTLY matching the provided 2D floor plan.
+    const prompt = `Generate a PHOTOREALISTIC, VR-READY, 360-DEGREE VIEWABLE 3D model of a ${preferences.style} style house.
 
-CRITICAL REQUIREMENTS:
-1. FLOOR PLAN FIDELITY (100% Accuracy Required):
-   - Follow the exact wall positions, dimensions, and layout from the floor plan image
-   - Match all door and window placements precisely
-   - Preserve room sizes and proportions exactly as shown
-   - Maintain the same circulation flow and connections between rooms
+CRITICAL FLOOR PLAN FIDELITY:
+- Follow the provided floor plan image EXACTLY
+- Match all wall positions, dimensions, thicknesses
+- Place doors and windows at exact locations shown in floor plan
+- Maintain room sizes and proportions precisely
+- Preserve circulation flow and pathways
+- ${preferences.floors}-story building
+- Land area: ${landArea} sq ft
+- Vastu compliant: ${preferences.vastuCompliant ? 'Yes' : 'No'}
 
-2. ARCHITECTURAL SPECIFICATIONS:
-   - Total Land Area: ${landArea} sq ft
-   - Number of Floors: ${preferences.floors}
-   - Architectural Style: ${preferences.style}
-   - Vastu Compliant: ${preferences.vastuCompliant ? "Yes" : "No"}
+ROOMS TO MODEL (with exact floor plan positions):
+   ${roomsDescription}
 
-3. ROOMS INCLUDED:
-   ${roomDetails}
+${outdoorDescription}
 
-4. OUTDOOR FEATURES:
-   ${outdoorFeatures}
+DETAILED ARCHITECTURAL SPECIFICATIONS FOR ${preferences.style.toUpperCase()} STYLE:
 
-5. EXTERIOR 3D MODELING (${preferences.style} Style):
-   ${getStyleExteriorSpec(preferences.style)}
+${getDetailedStyleSpec(preferences.style)}
 
-6. INTERIOR 3D MODELING:
-   - Fully furnished realistic interiors for each room
-   - Proper furniture placement: beds, sofas, dining table, kitchen counters
-   - Bathroom fixtures: WC, basin, shower, geyser
-   - Kitchen appliances: fridge, stove, sink, counters
-   - Wardrobes and storage units in bedrooms
-   - Realistic lighting (natural + artificial)
-   - Accurate materials and textures
-   - Wall height: 10 feet standard
-   - Indian-style ceiling fans in all rooms
-   - Proper electrical fittings and switches
+3D MODEL REQUIREMENTS:
+1. EXTERIOR MODELING:
+   - Build structure following ${preferences.style} architectural guidelines
+   - Generate realistic textures (walls, roof, wood, metal, glass)
+   - Add all openings (windows, balconies, doors) as per floor plan
+   - Include outdoor features: parking, garden, gate, balcony/terrace
+   - Add Indian practical elements: drainage pipes, shade/awnings, grills
 
-7. LIGHTING & MATERIALS:
-   - Natural daylight through windows
-   - Ambient lighting (ceiling lights, cove lighting)
-   - Task lighting (study lamps, kitchen lighting)
-   - Realistic shadows and reflections
-   - PBR materials (wood, tile, marble, paint, fabric)
-   - Match materials to ${preferences.style} aesthetic
+2. INTERIOR MODELING (Every Room):
+   - Place walls with appropriate textures
+   - Add windows/doors from floor plan positions
+   - Furnish according to ${preferences.style} style
+   - Add décor, lighting fixtures, switches, fans, AC units
+   - Apply proper flooring and ceiling treatments
+   - Include curtains, rugs, indoor plants
 
-8. INDIAN HOME FEATURES:
-   - Utility/wash area near kitchen
-   - ${preferences.vastuCompliant ? "Vastu-compliant room directions" : "Practical room placement"}
-   - Mosquito mesh on windows (subtle)
-   - Proper ventilation openings
-   - Space for water purifier in kitchen
-   - Washing machine placement in utility
+3. LIGHTING SYSTEM:
+   - Natural lighting through windows
+   - Interior ambient + task + accent lighting
+   - Exterior night lighting with warm/cool tones
+   - Ray-traced shadows for realism
 
-9. VR-READY SPECIFICATIONS:
-   - Real-world scale (accurate measurements)
-   - Walkable pathways (minimum 3 ft width)
-   - Collision-enabled walls and furniture
-   - Smooth navigation throughout
-   - Camera height at 5.5 ft (human eye level)
-   - Optimized mesh for performance
+4. MATERIAL ACCURACY:
+   - Correct material properties, reflectivity, roughness
+   - Realistic PBR shaders for all surfaces
 
-10. OUTPUT REQUIREMENTS:
-    - High-resolution 3D render from multiple angles:
-      * Exterior front view
-      * Exterior aerial/bird's eye view  
-      * Interior living room view
-      * Interior kitchen view
-      * Interior master bedroom view
-    - Create a professional architectural visualization
-    - Photorealistic materials and lighting
-    - Clean, polished, magazine-quality output
+5. VR WALKTHROUGH READY:
+   - Real-world scale (1 ft = 0.3048 meters)
+   - Collision-enabled walls, furniture, railings
+   - Pathways ≥ 3 feet wide, doors ≥ 3 ft
+   - Camera height: 1.62–1.7 m
 
-Generate a complete, professionally rendered 3D model that looks like it was created by an architect using Revit, SketchUp, or 3ds Max. The output should be stunning, realistic, and precisely match the floor plan dimensions and layout.`;
+6. INDIAN HOME FEATURES (Mandatory):
+   - Utility/wash area with washing machine space
+   - Pooja space (room or niche)
+   - Extra storage solutions
+   - Ceiling fans in all rooms
+   - Indian-style bathroom fixtures
+   - Heavy-cooking ventilation
+   - Mosquito mesh compatibility
 
-    // Generate 3D model using Lovable AI
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-image-preview',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: prompt
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: floorPlanImageUrl
+GENERATE 360-DEGREE VIEWABLE MODEL showing:
+- Complete exterior from all angles
+- Fully furnished interior spaces
+- Top view showing roof and layout
+- Side and back elevations
+- Interior walkthrough perspective
+
+The model must be production-ready, architecturally accurate, and suitable for VR walkthroughs.`;
+
+    try {
+      console.log('Calling Lovable AI Gateway for 3D generation...');
+      
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash-image-preview',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: prompt
+                },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: floorPlanImageUrl
+                  }
                 }
-              }
-            ]
-          }
-        ],
-        modalities: ['image', 'text']
-      }),
-    });
+              ]
+            }
+          ],
+          modalities: ['image', 'text']
+        }),
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI Gateway error:', response.status, errorText);
-      throw new Error(`AI Gateway error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log("3D Model AI Response received");
-
-    // Extract the generated image
-    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    const description = data.choices?.[0]?.message?.content || "Professional 3D model generated based on your floor plan.";
-
-    if (!imageUrl) {
-      throw new Error('No 3D model image generated');
-    }
-
-    return new Response(
-      JSON.stringify({ 
-        imageUrl, 
-        description,
-        success: true 
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AI Gateway error:', response.status, errorText);
+        throw new Error(`AI Gateway error: ${response.status}`);
       }
-    );
 
+      const data = await response.json();
+      console.log('AI response received');
+
+      const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+      const description = data.choices?.[0]?.message?.content || 'Your 3D model has been generated';
+
+      if (!imageUrl) {
+        throw new Error('No 3D model image generated');
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          imageUrl, 
+          description,
+          success: true 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
+        }
+      );
+    } catch (error) {
+      console.error('Error in generate-3d-model function:', error);
+      return new Response(
+        JSON.stringify({ 
+          error: error instanceof Error ? error.message : 'Unknown error',
+          success: false 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500 
+        }
+      );
+    }
   } catch (error) {
-    console.error('Error in generate-3d-model function:', error);
+    console.error('Error parsing request:', error);
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : 'Unknown error',
         success: false 
       }),
-      {
-        status: 500,
+      { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500 
       }
     );
   }
 });
 
-function getStyleExteriorSpec(style: string): string {
-  const specs: Record<string, string> = {
-    'Modern': `
-   - Flat or low-slope roof
-   - White/grey/beige color palette
-   - Large glass sliding doors and windows
-   - Clean geometric lines
-   - Wooden accent cladding panels
-   - LED strip lighting on façade
-   - Minimalist gate and boundary
-   - Modern pergola over parking`,
-    
-    'Contemporary': `
-   - Asymmetrical roof design
-   - Mixed materials: stone, texture paint, metal
-   - Dark-framed tall windows
-   - Vertical architectural fins
-   - Ambient exterior lighting
-   - Green walls or vertical garden elements
-   - Bold statement elements`,
-    
-    'Traditional': `
-   - Sloping tiled roof (clay or terracotta)
-   - Carved wooden main entrance door
-   - Jaali patterns on windows and railings
-   - Courtyard (optional)
-   - Earthy colors: ochre, terracotta, cream
-   - Decorative pillars at entrance
-   - Traditional lantern-style lighting`,
-    
-    'Scandinavian': `
-   - White or light pastel exterior walls
-   - Natural light wood finishes
-   - Large windows for maximum natural light
-   - Simple, functional design
-   - Minimal ornamentation
-   - Sloped or flat roof
-   - Clean lines with warm touches`,
-    
-    'Mediterranean': `
-   - White stucco walls
-   - Blue or sea-green accent colors
-   - Terracotta or tiled roof
-   - Arched doorways and windows
-   - Wrought iron railings and fixtures
-   - Natural stone accents
-   - Outdoor terrace/patio area`,
-    
-    'Industrial': `
-   - Exposed brick walls
-   - Metal-framed large windows
-   - Concrete and steel elements
-   - Raw, unfinished aesthetic
-   - Minimalist approach
-   - Open, loft-like feel
-   - Edison bulb style lighting`,
-    
-    'Rustic': `
-   - Natural stone exterior walls
-   - Heavy timber framing
-   - Wooden doors and shutters
-   - Warm earth-tone colors
-   - Natural landscaping integration
-   - Covered porch or veranda
-   - Vintage-style outdoor lighting`,
-    
-    'Colonial': `
-   - Symmetrical façade
-   - Shuttered windows
-   - Columned front porch
-   - Hip or gable roof
-   - Neutral color palette
-   - Decorative crown molding
-   - Classic proportions`,
-    
-    'Minimalist': `
-   - Extremely clean flat surfaces
-   - Monochromatic color scheme (white/grey/black)
-   - Hidden/recessed lighting
-   - Large glass panels
-   - No ornamental elements
-   - Perfect geometric forms
-   - Zen-like simplicity`,
-    
-    'Luxury': `
-   - Grand double-height entrance
-   - Premium materials: marble, granite, imported wood
-   - Dramatic lighting fixtures
-   - Water features (fountain)
-   - Manicured landscaping
-   - Gated entrance with intercom
-   - Statement driveway and parking`
+function getDetailedStyleSpec(style: string): string {
+  const specs: { [key: string]: string } = {
+    'Modern': `MODERN ARCHITECTURE - Clean lines, geometric luxury
+
+EXTERIOR:
+- Flat or low-slope roof
+- Boxy or cantilevered volumes
+- Large rectangular windows with black aluminum frames
+- Materials: smooth white plaster, exposed concrete panels, textured stone cladding, toughened glass
+- Balcony with frameless glass railings
+- Indian adaptations: sunshade projections, mosquito-proof mesh, heat-resistant roof tiles
+- Outdoor: LED strip lights along façade, minimal trimmed garden, sleek pergola parking
+
+INTERIOR:
+- Open-concept living-dining-kitchen
+- Matte finish laminates with hidden lighting (cove + spotlights)
+- Modular kitchen with breakfast counter
+- Modern straight-line furniture, neutral colors with accent wall
+- Glossy vitrified tiles or wooden flooring
+- Sliding glass/laminate wardrobes
+- Indian features: shoe rack at entrance, backlit pooja niche, utility area`,
+
+    'Contemporary': `CONTEMPORARY ARCHITECTURE - Trendy, asymmetrical, artistic
+
+EXTERIOR:
+- Mixed roof styles (flat + sloped), asymmetrical front elevation
+- Large vertical windows with tinted glass
+- Wooden-texture HPL panel highlights
+- Materials: stone + wood + glass mixture, ceramic tiles, dual-tone plaster
+- Indian adaptations: rain protection projection, curved contemporary grills
+- Outdoor: vertical garden panel, warm white façade lighting, sleek boundary
+
+INTERIOR:
+- Mix of wood + metal + stone materials
+- Floating staircase with glass railing
+- Statement chandelier in living area
+- Open kitchen with island
+- Feature walls (textured, marble, wooden slats)
+- Smart lighting + home automation ready
+- Indian features: spacious utility, integrated storage, ventilation for cooking`,
+
+    'Traditional': `TRADITIONAL INDIAN ARCHITECTURE - Classic charm, cultural richness
+
+EXTERIOR:
+- Sloped red-tile roof with carved wooden pillars
+- Arched entrances, symmetrical windows with wooden shutters
+- Materials: red clay tiles, natural stone, polished teak wood, terracotta
+- Jaali patterns on railings/balconies
+- Indian features: decorative railing, small veranda, courtyard option
+- Outdoor: tulasi madam, courtyard-style garden, lantern-style lamps
+
+INTERIOR:
+- Warm wooden furniture with carved detailing
+- Ethnic tiles/skirting, earthy colors
+- Brass or copper décor elements
+- Optional courtyard with skylight
+- Separate pooja room with traditional design
+- Indian features: spacious storage kitchen, utility for traditional cooking, wide passageways, jhula option`,
+
+    'Minimalist': `MINIMALIST ARCHITECTURE - Extremely clean, uncluttered, calm
+
+EXTERIOR:
+- Clean rectangle volumes with zero ornamentation
+- Flat roof only, simple long windows
+- Materials: smooth white/grey plaster, matte black metal frames
+- Indian adaptations: deep projections for shade, subtle courtyard/water feature
+- Outdoor: zen garden, hidden lighting, invisible boundary effect
+
+INTERIOR:
+- Maximum open space with minimal furniture
+- Pure white/grey palette
+- Hidden storage solutions
+- Simple linear lighting
+- No decorative elements
+- Indian features: concealed utility, minimal pooja corner, dust-resistant surfaces`,
+
+    'Luxury': `LUXURY ARCHITECTURE - Premium, grand, expensive elegance
+
+EXTERIOR:
+- Grand double-height façade with full glass walls
+- Marble cladding with dramatic entrance walkway
+- Ornate glass/metal balcony railings
+- Materials: Italian marble façade, gold-accent trims, laminated glass, wooden slats
+- Indian adaptations: heat reflective coating, spacious portico, marble courtyard
+- Outdoor: water fountain, LED pillar lights, high-end landscape
+
+INTERIOR:
+- Double-height living with premium finishes
+- Statement lighting (chandeliers, designer fixtures)
+- Imported marble/granite flooring
+- Custom luxury furniture
+- High-end modular kitchen with premium appliances
+- Walk-in wardrobes with luxury fittings
+- Indian features: grand pooja room, servant quarters option, luxury utility`,
+
+    'Scandinavian': `SCANDINAVIAN ARCHITECTURE - Cozy, pastel, wooden, airy
+
+EXTERIOR:
+- Light sloped roof with vertical wooden slats
+- Large picture windows, cute covered porch
+- Materials: pine wood panels, pastel exterior paint, grey stone base
+- Indian adaptations: heat-protective roofing, wide overhang for rains
+- Outdoor: soft warm lighting, minimal pebble garden, simple wooden seating
+
+INTERIOR:
+- Light wooden floors with white walls
+- Beige/caramel accents, cozy fabrics (linen, cotton)
+- Soft natural lighting with functional furniture
+- Rounded edges, indoor plants
+- Indian features: closed cabinetry for dust, matte tiles, subtle pooja corner`,
+
+    'Industrial': `INDUSTRIAL ARCHITECTURE - Raw, rugged, factory-inspired
+
+EXTERIOR:
+- Exposed brick façade with flat metal roof
+- Large steel-frame windows, visible metal beams
+- Materials: red/black brick, matte grey metal, raw concrete
+- Indian adaptations: clay brick with weather-protection, metal mesh ventilation
+- Outdoor: factory-style lamps, concrete pathway, simple shrubs
+
+INTERIOR:
+- Exposed brick walls and concrete surfaces
+- Visible ducting and pipes
+- Metal and wood furniture combinations
+- Edison bulb lighting, metal fixtures
+- Open shelving and industrial hardware
+- Indian features: practical utility space, minimal ornamentation`,
+
+    'Colonial': `COLONIAL ARCHITECTURE - Symmetry, grandeur, heritage
+
+EXTERIOR:
+- Big pillars in front with arched windows
+- Symmetrical façade, sloped tiled roof
+- Materials: white plaster, wooden window frames, stone pedestals
+- Indian features: large veranda, red oxide entrance flooring
+- Outdoor: front garden with fountain, decorative lanterns
+
+INTERIOR:
+- High ceilings with ornate moldings
+- Symmetrical room layouts
+- Classic wooden furniture
+- Plantation shutters on windows
+- Formal living and dining spaces
+- Indian features: traditional pooja room, servant quarters provision`,
+
+    'Mediterranean': `MEDITERRANEAN ARCHITECTURE - Warm, coastal, textured
+
+EXTERIOR:
+- Clay tile roof with arched doorways/windows
+- Earthy-toned façade, wrought-iron balcony railings
+- Materials: terracotta tiles, stucco plaster, sandstone accents
+- Indian adaptations: larger shade projections, heat-reflective under tiles
+- Outdoor: olive-style plants, soft yellow lighting, stone pathway
+
+INTERIOR:
+- Arched door frames with pastel interiors
+- Mosaic tiles, light wooden beams
+- Sheer curtains, rustic-chic furniture
+- Warm ambient lighting
+- Indian features: closed kitchen option, utility room, mosquito mesh windows`,
+
+    'Rustic': `RUSTIC ARCHITECTURE - Natural, earthy, organic
+
+EXTERIOR:
+- Exposed stone walls with wooden beams
+- Sloping roof, big earthy windows
+- Materials: natural stone, dark wood, clay tiles
+- Indian features: stone jaali accents, mud-inspired textures
+- Outdoor: lantern lights, wild plant garden, wooden sit-out
+
+INTERIOR:
+- Natural stone feature walls
+- Rough-hewn wooden beams and furniture
+- Earthy color palette (browns, greens, terracotta)
+- Traditional handcrafted elements
+- Warm ambient lighting with lanterns
+- Indian features: traditional cooking space, natural ventilation`
   };
 
   return specs[style] || specs['Modern'];

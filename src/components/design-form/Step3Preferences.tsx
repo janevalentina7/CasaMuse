@@ -74,7 +74,7 @@ export const Step3Preferences = ({
               type="button"
               variant={preferences.style === style ? "default" : "outline"}
               className={cn(
-                "h-auto py-3 hover:scale-105 transition-all glass-button",
+                "h-auto py-3 hover:scale-105 transition-all",
                 preferences.style === style && "ring-4 ring-primary/30 shadow-glow"
               )}
               onClick={() => setPreferences({ ...preferences, style })}
@@ -100,7 +100,7 @@ export const Step3Preferences = ({
                   type="button"
                   variant={preferences.floors === floor ? "default" : "outline"}
                   className={cn(
-                    "h-16 text-lg font-semibold hover:scale-105 transition-all glass-button",
+                    "h-16 text-lg font-semibold hover:scale-105 transition-all",
                     preferences.floors === floor && "ring-4 ring-primary/30 shadow-glow"
                   )}
                   onClick={() => setPreferences({ ...preferences, floors: floor })}
@@ -128,10 +128,10 @@ export const Step3Preferences = ({
                     type="button"
                     onClick={() => toggleOutdoorFeature(id)}
                     className={cn(
-                      "p-4 rounded-lg border-2 text-left transition-all hover:scale-105 glass-card",
+                      "p-4 rounded-lg border-2 text-left transition-all hover:scale-105",
                       isSelected
                         ? "border-primary bg-primary/10 ring-4 ring-primary/20 shadow-glow"
-                        : "border-border/50 hover:border-primary/50"
+                        : "border-border/50 hover:border-primary/50 glass-card"
                     )}
                   >
                     <div className="flex items-center justify-between mb-1">
