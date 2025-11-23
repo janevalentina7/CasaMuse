@@ -11,9 +11,9 @@ serve(async (req) => {
   }
 
   try {
-    const { floorPlanImageUrl, landArea, rooms, preferences } = await req.json();
+    const { floorPlanImageUrl, landArea, rooms, preferences, view = '360', specificRoom } = await req.json();
     
-    console.log("Generating 3D model with data:", { landArea, rooms, preferences });
+    console.log("Generating 3D model with data:", { landArea, rooms, preferences, view, specificRoom });
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -29,7 +29,24 @@ serve(async (req) => {
       ? `\nOUTDOOR FEATURES:\n   ${preferences.outdoorFeatures.join(', ')}` 
       : '';
 
-    const prompt = `Generate a PHOTOREALISTIC, VR-READY, 360-DEGREE VIEWABLE 3D model of a ${preferences.style} style house.
+    // Define view-specific instructions
+    const viewInstructions: { [key: string]: string } = {
+      '360': 'Generate a stunning 360-degree exterior perspective view showing the entire house from a dramatic angle. Show the front elevation with architectural details, windows, doors, roof, and surrounding outdoor elements. Include depth, shadows, and realistic lighting. This should be the main hero shot of the house.',
+      'top': 'Generate a professional top-down aerial view (bird\'s eye view) showing the complete roof layout, building footprint, outdoor spaces, parking area, garden, and property boundaries. Show roof details, skylights, terrace areas, and the overall site layout clearly.',
+      'side': 'Generate a clear side elevation view showing the house from the lateral perspective. Display the full height of the building, side windows, balconies, architectural features, and how the house sits on the ground. Show depth and 3D volume.',
+      'back': 'Generate a detailed back/rear elevation view showing the rear façade of the house. Display back windows, doors, service areas, back garden or yard, and any outdoor features at the rear. Show architectural continuity with the front design.',
+      'interior': specificRoom 
+        ? `Generate a beautiful, fully furnished interior view of the ${specificRoom}. Show realistic furniture appropriate for this room type, décor items, lighting fixtures (ceiling lights, lamps), flooring with rugs if applicable, ceiling details (false ceiling, cove lighting), windows with curtains letting in natural light, and the overall interior design aesthetic matching the ${preferences.style} architectural style. Display the room's specific function and character with appropriate furnishings, layout, and ambiance. Make it look inviting, lived-in, and ready for use.`
+        : 'Generate a beautiful interior walkthrough view showing a fully furnished living room or main living space. Display complete furniture arrangement, décor items, lighting fixtures, flooring, ceiling details, windows with natural light, and the overall interior design aesthetic matching the architectural style. Show depth with visible adjacent rooms or hallways to give a sense of the home\'s flow.'
+    };
+
+    const viewInstruction = viewInstructions[view] || viewInstructions['360'];
+
+    const prompt = `${viewInstruction}
+
+ARCHITECTURAL STYLE: ${preferences.style}
+
+Generate a PHOTOREALISTIC, VR-READY 3D model visualization of this ${preferences.style} style house.
 
 CRITICAL FLOOR PLAN FIDELITY:
 - Follow the provided floor plan image EXACTLY

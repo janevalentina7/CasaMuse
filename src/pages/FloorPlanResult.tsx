@@ -2,10 +2,11 @@ import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, Download, ArrowLeft, Share2, Box, Eye } from "lucide-react";
+import { Home, Download, ArrowLeft, Share2, Box, Eye, Navigation } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import VirtualWalkthrough from "@/components/VirtualWalkthrough";
 
 const FloorPlanResult = () => {
   const location = useLocation();
@@ -14,6 +15,8 @@ const FloorPlanResult = () => {
   const [model3DUrl, setModel3DUrl] = useState<string | null>(null);
   const [model3DDescription, setModel3DDescription] = useState<string>("");
   const [currentView, setCurrentView] = useState<'main' | 'top' | 'side' | 'back' | 'interior'>('main');
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
+  const [walkthroughUrl, setWalkthroughUrl] = useState<string | null>(null);
 
   const handleDownload = () => {
     if (!imageUrl) return;
@@ -44,14 +47,16 @@ const FloorPlanResult = () => {
     }
   };
 
-  const handleGenerate3D = async () => {
+  const handleViewChange = async (view: 'main' | 'top' | 'side' | 'back' | 'interior') => {
+    setCurrentView(view);
     if (!imageUrl || !formData) {
       toast.error("Floor plan data not available");
       return;
     }
 
     setIs3DGenerating(true);
-    toast.info("Generating 3D model... This may take a moment.");
+    const viewLabel = view === 'main' ? '360° View' : view === 'top' ? 'Top View' : view === 'side' ? 'Side View' : view === 'back' ? 'Back View' : 'Interior View';
+    toast.info(`Generating ${viewLabel}... This may take a moment.`);
 
     try {
       const { data, error } = await supabase.functions.invoke('generate-3d-model', {
@@ -60,6 +65,7 @@ const FloorPlanResult = () => {
           landArea: formData.landArea,
           rooms: formData.rooms,
           preferences: formData.preferences,
+          view: view === 'main' ? '360' : view,
         }
       });
 
@@ -68,7 +74,7 @@ const FloorPlanResult = () => {
       if (data?.success && data?.imageUrl) {
         setModel3DUrl(data.imageUrl);
         setModel3DDescription(data.description);
-        toast.success("3D model generated successfully!");
+        toast.success("3D model view generated successfully!");
       } else {
         throw new Error(data?.error || "Failed to generate 3D model");
       }
@@ -77,6 +83,56 @@ const FloorPlanResult = () => {
       toast.error(error instanceof Error ? error.message : "Failed to generate 3D model. Please try again.");
     } finally {
       setIs3DGenerating(false);
+    }
+  };
+
+  const handleGenerate3D = () => {
+    handleViewChange('main');
+  };
+
+  const handleGenerateRoomView = async (roomName: string) => {
+    if (!imageUrl || !formData) {
+      toast.error("Floor plan data not available");
+      return;
+    }
+
+    setIs3DGenerating(true);
+    toast.info(`Generating ${roomName} view...`);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-3d-model', {
+        body: {
+          floorPlanImageUrl: imageUrl,
+          landArea: formData.landArea,
+          rooms: formData.rooms,
+          preferences: formData.preferences,
+          view: 'interior',
+          specificRoom: roomName,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data?.imageUrl) {
+        setWalkthroughUrl(data.imageUrl);
+        toast.success(`${roomName} view generated!`);
+      } else {
+        throw new Error(data?.error || "Failed to generate room view");
+      }
+    } catch (error) {
+      console.error('Error generating room view:', error);
+      toast.error(error instanceof Error ? error.message : "Failed to generate room view.");
+    } finally {
+      setIs3DGenerating(false);
+    }
+  };
+
+  const handleStartWalkthrough = () => {
+    if (formData?.rooms && formData.rooms.length > 0) {
+      setShowWalkthrough(true);
+      handleGenerateRoomView(formData.rooms[0].roomName);
+    } else {
+      toast.error("No rooms available for walkthrough");
     }
   };
 
@@ -172,10 +228,22 @@ const FloorPlanResult = () => {
                 size="lg"
                 onClick={handleGenerate3D}
                 disabled={is3DGenerating}
-                className="glass-button group bg-gradient-warm"
+                className="group"
               >
                 <Box className="w-5 h-5 mr-2" />
                 {is3DGenerating ? "Generating 3D Model..." : "Generate 3D Model"}
+              </Button>
+            )}
+            {model3DUrl && (
+              <Button
+                variant="hero"
+                size="lg"
+                onClick={handleStartWalkthrough}
+                disabled={is3DGenerating}
+                className="group"
+              >
+                <Navigation className="w-5 h-5 mr-2" />
+                Virtual Walkthrough
               </Button>
             )}
             <Button
@@ -194,6 +262,17 @@ const FloorPlanResult = () => {
               </Button>
             </Link>
           </div>
+
+          {/* Virtual Walkthrough */}
+          {showWalkthrough && formData?.rooms && (
+            <VirtualWalkthrough
+              rooms={formData.rooms}
+              style={formData.preferences?.style || "Modern"}
+              model3DUrl={walkthroughUrl || ""}
+              onGenerateRoomView={handleGenerateRoomView}
+              isGenerating={is3DGenerating}
+            />
+          )}
 
           {/* 3D Model Display */}
           {model3DUrl && (
@@ -216,7 +295,8 @@ const FloorPlanResult = () => {
                     <Button
                       variant={currentView === 'main' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setCurrentView('main')}
+                      onClick={() => handleViewChange('main')}
+                      disabled={is3DGenerating}
                       className="flex-1 min-w-[100px]"
                     >
                       <Box className="w-4 h-4 mr-2" />
@@ -225,7 +305,8 @@ const FloorPlanResult = () => {
                     <Button
                       variant={currentView === 'top' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setCurrentView('top')}
+                      onClick={() => handleViewChange('top')}
+                      disabled={is3DGenerating}
                       className="flex-1 min-w-[100px]"
                     >
                       <Eye className="w-4 h-4 mr-2" />
@@ -234,7 +315,8 @@ const FloorPlanResult = () => {
                     <Button
                       variant={currentView === 'side' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setCurrentView('side')}
+                      onClick={() => handleViewChange('side')}
+                      disabled={is3DGenerating}
                       className="flex-1 min-w-[100px]"
                     >
                       <Eye className="w-4 h-4 mr-2" />
@@ -243,7 +325,8 @@ const FloorPlanResult = () => {
                     <Button
                       variant={currentView === 'back' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setCurrentView('back')}
+                      onClick={() => handleViewChange('back')}
+                      disabled={is3DGenerating}
                       className="flex-1 min-w-[100px]"
                     >
                       <Eye className="w-4 h-4 mr-2" />
@@ -252,7 +335,8 @@ const FloorPlanResult = () => {
                     <Button
                       variant={currentView === 'interior' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setCurrentView('interior')}
+                      onClick={() => handleViewChange('interior')}
+                      disabled={is3DGenerating}
                       className="flex-1 min-w-[100px]"
                     >
                       <Home className="w-4 h-4 mr-2" />
