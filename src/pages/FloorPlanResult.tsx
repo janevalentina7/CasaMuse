@@ -1,7 +1,8 @@
 import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Home, Download, ArrowLeft, Share2, Box } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Home, Download, ArrowLeft, Share2, Box, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +13,7 @@ const FloorPlanResult = () => {
   const [is3DGenerating, setIs3DGenerating] = useState(false);
   const [model3DUrl, setModel3DUrl] = useState<string | null>(null);
   const [model3DDescription, setModel3DDescription] = useState<string>("");
+  const [currentView, setCurrentView] = useState<'main' | 'top' | 'side' | 'back' | 'interior'>('main');
 
   const handleDownload = () => {
     if (!imageUrl) return;
@@ -195,22 +197,76 @@ const FloorPlanResult = () => {
 
           {/* 3D Model Display */}
           {model3DUrl && (
-            <Card className="glass-card border-2 mt-8">
-              <CardContent className="p-6">
-                <h2 className="text-2xl font-bold mb-4 text-center">
-                  Your 3D Model
-                </h2>
-                {model3DDescription && (
-                  <p className="text-muted-foreground text-center mb-4">
-                    {model3DDescription}
-                  </p>
-                )}
-                <div className="relative rounded-lg overflow-hidden bg-white">
+            <Card className="border-2 border-primary/30 glass-card overflow-hidden">
+              <CardContent className="p-0">
+                <div className="relative">
                   <img
                     src={model3DUrl}
                     alt="Generated 3D Model"
                     className="w-full h-auto"
                   />
+                  <Badge className="absolute top-4 left-4 bg-primary text-white">
+                    3D Model - {currentView === 'main' ? '360° View' : currentView === 'top' ? 'Top View' : currentView === 'side' ? 'Side View' : currentView === 'back' ? 'Back View' : 'Interior View'}
+                  </Badge>
+                </div>
+                
+                {/* View Control Buttons */}
+                <div className="p-4 bg-muted/30 border-t border-border/50">
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    <Button
+                      variant={currentView === 'main' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setCurrentView('main')}
+                      className="flex-1 min-w-[100px]"
+                    >
+                      <Box className="w-4 h-4 mr-2" />
+                      360° View
+                    </Button>
+                    <Button
+                      variant={currentView === 'top' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setCurrentView('top')}
+                      className="flex-1 min-w-[100px]"
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      Top View
+                    </Button>
+                    <Button
+                      variant={currentView === 'side' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setCurrentView('side')}
+                      className="flex-1 min-w-[100px]"
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      Side View
+                    </Button>
+                    <Button
+                      variant={currentView === 'back' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setCurrentView('back')}
+                      className="flex-1 min-w-[100px]"
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      Back View
+                    </Button>
+                    <Button
+                      variant={currentView === 'interior' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setCurrentView('interior')}
+                      className="flex-1 min-w-[100px]"
+                    >
+                      <Home className="w-4 h-4 mr-2" />
+                      Interior
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center mt-3">
+                    Click different views to explore your 3D model from all angles
+                  </p>
+                </div>
+
+                <div className="p-6">
+                  <h3 className="text-xl font-bold mb-2">3D Visualization</h3>
+                  <p className="text-muted-foreground">{model3DDescription}</p>
                 </div>
               </CardContent>
             </Card>
