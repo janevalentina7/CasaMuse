@@ -2,11 +2,14 @@ import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, Download, ArrowLeft, Share2, Box, Eye, Navigation } from "lucide-react";
+import { Home, Download, ArrowLeft, Share2, Box, Eye, Navigation, IndianRupee, Maximize } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import VirtualWalkthrough from "@/components/VirtualWalkthrough";
+import HouseModel3D from "@/components/3d/HouseModel3D";
+import CostEstimation from "@/components/CostEstimation";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const FloorPlanResult = () => {
   const location = useLocation();
@@ -17,6 +20,10 @@ const FloorPlanResult = () => {
   const [currentView, setCurrentView] = useState<'main' | 'top' | 'side' | 'back' | 'interior'>('main');
   const [showWalkthrough, setShowWalkthrough] = useState(false);
   const [walkthroughUrl, setWalkthroughUrl] = useState<string | null>(null);
+  const [show3DModel, setShow3DModel] = useState(false);
+  const [showCostEstimation, setShowCostEstimation] = useState(false);
+  const [costEstimationData, setCostEstimationData] = useState<any>(null);
+  const [isGeneratingCost, setIsGeneratingCost] = useState(false);
 
   const handleDownload = () => {
     if (!imageUrl) return;
@@ -136,6 +143,42 @@ const FloorPlanResult = () => {
     }
   };
 
+  const handleGenerateCostEstimation = async () => {
+    if (!formData) {
+      toast.error("Floor plan data not available");
+      return;
+    }
+
+    setIsGeneratingCost(true);
+    toast.info("Generating detailed cost estimation... This may take a moment.");
+
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-cost-estimation', {
+        body: {
+          landArea: formData.landArea,
+          rooms: formData.rooms,
+          preferences: formData.preferences,
+          floorPlanDescription: description
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data?.estimation) {
+        setCostEstimationData(data.estimation);
+        setShowCostEstimation(true);
+        toast.success("Cost estimation generated successfully!");
+      } else {
+        throw new Error(data?.error || "Failed to generate cost estimation");
+      }
+    } catch (error) {
+      console.error('Error generating cost estimation:', error);
+      toast.error(error instanceof Error ? error.message : "Failed to generate cost estimation.");
+    } finally {
+      setIsGeneratingCost(false);
+    }
+  };
+
   if (!imageUrl) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
@@ -217,51 +260,78 @@ const FloorPlanResult = () => {
               variant="hero"
               size="lg"
               onClick={handleDownload}
-              className="glass-button group"
+              className="group"
             >
               <Download className="w-5 h-5 mr-2" />
               Download Floor Plan
             </Button>
-            {!model3DUrl && (
-              <Button
-                variant="hero"
-                size="lg"
-                onClick={handleGenerate3D}
-                disabled={is3DGenerating}
-                className="group"
-              >
-                <Box className="w-5 h-5 mr-2" />
-                {is3DGenerating ? "Generating 3D Model..." : "Generate 3D Model"}
-              </Button>
-            )}
-            {model3DUrl && (
-              <Button
-                variant="hero"
-                size="lg"
-                onClick={handleStartWalkthrough}
-                disabled={is3DGenerating}
-                className="group"
-              >
-                <Navigation className="w-5 h-5 mr-2" />
-                Virtual Walkthrough
-              </Button>
-            )}
+            <Button
+              variant="hero"
+              size="lg"
+              onClick={() => setShow3DModel(true)}
+              className="group"
+            >
+              <Box className="w-5 h-5 mr-2" />
+              View 3D Model
+            </Button>
+            <Button
+              variant="hero"
+              size="lg"
+              onClick={handleGenerateCostEstimation}
+              disabled={isGeneratingCost}
+              className="group"
+            >
+              <IndianRupee className="w-5 h-5 mr-2" />
+              {isGeneratingCost ? "Calculating..." : "Cost Estimation"}
+            </Button>
             <Button
               variant="outline"
               size="lg"
               onClick={handleShare}
-              className="glass-button"
             >
               <Share2 className="w-5 h-5 mr-2" />
               Share
             </Button>
             <Link to="/design">
-              <Button variant="outline" size="lg" className="glass-button">
+              <Button variant="outline" size="lg">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Create Another Design
               </Button>
             </Link>
           </div>
+
+          {/* 3D Model Dialog */}
+          <Dialog open={show3DModel} onOpenChange={setShow3DModel}>
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Box className="w-5 h-5" />
+                  Interactive 3D Model - VR Ready
+                </DialogTitle>
+              </DialogHeader>
+              {formData?.rooms && (
+                <HouseModel3D 
+                  rooms={formData.rooms} 
+                  style={formData.preferences?.style || "Modern"}
+                />
+              )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Cost Estimation Dialog */}
+          <Dialog open={showCostEstimation} onOpenChange={setShowCostEstimation}>
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <IndianRupee className="w-5 h-5" />
+                  Detailed Cost Estimation
+                </DialogTitle>
+              </DialogHeader>
+              {costEstimationData && (
+                <CostEstimation data={costEstimationData} />
+              )}
+            </DialogContent>
+          </Dialog>
 
           {/* Virtual Walkthrough */}
           {showWalkthrough && formData?.rooms && (
