@@ -17,14 +17,14 @@ const FloorPlanResult = () => {
   const [is3DGenerating, setIs3DGenerating] = useState(false);
   const [model3DUrl, setModel3DUrl] = useState<string | null>(null);
   const [model3DDescription, setModel3DDescription] = useState<string>("");
-  const [currentView, setCurrentView] = useState<'main' | 'top' | 'side' | 'back' | 'interior'>('main');
   const [showWalkthrough, setShowWalkthrough] = useState(false);
   const [walkthroughUrl, setWalkthroughUrl] = useState<string | null>(null);
   const [show3DModel, setShow3DModel] = useState(false);
   const [showCostEstimation, setShowCostEstimation] = useState(false);
   const [costEstimationData, setCostEstimationData] = useState<any>(null);
   const [isGeneratingCost, setIsGeneratingCost] = useState(false);
-  const [showRenderedPreview, setShowRenderedPreview] = useState(false);
+  const [viewMode, setViewMode] = useState<'interactive' | 'rendered'>('interactive');
+  const [renderedView, setRenderedView] = useState<'360' | 'top' | 'front' | 'side' | 'back' | 'interior'>('360');
 
   const handleDownload = () => {
     if (!imageUrl) return;
@@ -55,16 +55,23 @@ const FloorPlanResult = () => {
     }
   };
 
-  const handleViewChange = async (view: 'main' | 'top' | 'side' | 'back' | 'interior') => {
-    setCurrentView(view);
+  const handleGenerateRenderedView = async (view: '360' | 'top' | 'front' | 'side' | 'back' | 'interior') => {
     if (!imageUrl || !formData) {
       toast.error("Floor plan data not available");
       return;
     }
 
     setIs3DGenerating(true);
-    const viewLabel = view === 'main' ? '360° View' : view === 'top' ? 'Top View' : view === 'side' ? 'Side View' : view === 'back' ? 'Back View' : 'Interior View';
-    toast.info(`Generating ${viewLabel}... This may take a moment.`);
+    setRenderedView(view);
+    const viewLabels = {
+      '360': '360° View',
+      'top': 'Top View',
+      'front': 'Front View',
+      'side': 'Side View',
+      'back': 'Back View',
+      'interior': 'Interior View'
+    };
+    toast.info(`Generating ${viewLabels[view]}... This may take a moment.`);
 
     try {
       const { data, error } = await supabase.functions.invoke('generate-3d-model', {
@@ -73,7 +80,7 @@ const FloorPlanResult = () => {
           landArea: formData.landArea,
           rooms: formData.rooms,
           preferences: formData.preferences,
-          view: view === 'main' ? '360' : view,
+          view: view === 'front' ? '360' : view, // Use 360 for front view as well
         }
       });
 
@@ -82,7 +89,8 @@ const FloorPlanResult = () => {
       if (data?.success && data?.imageUrl) {
         setModel3DUrl(data.imageUrl);
         setModel3DDescription(data.description);
-        toast.success("3D model view generated successfully!");
+        setViewMode('rendered');
+        toast.success(`${viewLabels[view]} generated successfully!`);
       } else {
         throw new Error(data?.error || "Failed to generate 3D model");
       }
@@ -94,8 +102,9 @@ const FloorPlanResult = () => {
     }
   };
 
-  const handleGenerate3D = () => {
-    handleViewChange('main');
+  const handleViewChange = (newView: '360' | 'top' | 'front' | 'side' | 'back' | 'interior') => {
+    setRenderedView(newView);
+    handleGenerateRenderedView(newView);
   };
 
   const handleGenerateRoomView = async (roomName: string) => {
@@ -307,117 +316,143 @@ const FloorPlanResult = () => {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Box className="w-5 h-5" />
-                  {showRenderedPreview ? "AI-Rendered 3D Preview" : "Interactive 3D Model - VR Ready"}
+                  3D House Model Viewer
                 </DialogTitle>
               </DialogHeader>
               
-              {/* Toggle Button */}
+              {/* Mode Toggle */}
               <div className="flex gap-2 justify-center mb-4">
                 <Button
-                  variant={!showRenderedPreview ? "default" : "outline"}
+                  variant={viewMode === 'interactive' ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setShowRenderedPreview(false)}
+                  onClick={() => setViewMode('interactive')}
                 >
                   <Box className="w-4 h-4 mr-2" />
-                  Interactive VR
+                  Interactive 3D
                 </Button>
                 <Button
-                  variant={showRenderedPreview ? "default" : "outline"}
+                  variant={viewMode === 'rendered' ? "default" : "outline"}
                   size="sm"
                   onClick={() => {
-                    setShowRenderedPreview(true);
                     if (!model3DUrl) {
-                      handleGenerate3D();
+                      handleGenerateRenderedView('360');
+                    } else {
+                      setViewMode('rendered');
                     }
                   }}
                   disabled={is3DGenerating}
                 >
                   <Maximize className="w-4 h-4 mr-2" />
-                  {is3DGenerating ? "Generating..." : "Preview 3D Model"}
+                  {is3DGenerating ? "Generating..." : "AI Rendered Views"}
                 </Button>
               </div>
 
               {/* Content */}
-              {showRenderedPreview ? (
-                model3DUrl ? (
-                  <div className="space-y-4">
-                    <div className="relative rounded-lg overflow-hidden bg-muted">
-                      <img
-                        src={model3DUrl}
-                        alt="Rendered 3D Model"
-                        className="w-full h-auto"
-                      />
-                      <Badge className="absolute top-4 left-4 bg-primary text-white">
-                        {currentView === 'main' ? '360° View' : currentView === 'top' ? 'Top View' : currentView === 'side' ? 'Side View' : currentView === 'back' ? 'Back View' : 'Interior View'}
-                      </Badge>
-                    </div>
-                    
-                    {/* View Control Buttons */}
-                    <div className="flex flex-wrap gap-2 justify-center">
-                      <Button
-                        variant={currentView === 'main' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleViewChange('main')}
-                        disabled={is3DGenerating}
-                      >
-                        <Box className="w-4 h-4 mr-2" />
-                        360° View
-                      </Button>
-                      <Button
-                        variant={currentView === 'top' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleViewChange('top')}
-                        disabled={is3DGenerating}
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        Top View
-                      </Button>
-                      <Button
-                        variant={currentView === 'side' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleViewChange('side')}
-                        disabled={is3DGenerating}
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        Side View
-                      </Button>
-                      <Button
-                        variant={currentView === 'back' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleViewChange('back')}
-                        disabled={is3DGenerating}
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        Back View
-                      </Button>
-                      <Button
-                        variant={currentView === 'interior' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleViewChange('interior')}
-                        disabled={is3DGenerating}
-                      >
-                        <Home className="w-4 h-4 mr-2" />
-                        Interior
-                      </Button>
-                    </div>
-                    
-                    <div className="p-4 rounded-lg bg-muted/30">
-                      <p className="text-sm text-muted-foreground">{model3DDescription}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <Box className="w-12 h-12 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">Click "Preview 3D Model" to generate the rendered view</p>
-                  </div>
-                )
-              ) : (
+              {viewMode === 'interactive' ? (
                 formData?.rooms && (
                   <HouseModel3D 
                     rooms={formData.rooms} 
                     style={formData.preferences?.style || "Modern"}
                   />
                 )
+              ) : (
+                <div className="space-y-4">
+                  {model3DUrl ? (
+                    <>
+                      <div className="relative rounded-lg overflow-hidden bg-muted">
+                        <img
+                          src={model3DUrl}
+                          alt="Rendered 3D Model"
+                          className="w-full h-auto"
+                        />
+                        <Badge className="absolute top-4 left-4 bg-primary text-white">
+                          {renderedView === '360' ? '360° View' : 
+                           renderedView === 'top' ? 'Top View' : 
+                           renderedView === 'front' ? 'Front View' :
+                           renderedView === 'side' ? 'Side View' : 
+                           renderedView === 'back' ? 'Back View' : 'Interior View'}
+                        </Badge>
+                      </div>
+                      
+                      {/* View Control Buttons */}
+                      <div className="flex flex-wrap gap-2 justify-center">
+                        <Button
+                          variant={renderedView === '360' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleViewChange('360')}
+                          disabled={is3DGenerating}
+                        >
+                          <Box className="w-4 h-4 mr-2" />
+                          360° View
+                        </Button>
+                        <Button
+                          variant={renderedView === 'top' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleViewChange('top')}
+                          disabled={is3DGenerating}
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          Top View
+                        </Button>
+                        <Button
+                          variant={renderedView === 'front' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleViewChange('front')}
+                          disabled={is3DGenerating}
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          Front View
+                        </Button>
+                        <Button
+                          variant={renderedView === 'side' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleViewChange('side')}
+                          disabled={is3DGenerating}
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          Side View
+                        </Button>
+                        <Button
+                          variant={renderedView === 'back' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleViewChange('back')}
+                          disabled={is3DGenerating}
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          Back View
+                        </Button>
+                        <Button
+                          variant={renderedView === 'interior' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleViewChange('interior')}
+                          disabled={is3DGenerating}
+                        >
+                          <Home className="w-4 h-4 mr-2" />
+                          Interior
+                        </Button>
+                      </div>
+                      
+                      <div className="p-4 rounded-lg bg-muted/30">
+                        <p className="text-sm text-muted-foreground">{model3DDescription}</p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <Box className="w-12 h-12 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">Click a view button below to generate AI-rendered images</p>
+                      <div className="flex flex-wrap gap-2 justify-center mt-4">
+                        <Button
+                          size="sm"
+                          onClick={() => handleGenerateRenderedView('360')}
+                          disabled={is3DGenerating}
+                        >
+                          <Box className="w-4 h-4 mr-2" />
+                          Generate 360° View
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </DialogContent>
           </Dialog>
@@ -446,88 +481,6 @@ const FloorPlanResult = () => {
               onGenerateRoomView={handleGenerateRoomView}
               isGenerating={is3DGenerating}
             />
-          )}
-
-          {/* 3D Model Display */}
-          {model3DUrl && (
-            <Card className="border-2 border-primary/30 glass-card overflow-hidden">
-              <CardContent className="p-0">
-                <div className="relative">
-                  <img
-                    src={model3DUrl}
-                    alt="Generated 3D Model"
-                    className="w-full h-auto"
-                  />
-                  <Badge className="absolute top-4 left-4 bg-primary text-white">
-                    3D Model - {currentView === 'main' ? '360° View' : currentView === 'top' ? 'Top View' : currentView === 'side' ? 'Side View' : currentView === 'back' ? 'Back View' : 'Interior View'}
-                  </Badge>
-                </div>
-                
-                {/* View Control Buttons */}
-                <div className="p-4 bg-muted/30 border-t border-border/50">
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    <Button
-                      variant={currentView === 'main' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => handleViewChange('main')}
-                      disabled={is3DGenerating}
-                      className="flex-1 min-w-[100px]"
-                    >
-                      <Box className="w-4 h-4 mr-2" />
-                      360° View
-                    </Button>
-                    <Button
-                      variant={currentView === 'top' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => handleViewChange('top')}
-                      disabled={is3DGenerating}
-                      className="flex-1 min-w-[100px]"
-                    >
-                      <Eye className="w-4 h-4 mr-2" />
-                      Top View
-                    </Button>
-                    <Button
-                      variant={currentView === 'side' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => handleViewChange('side')}
-                      disabled={is3DGenerating}
-                      className="flex-1 min-w-[100px]"
-                    >
-                      <Eye className="w-4 h-4 mr-2" />
-                      Side View
-                    </Button>
-                    <Button
-                      variant={currentView === 'back' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => handleViewChange('back')}
-                      disabled={is3DGenerating}
-                      className="flex-1 min-w-[100px]"
-                    >
-                      <Eye className="w-4 h-4 mr-2" />
-                      Back View
-                    </Button>
-                    <Button
-                      variant={currentView === 'interior' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => handleViewChange('interior')}
-                      disabled={is3DGenerating}
-                      className="flex-1 min-w-[100px]"
-                    >
-                      <Home className="w-4 h-4 mr-2" />
-                      Interior
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground text-center mt-3">
-                    Click different views to explore your 3D model from all angles
-                  </p>
-                </div>
-
-                <div className="p-6">
-                  <h3 className="text-xl font-bold mb-2">3D Visualization</h3>
-                  <p className="text-muted-foreground">{model3DDescription}</p>
-                </div>
-              </CardContent>
-            </Card>
           )}
 
           {/* Info Cards */}
