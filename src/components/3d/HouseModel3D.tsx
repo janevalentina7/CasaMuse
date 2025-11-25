@@ -1,9 +1,10 @@
 import { useRef, useEffect, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, Box, Plane, Text } from '@react-three/drei';
+import { OrbitControls, PerspectiveCamera, Box, Plane, Text, Line } from '@react-three/drei';
 import { createXRStore, XR } from '@react-three/xr';
 import * as THREE from 'three';
 import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 
 interface Room {
   roomName: string;
@@ -15,6 +16,8 @@ interface HouseModel3DProps {
   rooms: Room[];
   style: string;
   onVRStatusChange?: (isVR: boolean) => void;
+  timeOfDay?: number; // 0-24 hours
+  showMeasurements?: boolean;
 }
 
 // Keyboard controls component
@@ -67,18 +70,58 @@ function KeyboardControls() {
   return null;
 }
 
+// Measurement line component
+function MeasurementLine({ 
+  start, 
+  end, 
+  label 
+}: { 
+  start: [number, number, number]; 
+  end: [number, number, number]; 
+  label: string;
+}) {
+  const midpoint: [number, number, number] = [
+    (start[0] + end[0]) / 2,
+    (start[1] + end[1]) / 2,
+    (start[2] + end[2]) / 2,
+  ];
+
+  return (
+    <group>
+      <Line
+        points={[start, end]}
+        color="#ff0000"
+        lineWidth={2}
+      />
+      <Text
+        position={midpoint}
+        fontSize={0.3}
+        color="#ff0000"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {label}
+      </Text>
+    </group>
+  );
+}
+
 // Room component
 function Room({ 
   position, 
   size, 
   name, 
-  color 
+  color,
+  showMeasurements
 }: { 
   position: [number, number, number]; 
   size: [number, number, number]; 
   name: string;
   color: string;
+  showMeasurements: boolean;
 }) {
+  const [px, py, pz] = position;
+  
   return (
     <group position={position}>
       {/* Floor */}
@@ -87,16 +130,26 @@ function Room({
         rotation={[-Math.PI / 2, 0, 0]} 
         position={[0, 0, 0]}
       >
-        <meshStandardMaterial color={color} side={THREE.DoubleSide} />
+        <meshStandardMaterial 
+          color={color} 
+          side={THREE.DoubleSide}
+          emissive={color}
+          emissiveIntensity={0.2}
+        />
       </Plane>
 
-      {/* Walls */}
+      {/* Walls - Enhanced for VR visibility */}
       {/* Back wall */}
       <Box 
         args={[size[0], size[1], 0.2]} 
         position={[0, size[1] / 2, -size[2] / 2]}
       >
-        <meshStandardMaterial color="#e8e8e8" side={THREE.DoubleSide} />
+        <meshStandardMaterial 
+          color="#e8e8e8" 
+          side={THREE.DoubleSide}
+          emissive="#e8e8e8"
+          emissiveIntensity={0.3}
+        />
       </Box>
 
       {/* Front wall (with opening) */}
@@ -104,7 +157,14 @@ function Room({
         args={[size[0], size[1], 0.2]} 
         position={[0, size[1] / 2, size[2] / 2]}
       >
-        <meshStandardMaterial color="#e8e8e8" transparent opacity={0.5} side={THREE.DoubleSide} />
+        <meshStandardMaterial 
+          color="#e8e8e8" 
+          transparent 
+          opacity={0.5} 
+          side={THREE.DoubleSide}
+          emissive="#e8e8e8"
+          emissiveIntensity={0.2}
+        />
       </Box>
 
       {/* Left wall */}
@@ -112,7 +172,12 @@ function Room({
         args={[0.2, size[1], size[2]]} 
         position={[-size[0] / 2, size[1] / 2, 0]}
       >
-        <meshStandardMaterial color="#e8e8e8" side={THREE.DoubleSide} />
+        <meshStandardMaterial 
+          color="#e8e8e8" 
+          side={THREE.DoubleSide}
+          emissive="#e8e8e8"
+          emissiveIntensity={0.3}
+        />
       </Box>
 
       {/* Right wall */}
@@ -120,7 +185,12 @@ function Room({
         args={[0.2, size[1], size[2]]} 
         position={[size[0] / 2, size[1] / 2, 0]}
       >
-        <meshStandardMaterial color="#e8e8e8" side={THREE.DoubleSide} />
+        <meshStandardMaterial 
+          color="#e8e8e8" 
+          side={THREE.DoubleSide}
+          emissive="#e8e8e8"
+          emissiveIntensity={0.3}
+        />
       </Box>
 
       {/* Room label */}
@@ -133,12 +203,80 @@ function Room({
       >
         {name}
       </Text>
+
+      {/* Measurements */}
+      {showMeasurements && (
+        <>
+          {/* Width measurement */}
+          <MeasurementLine
+            start={[-size[0]/2, 0.1, size[2]/2 + 0.5] as [number, number, number]}
+            end={[size[0]/2, 0.1, size[2]/2 + 0.5] as [number, number, number]}
+            label={`${size[0].toFixed(1)}ft`}
+          />
+          {/* Depth measurement */}
+          <MeasurementLine
+            start={[size[0]/2 + 0.5, 0.1, -size[2]/2] as [number, number, number]}
+            end={[size[0]/2 + 0.5, 0.1, size[2]/2] as [number, number, number]}
+            label={`${size[2].toFixed(1)}ft`}
+          />
+        </>
+      )}
     </group>
   );
 }
 
+// Dynamic lighting component
+function DynamicLighting({ timeOfDay }: { timeOfDay: number }) {
+  const sunRef = useRef<THREE.DirectionalLight>(null);
+  
+  useFrame(() => {
+    if (sunRef.current) {
+      // Sun position changes based on time (0-24 hours)
+      const angle = (timeOfDay / 24) * Math.PI * 2 - Math.PI / 2;
+      const radius = 30;
+      sunRef.current.position.x = Math.cos(angle) * radius;
+      sunRef.current.position.y = Math.abs(Math.sin(angle)) * 20 + 5;
+      sunRef.current.position.z = Math.sin(angle) * radius;
+      
+      // Sun intensity changes (brighter during day)
+      const dayProgress = Math.sin(angle + Math.PI / 2);
+      sunRef.current.intensity = Math.max(0.3, dayProgress * 2);
+      
+      // Sun color changes (warmer at sunrise/sunset)
+      const warmth = Math.abs(Math.cos(angle));
+      sunRef.current.color.setRGB(
+        1,
+        0.9 + warmth * 0.1,
+        0.7 + warmth * 0.3
+      );
+    }
+  });
+
+  return (
+    <>
+      <ambientLight intensity={0.4} />
+      <directionalLight 
+        ref={sunRef} 
+        castShadow 
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+      />
+      <hemisphereLight 
+        color="#87CEEB" 
+        groundColor="#90EE90" 
+        intensity={0.5} 
+      />
+    </>
+  );
+}
+
 // House component
-function House({ rooms, style }: { rooms: Room[]; style: string }) {
+function House({ rooms, style, timeOfDay, showMeasurements }: { 
+  rooms: Room[]; 
+  style: string;
+  timeOfDay: number;
+  showMeasurements: boolean;
+}) {
   const colors = [
     '#f0f0f0', '#e0e0f0', '#f0e0e0', '#e0f0e0', 
     '#f0e0f0', '#e0f0f0', '#f0f0e0'
@@ -146,6 +284,14 @@ function House({ rooms, style }: { rooms: Room[]; style: string }) {
 
   let xOffset = 0;
   const roomHeight = 3;
+
+  // Sky color changes with time of day
+  const getSkyColor = (time: number) => {
+    const hour = time % 24;
+    if (hour < 6 || hour > 20) return "#1a1a2e"; // Night
+    if (hour < 8 || hour > 18) return "#ff8c69"; // Sunrise/Sunset
+    return "#87CEEB"; // Day
+  };
 
   return (
     <group>
@@ -155,46 +301,76 @@ function House({ rooms, style }: { rooms: Room[]; style: string }) {
         rotation={[-Math.PI / 2, 0, 0]} 
         position={[0, -0.01, 0]}
       >
-        <meshStandardMaterial color="#90EE90" side={THREE.DoubleSide} />
+        <meshStandardMaterial 
+          color="#90EE90" 
+          side={THREE.DoubleSide}
+          emissive="#90EE90"
+          emissiveIntensity={0.1}
+        />
       </Plane>
 
-      {/* Enhanced lighting for VR visibility */}
-      <ambientLight intensity={0.8} />
-      <directionalLight position={[10, 10, 5]} intensity={1.2} castShadow />
-      <directionalLight position={[-10, 10, -5]} intensity={0.8} />
-      <directionalLight position={[0, 10, 10]} intensity={0.8} />
-      <pointLight position={[0, 5, 0]} intensity={0.5} />
+      {/* Dynamic lighting based on time of day */}
+      <DynamicLighting timeOfDay={timeOfDay} />
+
+      {/* Additional point lights for VR visibility */}
+      {rooms.map((room, index) => {
+        const roomWidth = room.breadth;
+        const xPos = xOffset + roomWidth / 2;
+        xOffset += roomWidth + 1;
+        
+        return (
+          <pointLight 
+            key={`light-${index}`}
+            position={[xPos, roomHeight - 0.5, 0]} 
+            intensity={1.5} 
+            distance={roomWidth * 2}
+            decay={2}
+          />
+        );
+      })}
 
       {/* Sky - visible from inside for VR */}
       <mesh>
         <sphereGeometry args={[50, 32, 32]} />
-        <meshBasicMaterial color="#87CEEB" side={THREE.BackSide} />
+        <meshBasicMaterial color={getSkyColor(timeOfDay)} side={THREE.BackSide} />
       </mesh>
 
       {/* Rooms */}
-      {rooms.map((room, index) => {
-        const roomWidth = room.breadth;
-        const roomDepth = room.length;
-        const position: [number, number, number] = [xOffset + roomWidth / 2, 0, 0];
-        
-        xOffset += roomWidth + 1; // Add spacing between rooms
+      {(() => {
+        xOffset = 0; // Reset offset
+        return rooms.map((room, index) => {
+          const roomWidth = room.breadth;
+          const roomDepth = room.length;
+          const position: [number, number, number] = [xOffset + roomWidth / 2, 0, 0];
+          
+          xOffset += roomWidth + 1; // Add spacing between rooms
 
-        return (
-          <Room
-            key={index}
-            position={position}
-            size={[roomWidth, roomHeight, roomDepth]}
-            name={room.roomName}
-            color={colors[index % colors.length]}
-          />
-        );
-      })}
+          return (
+            <Room
+              key={index}
+              position={position}
+              size={[roomWidth, roomHeight, roomDepth]}
+              name={room.roomName}
+              color={colors[index % colors.length]}
+              showMeasurements={showMeasurements}
+            />
+          );
+        });
+      })()}
     </group>
   );
 }
 
-export default function HouseModel3D({ rooms, style, onVRStatusChange }: HouseModel3DProps) {
+export default function HouseModel3D({ 
+  rooms, 
+  style, 
+  onVRStatusChange,
+  timeOfDay = 12,
+  showMeasurements = false
+}: HouseModel3DProps) {
   const [isVRSupported, setIsVRSupported] = useState(false);
+  const [currentTime, setCurrentTime] = useState(timeOfDay);
+  const [measurementsVisible, setMeasurementsVisible] = useState(showMeasurements);
   const store = createXRStore();
 
   useEffect(() => {
@@ -212,6 +388,13 @@ export default function HouseModel3D({ rooms, style, onVRStatusChange }: HouseMo
     } catch (error) {
       console.error('Failed to enter VR:', error);
     }
+  };
+
+  const getTimeLabel = (hour: number) => {
+    const h = Math.floor(hour) % 24;
+    const period = h >= 12 ? 'PM' : 'AM';
+    const displayHour = h % 12 || 12;
+    return `${displayHour}:00 ${period}`;
   };
 
   return (
@@ -233,23 +416,55 @@ export default function HouseModel3D({ rooms, style, onVRStatusChange }: HouseMo
 
           <KeyboardControls />
           
-          <House rooms={rooms} style={style} />
+          <House 
+            rooms={rooms} 
+            style={style} 
+            timeOfDay={currentTime}
+            showMeasurements={measurementsVisible}
+          />
         </XR>
       </Canvas>
 
-      {/* VR Button */}
-      {isVRSupported && (
-        <div className="absolute top-4 right-4">
+      {/* Top Controls Bar */}
+      <div className="absolute top-4 left-4 right-4 flex gap-2 justify-between">
+        {/* Time of Day Control */}
+        <div className="bg-background/90 backdrop-blur-sm p-3 rounded-lg border border-border/50 flex-1 max-w-xs">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-semibold">☀️ Time of Day:</span>
+            <span className="text-xs text-muted-foreground">{getTimeLabel(currentTime)}</span>
+          </div>
+          <Slider
+            value={[currentTime]}
+            onValueChange={(value) => setCurrentTime(value[0])}
+            min={0}
+            max={24}
+            step={0.5}
+            className="w-full"
+          />
+        </div>
+
+        {/* Measurement Toggle */}
+        <Button
+          variant={measurementsVisible ? "default" : "outline"}
+          size="sm"
+          onClick={() => setMeasurementsVisible(!measurementsVisible)}
+          className="bg-background/90 backdrop-blur-sm"
+        >
+          📏 Measurements
+        </Button>
+
+        {/* VR Button */}
+        {isVRSupported && (
           <Button
             variant="hero"
-            size="lg"
-            className="shadow-lg"
+            size="sm"
             onClick={handleEnterVR}
+            className="shadow-lg"
           >
             🥽 Enter VR
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Controls info overlay */}
       <div className="absolute bottom-4 left-4 bg-background/90 backdrop-blur-sm p-4 rounded-lg border border-border/50 max-w-xs">
@@ -261,10 +476,12 @@ export default function HouseModel3D({ rooms, style, onVRStatusChange }: HouseMo
           <li>⌨️ <strong>S/↓</strong>: Move backward</li>
           <li>⌨️ <strong>A/←</strong>: Move left</li>
           <li>⌨️ <strong>D/→</strong>: Move right</li>
+          <li>☀️ <strong>Slider</strong>: Change time of day</li>
+          <li>📏 <strong>Toggle</strong>: Show/hide measurements</li>
           {isVRSupported && (
             <>
               <li>🥽 <strong>VR Mode</strong>: Click "Enter VR" button</li>
-              <li>🎮 <strong>VR Controls</strong>: Use controllers to navigate</li>
+              <li>🎮 <strong>VR Controls</strong>: Walk with controllers</li>
             </>
           )}
         </ul>

@@ -2,13 +2,14 @@ import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, Download, ArrowLeft, Share2, Box, Eye, Navigation, IndianRupee, Maximize } from "lucide-react";
+import { Home, Download, ArrowLeft, Share2, Box, Eye, Navigation, IndianRupee, Maximize, GitCompare, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import VirtualWalkthrough from "@/components/VirtualWalkthrough";
 import HouseModel3D from "@/components/3d/HouseModel3D";
 import CostEstimation from "@/components/CostEstimation";
+import FloorPlanComparison from "@/components/FloorPlanComparison";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const FloorPlanResult = () => {
@@ -25,6 +26,43 @@ const FloorPlanResult = () => {
   const [isGeneratingCost, setIsGeneratingCost] = useState(false);
   const [viewMode, setViewMode] = useState<'interactive' | 'rendered'>('interactive');
   const [renderedView, setRenderedView] = useState<'360' | 'top' | 'front' | 'side' | 'back' | 'interior'>('360');
+  const [showComparison, setShowComparison] = useState(false);
+  const [savedPlans, setSavedPlans] = useState<any[]>([]);
+
+  // Load saved plans from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('savedFloorPlans');
+    if (stored) {
+      try {
+        setSavedPlans(JSON.parse(stored));
+      } catch (error) {
+        console.error('Error loading saved plans:', error);
+      }
+    }
+  }, []);
+
+  const handleAddToComparison = () => {
+    if (!imageUrl || !formData) return;
+    
+    const newPlan = {
+      id: Date.now().toString(),
+      imageUrl,
+      description,
+      formData
+    };
+    
+    const updated = [...savedPlans, newPlan];
+    setSavedPlans(updated);
+    localStorage.setItem('savedFloorPlans', JSON.stringify(updated));
+    toast.success("Added to comparison!");
+  };
+
+  const handleRemovePlan = (id: string) => {
+    const updated = savedPlans.filter(plan => plan.id !== id);
+    setSavedPlans(updated);
+    localStorage.setItem('savedFloorPlans', JSON.stringify(updated));
+    toast.success("Removed from comparison");
+  };
 
   const handleDownload = () => {
     if (!imageUrl) return;
@@ -297,6 +335,22 @@ const FloorPlanResult = () => {
             <Button
               variant="outline"
               size="lg"
+              onClick={handleAddToComparison}
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Add to Comparison
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setShowComparison(true)}
+            >
+              <GitCompare className="w-5 h-5 mr-2" />
+              Compare Designs ({savedPlans.length})
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
               onClick={handleShare}
             >
               <Share2 className="w-5 h-5 mr-2" />
@@ -469,6 +523,22 @@ const FloorPlanResult = () => {
               {costEstimationData && (
                 <CostEstimation data={costEstimationData} />
               )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Floor Plan Comparison Dialog */}
+          <Dialog open={showComparison} onOpenChange={setShowComparison}>
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <GitCompare className="w-5 h-5" />
+                  Compare Floor Plans
+                </DialogTitle>
+              </DialogHeader>
+              <FloorPlanComparison 
+                plans={savedPlans}
+                onRemovePlan={handleRemovePlan}
+              />
             </DialogContent>
           </Dialog>
 
