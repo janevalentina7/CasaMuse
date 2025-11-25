@@ -127,7 +127,7 @@ The model must be production-ready, architecturally accurate, and suitable for V
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash-image-preview',
+          model: 'google/gemini-3-pro-image-preview',
           messages: [
             {
               role: 'user',
