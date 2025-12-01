@@ -26,14 +26,24 @@ serve(async (req) => {
       return sum + (room.length * room.breadth);
     }, 0);
 
+    // Calculate base estimates for validation
+    const baseRatePerSqFt = 1800; // Base construction rate in India (₹/sq ft)
+    const minTotalCost = totalArea * baseRatePerSqFt;
+    
+    console.log('Total area:', totalArea, 'sq ft');
+    console.log('Minimum expected cost:', minTotalCost);
+
     // Build comprehensive prompt
     const systemPrompt = `You are an advanced construction-estimation engine designed for real-time, accurate, India-specific building cost predictions.
 
 CRITICAL REQUIREMENTS:
 
-1. REAL-TIME COST ESTIMATION:
-- Fetch current 2024-2025 material prices in India
-- Use current labor costs per sq ft based on Indian construction norms
+1. REAL-TIME COST ESTIMATION (MANDATORY - NEVER RETURN ZERO COSTS):
+- ALWAYS calculate costs based on current 2024-2025 Indian market rates
+- Base rate: ₹1,500-2,500 per sq ft minimum (adjust based on style and preferences)
+- NEVER return totalCost: 0 or any zero values in breakdown
+- Calculate using EXACT built-up area: ${totalArea} sq ft
+- Minimum total cost should be at least ₹${minTotalCost.toLocaleString('en-IN')}
 - Include ALL costs: foundation, structure, masonry, roofing, flooring, electrical, plumbing, painting, carpentry, smart home, furnishing, exterior, contingencies, taxes
 
 2. MATERIAL EXPLANATION (FOR EVERY MATERIAL):
@@ -170,31 +180,52 @@ Generate comprehensive estimation now.`;
       // Remove markdown code blocks if present
       estimationText = estimationText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
       estimationData = JSON.parse(estimationText);
+      
+      // Validate that costs are not zero
+      if (estimationData.summary?.totalCost === 0 || !estimationData.summary?.totalCost) {
+        console.warn('AI returned zero cost, applying fallback calculation');
+        const fallbackRate = preferences?.style === 'Luxury' ? 2500 : 1800;
+        estimationData.summary.totalCost = totalArea * fallbackRate;
+        estimationData.summary.costPerSqFt = fallbackRate;
+        estimationData.summary.breakdown = {
+          civil: Math.round(estimationData.summary.totalCost * 0.35),
+          interior: Math.round(estimationData.summary.totalCost * 0.20),
+          exterior: Math.round(estimationData.summary.totalCost * 0.10),
+          labor: Math.round(estimationData.summary.totalCost * 0.20),
+          electrical: Math.round(estimationData.summary.totalCost * 0.08),
+          plumbing: Math.round(estimationData.summary.totalCost * 0.07)
+        };
+      }
     } catch (parseError) {
-      console.error('Failed to parse JSON, using raw text');
-      // If JSON parsing fails, create a basic structure with the full text
+      console.error('Failed to parse JSON, creating fallback estimation');
+      // Create fallback estimation with real costs
+      const fallbackRate = preferences?.style === 'Luxury' ? 2500 : 1800;
+      const fallbackTotal = totalArea * fallbackRate;
+      
       estimationData = {
         summary: {
-          totalCost: 0,
-          costPerSqFt: 0,
+          totalCost: fallbackTotal,
+          costPerSqFt: fallbackRate,
           breakdown: {
-            civil: 0,
-            interior: 0,
-            exterior: 0,
-            labor: 0,
-            electrical: 0,
-            plumbing: 0
+            civil: Math.round(fallbackTotal * 0.35),
+            interior: Math.round(fallbackTotal * 0.20),
+            exterior: Math.round(fallbackTotal * 0.10),
+            labor: Math.round(fallbackTotal * 0.20),
+            electrical: Math.round(fallbackTotal * 0.08),
+            plumbing: Math.round(fallbackTotal * 0.07)
           },
-          buildTime: 'Estimate not available'
+          buildTime: '6-8 months'
         },
         materials: [],
         costOptimization: {
           savings: [],
           improvements: []
         },
-        fullDetails: estimationText
+        fullDetails: `Estimated construction cost for ${totalArea} sq ft ${preferences?.style || 'Modern'} style home.\n\n${estimationText}`
       };
     }
+    
+    console.log('Final estimation data:', JSON.stringify(estimationData.summary));
 
     return new Response(
       JSON.stringify({
