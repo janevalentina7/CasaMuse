@@ -6,7 +6,8 @@ import * as THREE from 'three';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import Furniture, { FurnitureItem } from './Furniture';
-import { Plus, Sofa, Bed, Table, Trash2 } from 'lucide-react';
+import ModelExporter from './ModelExporter';
+import { Plus, Sofa, Bed, Table, Trash2, Download } from 'lucide-react';
 
 interface Room {
   roomName: string;
@@ -136,7 +137,9 @@ function Room({
           color={color} 
           side={THREE.DoubleSide}
           emissive={color}
-          emissiveIntensity={0.2}
+          emissiveIntensity={0.3}
+          metalness={0.1}
+          roughness={0.8}
         />
       </Plane>
 
@@ -147,10 +150,12 @@ function Room({
         position={[0, size[1] / 2, -size[2] / 2]}
       >
         <meshStandardMaterial 
-          color="#e8e8e8" 
+          color="#f5f5f5" 
           side={THREE.DoubleSide}
-          emissive="#e8e8e8"
-          emissiveIntensity={0.3}
+          emissive="#f5f5f5"
+          emissiveIntensity={0.4}
+          metalness={0.05}
+          roughness={0.9}
         />
       </Box>
 
@@ -297,10 +302,10 @@ function House({
   let xOffset = 0;
   const roomHeight = 3;
 
-  // Auto-rotation
-  useFrame(() => {
+  // Smooth auto-rotation
+  useFrame((state, delta) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y += 0.002; // Slow continuous rotation
+      groupRef.current.rotation.y += delta * 0.15; // Smooth, time-based rotation
     }
   });
 
@@ -321,20 +326,31 @@ function House({
         position={[0, -0.01, 0]}
       >
         <meshStandardMaterial 
-          color="#90EE90" 
+          color="#4a7c59" 
           side={THREE.DoubleSide}
-          emissive="#90EE90"
-          emissiveIntensity={0.1}
+          emissive="#4a7c59"
+          emissiveIntensity={0.2}
         />
       </Plane>
 
       {/* Dynamic lighting based on time of day */}
       <DynamicLighting timeOfDay={timeOfDay} />
 
-      {/* Additional point lights for VR visibility and general illumination */}
-      <pointLight position={[0, 10, 0]} intensity={2} distance={50} color="#ffffff" />
-      <pointLight position={[10, 5, 10]} intensity={1.5} distance={30} color="#ffffff" />
-      <pointLight position={[-10, 5, -10]} intensity={1.5} distance={30} color="#ffffff" />
+      {/* Bright directional light for VR visibility */}
+      <directionalLight 
+        position={[10, 15, 10]} 
+        intensity={3} 
+        castShadow 
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+      />
+      
+      {/* Additional omnidirectional lights for full VR visibility */}
+      <pointLight position={[0, 12, 0]} intensity={3} distance={60} color="#ffffff" />
+      <pointLight position={[15, 8, 15]} intensity={2} distance={40} color="#ffffff" />
+      <pointLight position={[-15, 8, -15]} intensity={2} distance={40} color="#ffffff" />
+      <pointLight position={[15, 8, -15]} intensity={2} distance={40} color="#ffffff" />
+      <pointLight position={[-15, 8, 15]} intensity={2} distance={40} color="#ffffff" />
       
       {rooms.map((room, index) => {
         const roomWidth = room.breadth;
@@ -414,6 +430,8 @@ export default function HouseModel3D({
   const [measurementsVisible, setMeasurementsVisible] = useState(showMeasurements);
   const [furniture, setFurniture] = useState<FurnitureItem[]>([]);
   const [showFurnitureMenu, setShowFurnitureMenu] = useState(false);
+  const [showExporter, setShowExporter] = useState(false);
+  const [scene, setScene] = useState<THREE.Scene | null>(null);
   const store = createXRStore();
 
   const addFurniture = (type: FurnitureItem['type']) => {
@@ -437,6 +455,17 @@ export default function HouseModel3D({
   const removeFurniture = (id: string) => {
     setFurniture(furniture.filter(item => item.id !== id));
   };
+
+  // Scene capture component
+  function SceneCapture() {
+    const { scene } = useThree();
+    
+    useEffect(() => {
+      setScene(scene);
+    }, [scene]);
+    
+    return null;
+  }
 
   useEffect(() => {
     if ('xr' in navigator) {
@@ -469,17 +498,19 @@ export default function HouseModel3D({
         gl={{ antialias: true }}
       >
         <XR store={store}>
-          <PerspectiveCamera makeDefault position={[0, 2, 10]} fov={75} />
+          <SceneCapture />
+          <PerspectiveCamera makeDefault position={[0, 5, 15]} fov={75} />
           
           <OrbitControls
             enableDamping
-            dampingFactor={0.05}
-            minDistance={2}
-            maxDistance={50}
-            maxPolarAngle={Math.PI / 2}
+            dampingFactor={0.08}
+            minDistance={3}
+            maxDistance={60}
+            maxPolarAngle={Math.PI / 2.1}
             enablePan={true}
             enableZoom={true}
             enableRotate={true}
+            autoRotate={false}
             mouseButtons={{
               LEFT: THREE.MOUSE.ROTATE,
               MIDDLE: THREE.MOUSE.DOLLY,
@@ -490,11 +521,11 @@ export default function HouseModel3D({
           <KeyboardControls />
           
           {/* Enhanced ambient lighting for VR visibility */}
-          <ambientLight intensity={0.8} />
+          <ambientLight intensity={1.2} />
           <hemisphereLight 
             color="#ffffff" 
-            groundColor="#888888" 
-            intensity={0.6}
+            groundColor="#cccccc" 
+            intensity={1}
             position={[0, 50, 0]}
           />
           
@@ -573,6 +604,17 @@ export default function HouseModel3D({
           )}
         </div>
 
+        {/* Download Button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowExporter(!showExporter)}
+          className="bg-background/90 backdrop-blur-sm"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Download Model
+        </Button>
+
         {/* VR Button */}
         {isVRSupported && (
           <Button
@@ -585,6 +627,11 @@ export default function HouseModel3D({
           </Button>
         )}
       </div>
+
+      {/* Model Exporter */}
+      {showExporter && scene && (
+        <ModelExporter scene={scene} fileName={`house-${style.toLowerCase()}`} />
+      )}
 
       {/* Controls info overlay */}
       <div className="absolute bottom-4 left-4 bg-background/90 backdrop-blur-sm p-4 rounded-lg border border-border/50 max-w-xs">
