@@ -5,6 +5,8 @@ import { createXRStore, XR } from '@react-three/xr';
 import * as THREE from 'three';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import Furniture, { FurnitureItem } from './Furniture';
+import { Plus, Sofa, Bed, Table, Trash2 } from 'lucide-react';
 
 interface Room {
   roomName: string;
@@ -270,13 +272,23 @@ function DynamicLighting({ timeOfDay }: { timeOfDay: number }) {
   );
 }
 
-// House component
-function House({ rooms, style, timeOfDay, showMeasurements }: { 
+// House component with auto-rotation
+function House({ 
+  rooms, 
+  style, 
+  timeOfDay, 
+  showMeasurements,
+  furniture,
+  onUpdateFurniture
+}: { 
   rooms: Room[]; 
   style: string;
   timeOfDay: number;
   showMeasurements: boolean;
+  furniture: FurnitureItem[];
+  onUpdateFurniture: (id: string, position: [number, number, number]) => void;
 }) {
+  const groupRef = useRef<THREE.Group>(null);
   const colors = [
     '#f0f0f0', '#e0e0f0', '#f0e0e0', '#e0f0e0', 
     '#f0e0f0', '#e0f0f0', '#f0f0e0'
@@ -284,6 +296,13 @@ function House({ rooms, style, timeOfDay, showMeasurements }: {
 
   let xOffset = 0;
   const roomHeight = 3;
+
+  // Auto-rotation
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y += 0.002; // Slow continuous rotation
+    }
+  });
 
   // Sky color changes with time of day
   const getSkyColor = (time: number) => {
@@ -294,7 +313,7 @@ function House({ rooms, style, timeOfDay, showMeasurements }: {
   };
 
   return (
-    <group>
+    <group ref={groupRef}>
       {/* Ground plane - visible from both sides for VR */}
       <Plane 
         args={[100, 100]} 
@@ -312,20 +331,33 @@ function House({ rooms, style, timeOfDay, showMeasurements }: {
       {/* Dynamic lighting based on time of day */}
       <DynamicLighting timeOfDay={timeOfDay} />
 
-      {/* Additional point lights for VR visibility */}
+      {/* Additional point lights for VR visibility and general illumination */}
+      <pointLight position={[0, 10, 0]} intensity={2} distance={50} color="#ffffff" />
+      <pointLight position={[10, 5, 10]} intensity={1.5} distance={30} color="#ffffff" />
+      <pointLight position={[-10, 5, -10]} intensity={1.5} distance={30} color="#ffffff" />
+      
       {rooms.map((room, index) => {
         const roomWidth = room.breadth;
         const xPos = xOffset + roomWidth / 2;
         xOffset += roomWidth + 1;
         
         return (
-          <pointLight 
-            key={`light-${index}`}
-            position={[xPos, roomHeight - 0.5, 0]} 
-            intensity={1.5} 
-            distance={roomWidth * 2}
-            decay={2}
-          />
+          <group key={`lights-${index}`}>
+            <pointLight 
+              position={[xPos, roomHeight - 0.5, 0]} 
+              intensity={2} 
+              distance={roomWidth * 2}
+              decay={2}
+              color="#ffffee"
+            />
+            {/* Additional ceiling light for better VR visibility */}
+            <pointLight 
+              position={[xPos, roomHeight + 1, 0]} 
+              intensity={1.5} 
+              distance={roomWidth * 1.5}
+              color="#ffffff"
+            />
+          </group>
         );
       })}
 
@@ -357,6 +389,15 @@ function House({ rooms, style, timeOfDay, showMeasurements }: {
           );
         });
       })()}
+
+      {/* Furniture */}
+      {furniture.map(item => (
+        <Furniture
+          key={item.id}
+          item={item}
+          onDrag={onUpdateFurniture}
+        />
+      ))}
     </group>
   );
 }
@@ -371,7 +412,31 @@ export default function HouseModel3D({
   const [isVRSupported, setIsVRSupported] = useState(false);
   const [currentTime, setCurrentTime] = useState(timeOfDay);
   const [measurementsVisible, setMeasurementsVisible] = useState(showMeasurements);
+  const [furniture, setFurniture] = useState<FurnitureItem[]>([]);
+  const [showFurnitureMenu, setShowFurnitureMenu] = useState(false);
   const store = createXRStore();
+
+  const addFurniture = (type: FurnitureItem['type']) => {
+    const newItem: FurnitureItem = {
+      id: `furniture-${Date.now()}`,
+      type,
+      position: [0, 0, 0],
+      rotation: 0,
+      roomIndex: 0
+    };
+    setFurniture([...furniture, newItem]);
+    setShowFurnitureMenu(false);
+  };
+
+  const updateFurniturePosition = (id: string, position: [number, number, number]) => {
+    setFurniture(furniture.map(item => 
+      item.id === id ? { ...item, position } : item
+    ));
+  };
+
+  const removeFurniture = (id: string) => {
+    setFurniture(furniture.filter(item => item.id !== id));
+  };
 
   useEffect(() => {
     if ('xr' in navigator) {
@@ -412,15 +477,34 @@ export default function HouseModel3D({
             minDistance={2}
             maxDistance={50}
             maxPolarAngle={Math.PI / 2}
+            enablePan={true}
+            enableZoom={true}
+            enableRotate={true}
+            mouseButtons={{
+              LEFT: THREE.MOUSE.ROTATE,
+              MIDDLE: THREE.MOUSE.DOLLY,
+              RIGHT: THREE.MOUSE.PAN
+            }}
           />
 
           <KeyboardControls />
+          
+          {/* Enhanced ambient lighting for VR visibility */}
+          <ambientLight intensity={0.8} />
+          <hemisphereLight 
+            color="#ffffff" 
+            groundColor="#888888" 
+            intensity={0.6}
+            position={[0, 50, 0]}
+          />
           
           <House 
             rooms={rooms} 
             style={style} 
             timeOfDay={currentTime}
             showMeasurements={measurementsVisible}
+            furniture={furniture}
+            onUpdateFurniture={updateFurniturePosition}
           />
         </XR>
       </Canvas>
@@ -453,6 +537,42 @@ export default function HouseModel3D({
           📏 Measurements
         </Button>
 
+        {/* Furniture Menu */}
+        <div className="relative">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFurnitureMenu(!showFurnitureMenu)}
+            className="bg-background/90 backdrop-blur-sm"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Furniture
+          </Button>
+          
+          {showFurnitureMenu && (
+            <div className="absolute top-full mt-2 right-0 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-lg p-2 flex flex-col gap-1 z-10">
+              <Button size="sm" variant="ghost" onClick={() => addFurniture('sofa')}>
+                <Sofa className="w-4 h-4 mr-2" /> Sofa
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => addFurniture('bed')}>
+                <Bed className="w-4 h-4 mr-2" /> Bed
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => addFurniture('table')}>
+                <Table className="w-4 h-4 mr-2" /> Table
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => addFurniture('chair')}>
+                Chair
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => addFurniture('cabinet')}>
+                Cabinet
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => addFurniture('desk')}>
+                Desk
+              </Button>
+            </div>
+          )}
+        </div>
+
         {/* VR Button */}
         {isVRSupported && (
           <Button
@@ -470,7 +590,8 @@ export default function HouseModel3D({
       <div className="absolute bottom-4 left-4 bg-background/90 backdrop-blur-sm p-4 rounded-lg border border-border/50 max-w-xs">
         <h3 className="font-semibold text-sm mb-2">Controls:</h3>
         <ul className="text-xs space-y-1 text-muted-foreground">
-          <li>🖱️ <strong>Mouse</strong>: Rotate view (drag)</li>
+          <li>🖱️ <strong>Left Click + Drag</strong>: Rotate view</li>
+          <li>🖱️ <strong>Right Click + Drag</strong>: Pan view</li>
           <li>🎯 <strong>Scroll</strong>: Zoom in/out</li>
           <li>⌨️ <strong>W/↑</strong>: Move forward</li>
           <li>⌨️ <strong>S/↓</strong>: Move backward</li>
@@ -478,6 +599,7 @@ export default function HouseModel3D({
           <li>⌨️ <strong>D/→</strong>: Move right</li>
           <li>☀️ <strong>Slider</strong>: Change time of day</li>
           <li>📏 <strong>Toggle</strong>: Show/hide measurements</li>
+          <li>🪑 <strong>Furniture</strong>: Click to drag and place</li>
           {isVRSupported && (
             <>
               <li>🥽 <strong>VR Mode</strong>: Click "Enter VR" button</li>
@@ -486,6 +608,28 @@ export default function HouseModel3D({
           )}
         </ul>
       </div>
+
+      {/* Furniture list */}
+      {furniture.length > 0 && (
+        <div className="absolute bottom-4 right-4 bg-background/90 backdrop-blur-sm p-3 rounded-lg border border-border/50 max-w-xs">
+          <h3 className="font-semibold text-sm mb-2">Furniture ({furniture.length})</h3>
+          <div className="space-y-1 max-h-32 overflow-y-auto">
+            {furniture.map(item => (
+              <div key={item.id} className="flex items-center justify-between text-xs bg-muted/50 p-2 rounded">
+                <span>{item.type}</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => removeFurniture(item.id)}
+                  className="h-6 w-6 p-0"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
