@@ -2,7 +2,10 @@ import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, Download, ArrowLeft, Share2, Box, Eye, Navigation, IndianRupee, Maximize, GitCompare, Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Home, Download, ArrowLeft, Share2, Box, Eye, Navigation, IndianRupee, Maximize, GitCompare, Plus, MapPin, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +31,15 @@ const FloorPlanResult = () => {
   const [renderedView, setRenderedView] = useState<'360' | 'top' | 'front' | 'side' | 'back' | 'interior'>('360');
   const [showComparison, setShowComparison] = useState(false);
   const [savedPlans, setSavedPlans] = useState<any[]>([]);
+  const [userLocation, setUserLocation] = useState('');
+  const [userBudget, setUserBudget] = useState('');
+  const [showCostSettings, setShowCostSettings] = useState(false);
+
+  const INDIAN_CITIES = [
+    'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Hyderabad', 
+    'Pune', 'Kolkata', 'Ahmedabad', 'Jaipur', 'Lucknow',
+    'Chandigarh', 'Kochi', 'Indore', 'Nagpur', 'Coimbatore'
+  ];
 
   // Load saved plans from localStorage
   useEffect(() => {
@@ -198,15 +210,20 @@ const FloorPlanResult = () => {
     }
 
     setIsGeneratingCost(true);
-    toast.info("Generating detailed cost estimation... This may take a moment.");
+    setShowCostSettings(false);
+    toast.info("Generating detailed cost estimation with real-time Indian market data...");
 
     try {
+      const budgetValue = userBudget ? parseInt(userBudget.replace(/,/g, '')) : undefined;
+      
       const { data, error } = await supabase.functions.invoke('generate-cost-estimation', {
         body: {
           landArea: formData.landArea,
           rooms: formData.rooms,
           preferences: formData.preferences,
-          floorPlanDescription: description
+          floorPlanDescription: description,
+          location: userLocation || undefined,
+          userBudget: budgetValue
         }
       });
 
@@ -225,6 +242,10 @@ const FloorPlanResult = () => {
     } finally {
       setIsGeneratingCost(false);
     }
+  };
+
+  const handleOpenCostSettings = () => {
+    setShowCostSettings(true);
   };
 
   if (!imageUrl) {
@@ -325,7 +346,7 @@ const FloorPlanResult = () => {
             <Button
               variant="hero"
               size="lg"
-              onClick={handleGenerateCostEstimation}
+              onClick={handleOpenCostSettings}
               disabled={isGeneratingCost}
               className="group"
             >
@@ -363,6 +384,74 @@ const FloorPlanResult = () => {
               </Button>
             </Link>
           </div>
+
+          {/* Cost Settings Dialog */}
+          <Dialog open={showCostSettings} onOpenChange={setShowCostSettings}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <IndianRupee className="w-5 h-5" />
+                  Cost Estimation Settings
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Location (for accurate land & labor costs)
+                  </Label>
+                  <Select value={userLocation} onValueChange={setUserLocation}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select your city" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INDIAN_CITIES.map(city => (
+                        <SelectItem key={city} value={city.toLowerCase()}>{city}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Land and construction costs vary by location</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Wallet className="w-4 h-4" />
+                    Your Budget (optional)
+                  </Label>
+                  <Input
+                    type="text"
+                    placeholder="e.g., 5000000"
+                    value={userBudget}
+                    onChange={(e) => setUserBudget(e.target.value.replace(/[^0-9]/g, ''))}
+                  />
+                  {userBudget && (
+                    <p className="text-sm text-primary font-medium">
+                      ₹{parseInt(userBudget).toLocaleString('en-IN')}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">Get suggestions tailored to your budget</p>
+                </div>
+
+                <div className="flex gap-2 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCostSettings(false)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="hero"
+                    onClick={handleGenerateCostEstimation}
+                    disabled={isGeneratingCost}
+                    className="flex-1"
+                  >
+                    {isGeneratingCost ? "Calculating..." : "Generate Estimate"}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* 3D Model Dialog */}
           <Dialog open={show3DModel} onOpenChange={setShow3DModel}>

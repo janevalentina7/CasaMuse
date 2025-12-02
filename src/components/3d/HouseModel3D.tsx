@@ -317,81 +317,102 @@ function House({
     return "#87CEEB"; // Day
   };
 
+  // Calculate total house dimensions for proper centering
+  const totalWidth = rooms.reduce((sum, room) => sum + room.breadth + 1, -1);
+  const centerOffset = -totalWidth / 2;
+
   return (
     <group ref={groupRef}>
-      {/* Ground plane - visible from both sides for VR */}
+      {/* Ground plane - smaller and positioned correctly for VR */}
       <Plane 
-        args={[100, 100]} 
+        args={[80, 80]} 
         rotation={[-Math.PI / 2, 0, 0]} 
-        position={[0, -0.01, 0]}
+        position={[0, -0.05, 0]}
+        receiveShadow
       >
         <meshStandardMaterial 
-          color="#4a7c59" 
+          color="#3d6b4a" 
           side={THREE.DoubleSide}
-          emissive="#4a7c59"
-          emissiveIntensity={0.2}
+        />
+      </Plane>
+
+      {/* Grass texture around the house */}
+      <Plane 
+        args={[60, 60]} 
+        rotation={[-Math.PI / 2, 0, 0]} 
+        position={[0, -0.02, 0]}
+      >
+        <meshStandardMaterial 
+          color="#4a8c5a" 
+          side={THREE.DoubleSide}
         />
       </Plane>
 
       {/* Dynamic lighting based on time of day */}
       <DynamicLighting timeOfDay={timeOfDay} />
 
-      {/* Bright directional light for VR visibility */}
+      {/* Main sun light */}
       <directionalLight 
-        position={[10, 15, 10]} 
-        intensity={3} 
+        position={[15, 20, 15]} 
+        intensity={2.5} 
         castShadow 
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
       />
       
-      {/* Additional omnidirectional lights for full VR visibility */}
-      <pointLight position={[0, 12, 0]} intensity={3} distance={60} color="#ffffff" />
-      <pointLight position={[15, 8, 15]} intensity={2} distance={40} color="#ffffff" />
-      <pointLight position={[-15, 8, -15]} intensity={2} distance={40} color="#ffffff" />
-      <pointLight position={[15, 8, -15]} intensity={2} distance={40} color="#ffffff" />
-      <pointLight position={[-15, 8, 15]} intensity={2} distance={40} color="#ffffff" />
+      {/* Fill lights for VR visibility */}
+      <pointLight position={[0, 15, 0]} intensity={2} distance={50} color="#ffffff" />
+      <pointLight position={[20, 10, 20]} intensity={1.5} distance={40} color="#fffaf0" />
+      <pointLight position={[-20, 10, -20]} intensity={1.5} distance={40} color="#fffaf0" />
+      <pointLight position={[20, 10, -20]} intensity={1.5} distance={40} color="#fffaf0" />
+      <pointLight position={[-20, 10, 20]} intensity={1.5} distance={40} color="#fffaf0" />
       
-      {rooms.map((room, index) => {
-        const roomWidth = room.breadth;
-        const xPos = xOffset + roomWidth / 2;
-        xOffset += roomWidth + 1;
-        
-        return (
-          <group key={`lights-${index}`}>
-            <pointLight 
-              position={[xPos, roomHeight - 0.5, 0]} 
-              intensity={2} 
-              distance={roomWidth * 2}
-              decay={2}
-              color="#ffffee"
-            />
-            {/* Additional ceiling light for better VR visibility */}
-            <pointLight 
-              position={[xPos, roomHeight + 1, 0]} 
-              intensity={1.5} 
-              distance={roomWidth * 1.5}
-              color="#ffffff"
-            />
-          </group>
-        );
-      })}
+      {/* Per-room lighting */}
+      {(() => {
+        let lightOffset = centerOffset;
+        return rooms.map((room, index) => {
+          const roomWidth = room.breadth;
+          const xPos = lightOffset + roomWidth / 2;
+          lightOffset += roomWidth + 1;
+          
+          return (
+            <group key={`lights-${index}`}>
+              <pointLight 
+                position={[xPos, roomHeight - 0.3, 0]} 
+                intensity={1.5} 
+                distance={roomWidth * 2}
+                decay={2}
+                color="#ffffee"
+              />
+              <spotLight
+                position={[xPos, roomHeight + 0.5, 0]}
+                angle={Math.PI / 3}
+                penumbra={0.5}
+                intensity={1}
+                distance={roomWidth * 2}
+                color="#ffffff"
+              />
+            </group>
+          );
+        });
+      })()}
 
-      {/* Sky - visible from inside for VR */}
+      {/* Sky dome */}
       <mesh>
-        <sphereGeometry args={[50, 32, 32]} />
+        <sphereGeometry args={[45, 32, 32]} />
         <meshBasicMaterial color={getSkyColor(timeOfDay)} side={THREE.BackSide} />
       </mesh>
 
-      {/* Rooms */}
-      {(() => {
-        xOffset = 0; // Reset offset
-        return rooms.map((room, index) => {
+      {/* House model - centered */}
+      <group position={[centerOffset, 0, 0]}>
+        {rooms.map((room, index) => {
           const roomWidth = room.breadth;
           const roomDepth = room.length;
-          const position: [number, number, number] = [xOffset + roomWidth / 2, 0, 0];
-          
-          xOffset += roomWidth + 1; // Add spacing between rooms
+          let roomOffset = 0;
+          for (let i = 0; i < index; i++) {
+            roomOffset += rooms[i].breadth + 1;
+          }
+          const position: [number, number, number] = [roomOffset + roomWidth / 2, 0, 0];
 
           return (
             <Room
@@ -403,17 +424,24 @@ function House({
               showMeasurements={showMeasurements}
             />
           );
-        });
-      })()}
+        })}
 
-      {/* Furniture */}
-      {furniture.map(item => (
-        <Furniture
-          key={item.id}
-          item={item}
-          onDrag={onUpdateFurniture}
-        />
-      ))}
+        {/* Furniture */}
+        {furniture.map(item => (
+          <Furniture
+            key={item.id}
+            item={item}
+            onDrag={onUpdateFurniture}
+          />
+        ))}
+      </group>
+
+      {/* Simple roof structure */}
+      <group position={[0, roomHeight, 0]}>
+        <Box args={[totalWidth + 2, 0.3, Math.max(...rooms.map(r => r.length)) + 2]}>
+          <meshStandardMaterial color="#8B4513" />
+        </Box>
+      </group>
     </group>
   );
 }
