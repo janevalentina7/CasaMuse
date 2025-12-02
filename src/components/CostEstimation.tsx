@@ -17,6 +17,8 @@ interface CostEstimationProps {
   data: {
     summary?: {
       totalCost: number;
+      landCost?: number;
+      constructionCost?: number;
       costPerSqFt: number;
       breakdown: {
         civil: number;
@@ -27,6 +29,8 @@ interface CostEstimationProps {
         plumbing: number;
       };
       buildTime: string;
+      contingency?: number;
+      gst?: number;
     };
     materials?: Array<{
       category: string;
@@ -35,6 +39,7 @@ interface CostEstimationProps {
         quantity: string;
         cost: number;
         total: number;
+        whyChosen?: string;
         advantages: string[];
         disadvantages: string[];
         alternatives?: string;
@@ -45,6 +50,7 @@ interface CostEstimationProps {
         area: string;
         suggestion: string;
         savings: number;
+        materialChange?: string;
       }>;
       improvements: Array<{
         area: string;
@@ -52,6 +58,13 @@ interface CostEstimationProps {
         additionalCost: number;
         benefit: string;
       }>;
+    };
+    budgetAnalysis?: {
+      isSufficient?: boolean;
+      shortfall?: number;
+      recommendations?: string[];
+      priorityFeatures?: string[];
+      optionalFeatures?: string[];
     };
     fullDetails?: string;
   };
@@ -78,20 +91,60 @@ export default function CostEstimation({ data }: CostEstimationProps) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-4 bg-primary/10 rounded-lg">
-                <p className="text-sm text-muted-foreground mb-1">Total Cost</p>
-                <p className="text-2xl font-bold text-primary">
+            {/* Main costs */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-primary/10 rounded-lg col-span-2">
+                <p className="text-sm text-muted-foreground mb-1">Total Project Cost</p>
+                <p className="text-3xl font-bold text-primary">
                   {formatCurrency(data.summary.totalCost)}
                 </p>
               </div>
-              <div className="text-center p-4 bg-secondary/10 rounded-lg">
+              {data.summary.landCost && (
+                <div className="text-center p-4 bg-accent/10 rounded-lg">
+                  <p className="text-sm text-muted-foreground mb-1">Land Cost</p>
+                  <p className="text-xl font-bold text-accent-foreground">
+                    {formatCurrency(data.summary.landCost)}
+                  </p>
+                </div>
+              )}
+              {data.summary.constructionCost && (
+                <div className="text-center p-4 bg-secondary/10 rounded-lg">
+                  <p className="text-sm text-muted-foreground mb-1">Construction</p>
+                  <p className="text-xl font-bold text-secondary">
+                    {formatCurrency(data.summary.constructionCost)}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-3 bg-muted/50 rounded-lg">
                 <p className="text-sm text-muted-foreground mb-1">Cost per Sq Ft</p>
-                <p className="text-2xl font-bold text-secondary">
-                  {formatCurrency(data.summary.costPerSqFt)}
-                </p>
+                <p className="text-xl font-bold">{formatCurrency(data.summary.costPerSqFt)}</p>
+              </div>
+              <div className="text-center p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">Build Time</p>
+                <p className="text-xl font-bold">{data.summary.buildTime}</p>
               </div>
             </div>
+
+            {/* Contingency and GST */}
+            {(data.summary.contingency || data.summary.gst) && (
+              <div className="grid grid-cols-2 gap-4">
+                {data.summary.contingency && (
+                  <div className="p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground">Contingency (10%)</p>
+                    <p className="font-semibold text-orange-600">{formatCurrency(data.summary.contingency)}</p>
+                  </div>
+                )}
+                {data.summary.gst && (
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground">GST (18%)</p>
+                    <p className="font-semibold text-blue-600">{formatCurrency(data.summary.gst)}</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             <Separator />
 
@@ -139,10 +192,62 @@ export default function CostEstimation({ data }: CostEstimationProps) {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
 
-            <div className="flex items-center justify-center gap-2 p-3 bg-accent/20 rounded">
-              <Info className="w-4 h-4" />
-              <p className="text-sm">Estimated build time: <strong>{data.summary.buildTime}</strong></p>
+      {/* Budget Analysis Section */}
+      {data.budgetAnalysis && (
+        <Card className={`glass-card border-2 ${data.budgetAnalysis.isSufficient ? 'border-green-500/30' : 'border-orange-500/30'}`}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Info className={`w-5 h-5 ${data.budgetAnalysis.isSufficient ? 'text-green-600' : 'text-orange-600'}`} />
+              Budget Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className={`p-4 rounded-lg ${data.budgetAnalysis.isSufficient ? 'bg-green-50 dark:bg-green-950/20' : 'bg-orange-50 dark:bg-orange-950/20'}`}>
+              <p className={`font-semibold ${data.budgetAnalysis.isSufficient ? 'text-green-700 dark:text-green-300' : 'text-orange-700 dark:text-orange-300'}`}>
+                {data.budgetAnalysis.isSufficient 
+                  ? '✓ Your budget is sufficient for this project' 
+                  : `⚠ Budget shortfall: ${formatCurrency(data.budgetAnalysis.shortfall || 0)}`}
+              </p>
+            </div>
+
+            {data.budgetAnalysis.recommendations && data.budgetAnalysis.recommendations.length > 0 && (
+              <div>
+                <h4 className="font-semibold mb-2">Recommendations:</h4>
+                <ul className="space-y-1">
+                  {data.budgetAnalysis.recommendations.map((rec, idx) => (
+                    <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <span className="text-primary">•</span> {rec}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="grid md:grid-cols-2 gap-4">
+              {data.budgetAnalysis.priorityFeatures && data.budgetAnalysis.priorityFeatures.length > 0 && (
+                <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                  <h4 className="font-semibold text-sm text-green-700 dark:text-green-300 mb-2">✓ Priority Features</h4>
+                  <ul className="text-sm space-y-1">
+                    {data.budgetAnalysis.priorityFeatures.map((feature, idx) => (
+                      <li key={idx} className="text-muted-foreground">• {feature}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {data.budgetAnalysis.optionalFeatures && data.budgetAnalysis.optionalFeatures.length > 0 && (
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <h4 className="font-semibold text-sm mb-2">○ Optional (if budget allows)</h4>
+                  <ul className="text-sm space-y-1">
+                    {data.budgetAnalysis.optionalFeatures.map((feature, idx) => (
+                      <li key={idx} className="text-muted-foreground">• {feature}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -194,8 +299,14 @@ export default function CostEstimation({ data }: CostEstimationProps) {
                         </div>
                       </div>
 
+                      {item.whyChosen && (
+                        <div className="mt-3 p-2 bg-primary/10 rounded text-sm">
+                          <strong className="text-primary">Why Chosen:</strong> {item.whyChosen}
+                        </div>
+                      )}
+
                       {item.alternatives && (
-                        <div className="mt-3 p-2 bg-accent/20 rounded text-sm">
+                        <div className="mt-2 p-2 bg-accent/20 rounded text-sm">
                           <strong>Alternatives:</strong> {item.alternatives}
                         </div>
                       )}
