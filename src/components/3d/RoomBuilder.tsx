@@ -1,0 +1,294 @@
+import { useMemo } from 'react';
+import { Box, Plane, Text } from '@react-three/drei';
+import * as THREE from 'three';
+import { useFloorTexture, useWallTexture, StyleMaterials } from './TexturedMaterials';
+import { RealisticSofa, RealisticBed, RealisticDiningTable, RealisticChair, RealisticCabinet, RealisticDesk, CoffeeTable, TVUnit } from './RealisticFurniture';
+
+interface Room {
+  roomName: string;
+  length: number;
+  breadth: number;
+}
+
+// Window component with realistic glass
+function Window({ position, rotation = [0, 0, 0], size = [1.2, 1.5, 0.2] }: { 
+  position: [number, number, number]; 
+  rotation?: [number, number, number]; 
+  size?: [number, number, number] 
+}) {
+  return (
+    <group position={position} rotation={rotation as any}>
+      {/* Window frame - outer */}
+      <Box args={[size[0], size[1], size[2]]}>
+        <meshStandardMaterial color="#4a5568" metalness={0.3} roughness={0.7} />
+      </Box>
+      {/* Glass panes */}
+      <Box args={[size[0] * 0.42, size[1] * 0.45, 0.02]} position={[-size[0] * 0.23, size[1] * 0.23, 0]}>
+        <meshStandardMaterial color="#a0d2eb" transparent opacity={0.4} metalness={0.9} roughness={0.1} />
+      </Box>
+      <Box args={[size[0] * 0.42, size[1] * 0.45, 0.02]} position={[size[0] * 0.23, size[1] * 0.23, 0]}>
+        <meshStandardMaterial color="#a0d2eb" transparent opacity={0.4} metalness={0.9} roughness={0.1} />
+      </Box>
+      <Box args={[size[0] * 0.42, size[1] * 0.45, 0.02]} position={[-size[0] * 0.23, -size[1] * 0.23, 0]}>
+        <meshStandardMaterial color="#a0d2eb" transparent opacity={0.4} metalness={0.9} roughness={0.1} />
+      </Box>
+      <Box args={[size[0] * 0.42, size[1] * 0.45, 0.02]} position={[size[0] * 0.23, -size[1] * 0.23, 0]}>
+        <meshStandardMaterial color="#a0d2eb" transparent opacity={0.4} metalness={0.9} roughness={0.1} />
+      </Box>
+      {/* Window dividers */}
+      <Box args={[0.05, size[1] - 0.1, 0.08]} position={[0, 0, 0.05]}>
+        <meshStandardMaterial color="#4a5568" />
+      </Box>
+      <Box args={[size[0] - 0.1, 0.05, 0.08]} position={[0, 0, 0.05]}>
+        <meshStandardMaterial color="#4a5568" />
+      </Box>
+      {/* Window sill */}
+      <Box args={[size[0] + 0.1, 0.05, 0.25]} position={[0, -size[1] / 2 - 0.025, 0.1]}>
+        <meshStandardMaterial color="#f0f0f0" />
+      </Box>
+    </group>
+  );
+}
+
+// Door component with realistic details
+function Door({ position, rotation = [0, 0, 0], isMain = false, styleConfig }: { 
+  position: [number, number, number]; 
+  rotation?: [number, number, number]; 
+  isMain?: boolean;
+  styleConfig: StyleMaterials;
+}) {
+  const height = isMain ? 2.4 : 2.1;
+  const width = isMain ? 1.2 : 0.9;
+  const doorColor = isMain ? '#5a3d2b' : '#7a5d4b';
+  
+  return (
+    <group position={position} rotation={rotation as any}>
+      {/* Door frame */}
+      <Box args={[width + 0.15, height + 0.1, 0.2]} position={[0, height / 2, 0]}>
+        <meshStandardMaterial color={styleConfig.trimColor} />
+      </Box>
+      {/* Door panel */}
+      <Box args={[width, height, 0.08]} position={[0, height / 2, 0.05]}>
+        <meshStandardMaterial color={doorColor} roughness={0.6} />
+      </Box>
+      {/* Door panels (decorative insets) */}
+      <Box args={[width * 0.35, height * 0.25, 0.02]} position={[-width * 0.2, height * 0.7, 0.1]}>
+        <meshStandardMaterial color={doorColor} roughness={0.5} />
+      </Box>
+      <Box args={[width * 0.35, height * 0.25, 0.02]} position={[width * 0.2, height * 0.7, 0.1]}>
+        <meshStandardMaterial color={doorColor} roughness={0.5} />
+      </Box>
+      <Box args={[width * 0.35, height * 0.35, 0.02]} position={[-width * 0.2, height * 0.35, 0.1]}>
+        <meshStandardMaterial color={doorColor} roughness={0.5} />
+      </Box>
+      <Box args={[width * 0.35, height * 0.35, 0.02]} position={[width * 0.2, height * 0.35, 0.1]}>
+        <meshStandardMaterial color={doorColor} roughness={0.5} />
+      </Box>
+      {/* Door handle */}
+      <Box args={[0.08, 0.15, 0.1]} position={[width / 2 - 0.15, height / 2, 0.15]}>
+        <meshStandardMaterial color={styleConfig.accentColor} metalness={0.8} roughness={0.2} />
+      </Box>
+    </group>
+  );
+}
+
+// Get furniture for room based on room type
+function getRoomFurniture(roomName: string, width: number, depth: number): JSX.Element[] {
+  const furniture: JSX.Element[] = [];
+  const lowerName = roomName.toLowerCase();
+  
+  if (lowerName.includes('living') || lowerName.includes('drawing')) {
+    furniture.push(
+      <RealisticSofa key="sofa" position={[0, 0, -depth / 2 + 1.2]} rotation={0} />,
+      <CoffeeTable key="coffee" position={[0, 0, -depth / 2 + 2.5]} />,
+      <TVUnit key="tv" position={[0, 0, depth / 2 - 0.5]} rotation={Math.PI} />
+    );
+  } else if (lowerName.includes('bedroom') || lowerName.includes('master')) {
+    furniture.push(
+      <RealisticBed key="bed" position={[0, 0, 0]} rotation={0} />,
+      <RealisticCabinet key="cabinet" position={[-width / 2 + 0.8, 0, -depth / 2 + 0.5]} rotation={0} />
+    );
+  } else if (lowerName.includes('dining')) {
+    furniture.push(
+      <RealisticDiningTable key="table" position={[0, 0, 0]} />,
+      <RealisticChair key="chair1" position={[0, 0, 0.8]} rotation={Math.PI} />,
+      <RealisticChair key="chair2" position={[0, 0, -0.8]} rotation={0} />,
+      <RealisticChair key="chair3" position={[-0.9, 0, 0]} rotation={Math.PI / 2} />,
+      <RealisticChair key="chair4" position={[0.9, 0, 0]} rotation={-Math.PI / 2} />
+    );
+  } else if (lowerName.includes('kitchen')) {
+    // Kitchen counter
+    furniture.push(
+      <Box key="counter" args={[width - 1, 0.9, 0.6]} position={[0, 0.45, -depth / 2 + 0.4]}>
+        <meshStandardMaterial color="#e8e8e8" roughness={0.3} />
+      </Box>
+    );
+  } else if (lowerName.includes('study') || lowerName.includes('office')) {
+    furniture.push(
+      <RealisticDesk key="desk" position={[0, 0, -depth / 2 + 1]} rotation={0} />,
+      <RealisticChair key="chair" position={[0, 0, -depth / 2 + 1.8]} rotation={Math.PI} />
+    );
+  } else if (lowerName.includes('pooja') || lowerName.includes('prayer')) {
+    furniture.push(
+      <RealisticCabinet key="altar" position={[0, 0, -depth / 2 + 0.5]} scale={0.8} />
+    );
+  }
+  
+  return furniture;
+}
+
+interface RoomComponentProps {
+  position: [number, number, number];
+  size: [number, number, number];
+  name: string;
+  styleConfig: StyleMaterials;
+  showMeasurements: boolean;
+  roomIndex: number;
+  isFirst: boolean;
+  isLast: boolean;
+}
+
+export function RoomComponent({ 
+  position, 
+  size, 
+  name, 
+  styleConfig,
+  showMeasurements,
+  roomIndex,
+  isFirst,
+  isLast
+}: RoomComponentProps) {
+  const wallThickness = 0.25;
+  const [width, height, depth] = size;
+  
+  const floorTexture = useFloorTexture(styleConfig.floorType, styleConfig.floorColor);
+  const wallTexture = useWallTexture(styleConfig.wallTexture, styleConfig.wallColor);
+  
+  // Room-specific floor type override
+  const roomFloorType = useMemo(() => {
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('bathroom') || lowerName.includes('kitchen')) {
+      return 'tile';
+    }
+    return styleConfig.floorType;
+  }, [name, styleConfig.floorType]);
+  
+  const actualFloorTexture = useFloorTexture(roomFloorType, styleConfig.floorColor);
+  
+  const furniture = useMemo(() => getRoomFurniture(name, width, depth), [name, width, depth]);
+
+  return (
+    <group position={position}>
+      {/* Floor with texture */}
+      <Plane args={[width, depth]} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} receiveShadow>
+        <meshStandardMaterial map={actualFloorTexture} side={THREE.DoubleSide} roughness={0.8} />
+      </Plane>
+
+      {/* Ceiling */}
+      <Plane args={[width, depth]} rotation={[Math.PI / 2, 0, 0]} position={[0, height, 0]}>
+        <meshStandardMaterial color={styleConfig.ceilingColor} side={THREE.DoubleSide} />
+      </Plane>
+
+      {/* Back wall with texture */}
+      <Box args={[width, height, wallThickness]} position={[0, height / 2, -depth / 2]}>
+        <meshStandardMaterial map={wallTexture} side={THREE.DoubleSide} />
+      </Box>
+      {/* Back wall baseboard */}
+      <Box args={[width, 0.1, 0.02]} position={[0, 0.05, -depth / 2 + wallThickness / 2 + 0.01]}>
+        <meshStandardMaterial color={styleConfig.trimColor} />
+      </Box>
+
+      {/* Front wall (semi-transparent for viewing) */}
+      {roomIndex % 3 !== 0 && (
+        <Box args={[width, height, wallThickness]} position={[0, height / 2, depth / 2]}>
+          <meshStandardMaterial map={wallTexture} transparent opacity={0.2} side={THREE.DoubleSide} />
+        </Box>
+      )}
+
+      {/* Left wall */}
+      {isFirst && (
+        <group>
+          <Box args={[wallThickness, height, depth]} position={[-width / 2, height / 2, 0]}>
+            <meshStandardMaterial map={wallTexture} side={THREE.DoubleSide} />
+          </Box>
+          {/* Window on left wall */}
+          <Window position={[-width / 2 + 0.15, height / 2 + 0.2, 0]} rotation={[0, Math.PI / 2, 0]} />
+          {/* Baseboard */}
+          <Box args={[0.02, 0.1, depth]} position={[-width / 2 + wallThickness / 2 + 0.01, 0.05, 0]}>
+            <meshStandardMaterial color={styleConfig.trimColor} />
+          </Box>
+        </group>
+      )}
+
+      {/* Right wall */}
+      {isLast && (
+        <group>
+          <Box args={[wallThickness, height, depth]} position={[width / 2, height / 2, 0]}>
+            <meshStandardMaterial map={wallTexture} side={THREE.DoubleSide} />
+          </Box>
+          {/* Window on right wall */}
+          <Window position={[width / 2 - 0.15, height / 2 + 0.2, 0]} rotation={[0, -Math.PI / 2, 0]} />
+          {/* Baseboard */}
+          <Box args={[0.02, 0.1, depth]} position={[width / 2 - wallThickness / 2 - 0.01, 0.05, 0]}>
+            <meshStandardMaterial color={styleConfig.trimColor} />
+          </Box>
+        </group>
+      )}
+
+      {/* Interior door between rooms */}
+      {!isLast && (
+        <Door position={[width / 2, 0, depth / 4]} rotation={[0, Math.PI / 2, 0]} styleConfig={styleConfig} />
+      )}
+
+      {/* Room label */}
+      <Text
+        position={[0, height - 0.3, -depth / 2 + 0.5]}
+        fontSize={0.35}
+        color="#444444"
+        anchorX="center"
+        anchorY="middle"
+        outlineWidth={0.02}
+        outlineColor="#ffffff"
+      >
+        {name}
+      </Text>
+
+      {/* Room lighting - ceiling light fixture */}
+      <group position={[0, height - 0.05, 0]}>
+        <Box args={[0.4, 0.05, 0.4]}>
+          <meshStandardMaterial color="#f0f0f0" />
+        </Box>
+        <pointLight intensity={1.5} distance={width * 2} color="#fff5e6" castShadow />
+      </group>
+
+      {/* Furniture */}
+      {furniture}
+
+      {/* Measurements */}
+      {showMeasurements && (
+        <>
+          {/* Width measurement */}
+          <group position={[0, 0.1, depth / 2 + 0.8]}>
+            <Box args={[width, 0.02, 0.02]}>
+              <meshBasicMaterial color="#ff4444" />
+            </Box>
+            <Text position={[0, 0.2, 0]} fontSize={0.3} color="#ff4444">
+              {width.toFixed(0)} ft
+            </Text>
+          </group>
+          {/* Depth measurement */}
+          <group position={[width / 2 + 0.8, 0.1, 0]}>
+            <Box args={[0.02, 0.02, depth]}>
+              <meshBasicMaterial color="#ff4444" />
+            </Box>
+            <Text position={[0.3, 0.2, 0]} fontSize={0.3} color="#ff4444" rotation={[0, -Math.PI / 2, 0]}>
+              {depth.toFixed(0)} ft
+            </Text>
+          </group>
+        </>
+      )}
+    </group>
+  );
+}
+
+export default RoomComponent;
