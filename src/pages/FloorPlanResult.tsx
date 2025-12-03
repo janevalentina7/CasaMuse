@@ -41,6 +41,35 @@ const FloorPlanResult = () => {
     'Chandigarh', 'Kochi', 'Indore', 'Nagpur', 'Coimbatore'
   ];
 
+  // Transform form room data to HouseModel3D format
+  const transformRoomsFor3D = (rooms: any[]) => {
+    const transformed: { roomName: string; length: number; breadth: number }[] = [];
+    
+    rooms.forEach((room) => {
+      const count = room.count || 1;
+      for (let i = 0; i < count; i++) {
+        transformed.push({
+          roomName: count > 1 ? `${room.roomName} ${i + 1}` : room.roomName,
+          length: room.height || 12, // height in feet becomes length (depth)
+          breadth: room.width || 10, // width in feet becomes breadth
+        });
+      }
+      
+      // Add attached bathroom if specified
+      if (room.attachedBathroom && room.count > 0) {
+        for (let i = 0; i < count; i++) {
+          transformed.push({
+            roomName: `Bathroom (${count > 1 ? room.roomName + ' ' + (i + 1) : room.roomName})`,
+            length: 7,
+            breadth: 6,
+          });
+        }
+      }
+    });
+    
+    return transformed;
+  };
+
   // Load saved plans from localStorage
   useEffect(() => {
     const stored = localStorage.getItem('savedFloorPlans');
@@ -494,7 +523,7 @@ const FloorPlanResult = () => {
               {viewMode === 'interactive' ? (
                 formData?.rooms && (
                   <HouseModel3D 
-                    rooms={formData.rooms} 
+                    rooms={transformRoomsFor3D(formData.rooms)} 
                     style={formData.preferences?.style || "Modern"}
                   />
                 )
