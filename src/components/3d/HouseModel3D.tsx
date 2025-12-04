@@ -8,6 +8,7 @@ import { Slider } from '@/components/ui/slider';
 import ModelExporter from './ModelExporter';
 import { RoomComponent } from './RoomBuilder';
 import Landscaping from './Landscaping';
+import ExteriorLighting from './ExteriorLighting';
 import { getStyleMaterials } from './TexturedMaterials';
 import StyleSpecificRoof from './StyleSpecificRoof';
 import { Plus, Sofa, Bed, Table, Download, Ruler, Clock } from 'lucide-react';
@@ -225,6 +226,9 @@ function House({ rooms, style, timeOfDay, showMeasurements }: {
 
       {/* Landscaping */}
       <Landscaping houseWidth={totalWidth} houseDepth={maxDepth} style={style} />
+      
+      {/* Exterior Lighting */}
+      <ExteriorLighting houseWidth={totalWidth} houseDepth={maxDepth} timeOfDay={timeOfDay} />
     </group>
   );
 }
