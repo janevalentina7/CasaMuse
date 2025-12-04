@@ -11,7 +11,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import VirtualWalkthrough from "@/components/VirtualWalkthrough";
 import HouseModel3D from "@/components/3d/HouseModel3D";
-import CostEstimation from "@/components/CostEstimation";
+import CostEstimationEnhanced from "@/components/CostEstimationEnhanced";
 import FloorPlanComparison from "@/components/FloorPlanComparison";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -639,7 +639,7 @@ const FloorPlanResult = () => {
                 </DialogTitle>
               </DialogHeader>
               {costEstimationData && (
-                <CostEstimation data={costEstimationData} />
+                <CostEstimationEnhanced data={costEstimationData} formData={formData} />
               )}
             </DialogContent>
           </Dialog>
