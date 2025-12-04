@@ -9,6 +9,7 @@ import ModelExporter from './ModelExporter';
 import { RoomComponent } from './RoomBuilder';
 import Landscaping from './Landscaping';
 import { getStyleMaterials } from './TexturedMaterials';
+import StyleSpecificRoof from './StyleSpecificRoof';
 import { Plus, Sofa, Bed, Table, Download, Ruler, Clock } from 'lucide-react';
 
 interface Room {
@@ -53,8 +54,8 @@ function KeyboardControls() {
   return null;
 }
 
-// Roof component
-function Roof({ width, depth, height, roofColor, trimColor }: { width: number; depth: number; height: number; roofColor: string; trimColor: string }) {
+// Legacy basic roof - kept for fallback
+function BasicRoof({ width, depth, height, roofColor, trimColor }: { width: number; depth: number; height: number; roofColor: string; trimColor: string }) {
   const roofHeight = 2.5;
   const overhang = 1.2;
   
@@ -139,7 +140,7 @@ function House({ rooms, style, timeOfDay, showMeasurements }: {
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const styleConfig = getStyleMaterials(style);
-  const roomHeight = 3;
+  const roomHeight = 3.2; // Slightly taller for better proportions
 
   const totalWidth = rooms.reduce((sum, room) => sum + room.breadth, 0) + (rooms.length - 1) * 0.25;
   const maxDepth = Math.max(...rooms.map(r => r.length), 12);
@@ -210,8 +211,14 @@ function House({ rooms, style, timeOfDay, showMeasurements }: {
         })}
       </group>
 
-      {/* Roof */}
-      <Roof width={totalWidth} depth={maxDepth} height={roomHeight} roofColor={styleConfig.roofColor} trimColor={styleConfig.trimColor} />
+      {/* Style-Specific Roof with chimney and skylights */}
+      <StyleSpecificRoof 
+        width={totalWidth} 
+        depth={maxDepth} 
+        height={roomHeight} 
+        style={style} 
+        styleConfig={styleConfig} 
+      />
 
       {/* External features */}
       <ExternalFeatures houseWidth={totalWidth} houseDepth={maxDepth} trimColor={styleConfig.trimColor} />

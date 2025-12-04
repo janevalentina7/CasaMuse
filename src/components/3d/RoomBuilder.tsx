@@ -3,6 +3,7 @@ import { Box, Plane, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useFloorTexture, useWallTexture, StyleMaterials } from './TexturedMaterials';
 import { RealisticSofa, RealisticBed, RealisticDiningTable, RealisticChair, RealisticCabinet, RealisticDesk, CoffeeTable, TVUnit } from './RealisticFurniture';
+import { FloorLamp, TableLamp, AreaRug, Curtains, IndoorPlant, FloorPlant, WallArt, CeilingFan, Bookshelf, VaseWithFlowers } from './InteriorDecorations';
 
 interface Room {
   roomName: string;
@@ -92,49 +93,92 @@ function Door({ position, rotation = [0, 0, 0], isMain = false, styleConfig }: {
   );
 }
 
-// Get furniture for room based on room type
-function getRoomFurniture(roomName: string, width: number, depth: number): JSX.Element[] {
-  const furniture: JSX.Element[] = [];
+// Get furniture and decorations for room based on room type
+function getRoomFurniture(roomName: string, width: number, depth: number, height: number): JSX.Element[] {
+  const items: JSX.Element[] = [];
   const lowerName = roomName.toLowerCase();
   
   if (lowerName.includes('living') || lowerName.includes('drawing')) {
-    furniture.push(
+    items.push(
       <RealisticSofa key="sofa" position={[0, 0, -depth / 2 + 1.2]} rotation={0} />,
       <CoffeeTable key="coffee" position={[0, 0, -depth / 2 + 2.5]} />,
-      <TVUnit key="tv" position={[0, 0, depth / 2 - 0.5]} rotation={Math.PI} />
+      <TVUnit key="tv" position={[0, 0, depth / 2 - 0.5]} rotation={Math.PI} />,
+      // Decorations
+      <AreaRug key="rug" position={[0, 0, 0]} color="#8b4513" pattern="geometric" />,
+      <FloorLamp key="lamp1" position={[-width / 2 + 0.5, 0, -depth / 2 + 0.8]} />,
+      <FloorPlant key="plant" position={[width / 2 - 0.6, 0, -depth / 2 + 0.6]} />,
+      <WallArt key="art1" position={[0, height / 2 + 0.5, -depth / 2 + 0.15]} />,
+      <Curtains key="curtain" position={[width / 2 - 0.2, 0, 0]} rotation={Math.PI / 2} color="#4a5568" height={height - 0.3} />,
+      <CeilingFan key="fan" position={[0, height - 0.05, 0]} />
     );
   } else if (lowerName.includes('bedroom') || lowerName.includes('master')) {
-    furniture.push(
+    items.push(
       <RealisticBed key="bed" position={[0, 0, 0]} rotation={0} />,
-      <RealisticCabinet key="cabinet" position={[-width / 2 + 0.8, 0, -depth / 2 + 0.5]} rotation={0} />
+      <RealisticCabinet key="cabinet" position={[-width / 2 + 0.8, 0, -depth / 2 + 0.5]} rotation={0} />,
+      // Decorations
+      <AreaRug key="rug" position={[0, 0, 0.8]} color="#d4c4a8" scale={0.8} />,
+      <TableLamp key="lamp1" position={[-width / 2 + 0.9, 0.75, -depth / 2 + 0.5]} />,
+      <TableLamp key="lamp2" position={[width / 2 - 0.5, 0.5, -0.5]} />,
+      <IndoorPlant key="plant" position={[width / 2 - 0.5, 0, depth / 2 - 0.5]} type="fern" />,
+      <WallArt key="art" position={[0, height / 2 + 0.3, -depth / 2 + 0.15]} scale={0.8} />,
+      <Curtains key="curtain" position={[width / 2 - 0.2, 0, 0]} rotation={Math.PI / 2} color="#6b5b4f" height={height - 0.3} />,
+      <CeilingFan key="fan" position={[0, height - 0.05, 0]} />
     );
   } else if (lowerName.includes('dining')) {
-    furniture.push(
+    items.push(
       <RealisticDiningTable key="table" position={[0, 0, 0]} />,
       <RealisticChair key="chair1" position={[0, 0, 0.8]} rotation={Math.PI} />,
       <RealisticChair key="chair2" position={[0, 0, -0.8]} rotation={0} />,
       <RealisticChair key="chair3" position={[-0.9, 0, 0]} rotation={Math.PI / 2} />,
-      <RealisticChair key="chair4" position={[0.9, 0, 0]} rotation={-Math.PI / 2} />
+      <RealisticChair key="chair4" position={[0.9, 0, 0]} rotation={-Math.PI / 2} />,
+      // Decorations
+      <VaseWithFlowers key="vase" position={[0, 0.78, 0]} />,
+      <WallArt key="art" position={[-width / 2 + 0.15, height / 2 + 0.3, 0]} rotation={Math.PI / 2} />,
+      <FloorPlant key="plant" position={[width / 2 - 0.5, 0, -depth / 2 + 0.5]} />,
+      <CeilingFan key="fan" position={[0, height - 0.05, 0]} />
     );
   } else if (lowerName.includes('kitchen')) {
-    // Kitchen counter
-    furniture.push(
+    items.push(
+      // Kitchen counter
       <Box key="counter" args={[width - 1, 0.9, 0.6]} position={[0, 0.45, -depth / 2 + 0.4]}>
         <meshStandardMaterial color="#e8e8e8" roughness={0.3} />
-      </Box>
+      </Box>,
+      // Upper cabinets
+      <Box key="upper" args={[width - 1.5, 0.6, 0.35]} position={[0, height - 0.6, -depth / 2 + 0.25]}>
+        <meshStandardMaterial color="#8b6914" roughness={0.5} />
+      </Box>,
+      <IndoorPlant key="plant" position={[width / 2 - 0.4, 0.92, -depth / 2 + 0.4]} type="succulent" scale={0.7} />
     );
   } else if (lowerName.includes('study') || lowerName.includes('office')) {
-    furniture.push(
+    items.push(
       <RealisticDesk key="desk" position={[0, 0, -depth / 2 + 1]} rotation={0} />,
-      <RealisticChair key="chair" position={[0, 0, -depth / 2 + 1.8]} rotation={Math.PI} />
+      <RealisticChair key="chair" position={[0, 0, -depth / 2 + 1.8]} rotation={Math.PI} />,
+      // Decorations
+      <Bookshelf key="shelf" position={[-width / 2 + 0.6, 0, 0]} rotation={Math.PI / 2} />,
+      <TableLamp key="lamp" position={[0.5, 0.77, -depth / 2 + 1]} />,
+      <IndoorPlant key="plant" position={[width / 2 - 0.4, 0, depth / 2 - 0.4]} type="fern" />,
+      <AreaRug key="rug" position={[0, 0, 0]} color="#4a5568" scale={0.7} />,
+      <CeilingFan key="fan" position={[0, height - 0.05, 0]} />
     );
   } else if (lowerName.includes('pooja') || lowerName.includes('prayer')) {
-    furniture.push(
-      <RealisticCabinet key="altar" position={[0, 0, -depth / 2 + 0.5]} scale={0.8} />
+    items.push(
+      <RealisticCabinet key="altar" position={[0, 0, -depth / 2 + 0.5]} scale={0.8} />,
+      <FloorLamp key="lamp" position={[-width / 2 + 0.4, 0, -depth / 2 + 0.4]} scale={0.7} />,
+      <IndoorPlant key="plant" position={[width / 2 - 0.3, 0, -depth / 2 + 0.3]} type="succulent" scale={0.6} />
+    );
+  } else if (lowerName.includes('bathroom')) {
+    // Simple bathroom fixtures
+    items.push(
+      <Box key="sink" args={[0.6, 0.1, 0.45]} position={[0, 0.85, -depth / 2 + 0.35]}>
+        <meshStandardMaterial color="#ffffff" roughness={0.2} />
+      </Box>,
+      <Box key="vanity" args={[0.8, 0.85, 0.5]} position={[0, 0.425, -depth / 2 + 0.35]}>
+        <meshStandardMaterial color="#5a4a3a" roughness={0.6} />
+      </Box>
     );
   }
   
-  return furniture;
+  return items;
 }
 
 interface RoomComponentProps {
@@ -175,7 +219,7 @@ export function RoomComponent({
   
   const actualFloorTexture = useFloorTexture(roomFloorType, styleConfig.floorColor);
   
-  const furniture = useMemo(() => getRoomFurniture(name, width, depth), [name, width, depth]);
+  const furniture = useMemo(() => getRoomFurniture(name, width, depth, height), [name, width, depth, height]);
 
   return (
     <group position={position}>
