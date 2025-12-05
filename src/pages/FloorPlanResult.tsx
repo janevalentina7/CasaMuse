@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Home, Download, ArrowLeft, Share2, Box, Eye, Navigation, IndianRupee, Maximize, GitCompare, Plus, MapPin, Wallet, Clock } from "lucide-react";
+import { Home, Download, ArrowLeft, Share2, Box, Eye, Navigation, IndianRupee, Maximize, GitCompare, Plus, MapPin, Wallet, Clock, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -387,6 +387,12 @@ const FloorPlanResult = () => {
               <IndianRupee className="w-5 h-5 mr-2" />
               {isGeneratingCost ? "Calculating..." : "Cost Estimation"}
             </Button>
+            <Link to="/design-summary" state={{ imageUrl, description, formData, costEstimationData }}>
+              <Button variant="hero" size="lg" className="group">
+                <FileText className="w-5 h-5 mr-2" />
+                Summary
+              </Button>
+            </Link>
             <Button
               variant="outline"
               size="lg"
