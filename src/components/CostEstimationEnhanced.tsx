@@ -264,8 +264,25 @@ export default function CostEstimationEnhanced({ data, formData, onUpdate }: Cos
   };
 
   const handleApplySuggestions = () => {
-    if (onUpdate && adjustedTotal) {
+    if (adjustedTotal && data.summary) {
+      // Update the cost data with the new adjusted total
+      const updatedData = {
+        ...data,
+        summary: {
+          ...data.summary,
+          totalCost: adjustedTotal,
+          costPerSqFt: Math.round(adjustedTotal / (data.summary.totalCost / data.summary.costPerSqFt))
+        }
+      };
+      if (onUpdate) {
+        onUpdate(updatedData);
+      }
       toast.success("Cost adjustments applied to your estimate!");
+      setSuggestions([]);
+      setAdjustedTotal(null);
+      setAdjustmentType(null);
+    } else {
+      toast.info("Generate suggestions first by clicking Upgrade or Reduce Costs");
     }
   };
 
@@ -284,7 +301,7 @@ export default function CostEstimationEnhanced({ data, formData, onUpdate }: Cos
             <div className="flex-1">
               <label className="text-sm font-medium mb-2 block">Your Target Budget (Optional)</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₹</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10">₹</span>
                 <Input
                   type="text"
                   placeholder="Enter your budget (e.g., 5000000)"
@@ -293,7 +310,8 @@ export default function CostEstimationEnhanced({ data, formData, onUpdate }: Cos
                     const value = e.target.value.replace(/[^0-9]/g, '');
                     setBudget(value);
                   }}
-                  className="pl-8"
+                  className="pl-8 text-foreground bg-background border-input"
+                  style={{ color: 'inherit' }}
                 />
               </div>
               {budget && (
@@ -526,8 +544,8 @@ export default function CostEstimationEnhanced({ data, formData, onUpdate }: Cos
         </Card>
       )}
 
-      {/* Budget Analysis Section */}
-      {data.budgetAnalysis && (
+      {/* Budget Analysis Section - only show if budget was provided */}
+      {data.budgetAnalysis && (budget || data.budgetAnalysis.isSufficient !== undefined) && (
         <Card className={`glass-card border-2 ${data.budgetAnalysis.isSufficient ? 'border-green-500/30' : 'border-orange-500/30'}`}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -536,13 +554,19 @@ export default function CostEstimationEnhanced({ data, formData, onUpdate }: Cos
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className={`p-4 rounded-lg ${data.budgetAnalysis.isSufficient ? 'bg-green-50 dark:bg-green-950/20' : 'bg-orange-50 dark:bg-orange-950/20'}`}>
-              <p className={`font-semibold ${data.budgetAnalysis.isSufficient ? 'text-green-700 dark:text-green-300' : 'text-orange-700 dark:text-orange-300'}`}>
-                {data.budgetAnalysis.isSufficient 
-                  ? '✓ Your budget is sufficient for this project' 
-                  : `⚠ Budget shortfall: ${formatCurrency(data.budgetAnalysis.shortfall || 0)}`}
-              </p>
-            </div>
+            {budget ? (
+              <div className={`p-4 rounded-lg ${data.budgetAnalysis.isSufficient ? 'bg-green-50 dark:bg-green-950/20' : 'bg-orange-50 dark:bg-orange-950/20'}`}>
+                <p className={`font-semibold ${data.budgetAnalysis.isSufficient ? 'text-green-700 dark:text-green-300' : 'text-orange-700 dark:text-orange-300'}`}>
+                  {data.budgetAnalysis.isSufficient 
+                    ? '✓ Your budget is sufficient for this project' 
+                    : `⚠ Budget shortfall: ${formatCurrency(data.budgetAnalysis.shortfall || 0)}`}
+                </p>
+              </div>
+            ) : (
+              <div className="p-4 rounded-lg bg-muted/50">
+                <p className="text-muted-foreground">Enter your budget above to see budget analysis</p>
+              </div>
+            )}
 
             {data.budgetAnalysis.recommendations && data.budgetAnalysis.recommendations.length > 0 && (
               <div>

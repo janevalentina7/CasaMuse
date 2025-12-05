@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import DesignTool from "./pages/DesignTool";
 import FloorPlanResult from "./pages/FloorPlanResult";
+import AIRenderedView from "./pages/AIRenderedView";
+import Interactive3DView from "./pages/Interactive3DView";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,6 +22,8 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/design" element={<DesignTool />} />
           <Route path="/floor-plan-result" element={<FloorPlanResult />} />
+          <Route path="/ai-rendered-view" element={<AIRenderedView />} />
+          <Route path="/interactive-3d" element={<Interactive3DView />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Home, Download, ArrowLeft, Share2, Box, Eye, Navigation, IndianRupee, Maximize, GitCompare, Plus, MapPin, Wallet } from "lucide-react";
+import { Home, Download, ArrowLeft, Share2, Box, Eye, Navigation, IndianRupee, Maximize, GitCompare, Plus, MapPin, Wallet, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +33,7 @@ const FloorPlanResult = () => {
   const [savedPlans, setSavedPlans] = useState<any[]>([]);
   const [userLocation, setUserLocation] = useState('');
   const [userBudget, setUserBudget] = useState('');
+  const [userBuildTime, setUserBuildTime] = useState('');
   const [showCostSettings, setShowCostSettings] = useState(false);
 
   const INDIAN_CITIES = [
@@ -240,7 +241,7 @@ const FloorPlanResult = () => {
 
     setIsGeneratingCost(true);
     setShowCostSettings(false);
-    toast.info("Generating detailed cost estimation with real-time Indian market data...");
+    toast.info("Generating detailed cost estimation...");
 
     try {
       const budgetValue = userBudget ? parseInt(userBudget.replace(/,/g, '')) : undefined;
@@ -252,7 +253,8 @@ const FloorPlanResult = () => {
           preferences: formData.preferences,
           floorPlanDescription: description,
           location: userLocation || undefined,
-          userBudget: budgetValue
+          userBudget: budgetValue,
+          desiredBuildTime: userBuildTime ? parseInt(userBuildTime) : undefined
         }
       });
 
@@ -261,7 +263,7 @@ const FloorPlanResult = () => {
       if (data?.success && data?.estimation) {
         setCostEstimationData(data.estimation);
         setShowCostEstimation(true);
-        toast.success("Cost estimation generated successfully!");
+        toast.success("Cost estimation generated!");
       } else {
         throw new Error(data?.error || "Failed to generate cost estimation");
       }
@@ -308,7 +310,7 @@ const FloorPlanResult = () => {
               <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow">
                 <Home className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xl font-bold">DreamHome AI</span>
+              <span className="text-xl font-bold">CasaMuse</span>
             </Link>
             
             <Link to="/design">
@@ -363,15 +365,18 @@ const FloorPlanResult = () => {
               <Download className="w-5 h-5 mr-2" />
               Download Floor Plan
             </Button>
-            <Button
-              variant="hero"
-              size="lg"
-              onClick={() => setShow3DModel(true)}
-              className="group"
-            >
-              <Box className="w-5 h-5 mr-2" />
-              View 3D Model
-            </Button>
+            <Link to="/interactive-3d" state={{ imageUrl, description, formData }}>
+              <Button variant="hero" size="lg" className="group">
+                <Box className="w-5 h-5 mr-2" />
+                Interactive 3D
+              </Button>
+            </Link>
+            <Link to="/ai-rendered-view" state={{ imageUrl, description, formData }}>
+              <Button variant="hero" size="lg" className="group">
+                <Maximize className="w-5 h-5 mr-2" />
+                AI Rendered Views
+              </Button>
+            </Link>
             <Button
               variant="hero"
               size="lg"
@@ -452,6 +457,7 @@ const FloorPlanResult = () => {
                     placeholder="e.g., 5000000"
                     value={userBudget}
                     onChange={(e) => setUserBudget(e.target.value.replace(/[^0-9]/g, ''))}
+                    className="text-foreground bg-background"
                   />
                   {userBudget && (
                     <p className="text-sm text-primary font-medium">
@@ -459,6 +465,25 @@ const FloorPlanResult = () => {
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground">Get suggestions tailored to your budget</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Desired Build Time (optional)
+                  </Label>
+                  <Select value={userBuildTime} onValueChange={setUserBuildTime}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select timeline" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="6">6 months (Fast track)</SelectItem>
+                      <SelectItem value="9">9 months (Standard)</SelectItem>
+                      <SelectItem value="12">12 months (Relaxed)</SelectItem>
+                      <SelectItem value="18">18 months (Extended)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Faster builds may cost more due to overtime</p>
                 </div>
 
                 <div className="flex gap-2 pt-4">

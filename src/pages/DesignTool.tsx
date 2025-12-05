@@ -14,7 +14,7 @@ const DesignTool = () => {
               <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow">
                 <Home className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xl font-bold">DreamHome AI</span>
+              <span className="text-xl font-bold">CasaMuse</span>
             </Link>
             
             <Link to="/">

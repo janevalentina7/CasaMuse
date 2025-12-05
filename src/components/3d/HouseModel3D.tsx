@@ -132,6 +132,95 @@ function ExternalFeatures({ houseWidth, houseDepth, trimColor }: { houseWidth: n
   );
 }
 
+// Calculate proper rectangular floor plan layout
+function calculateFloorPlanLayout(rooms: Room[]) {
+  if (rooms.length === 0) return { positions: [], totalWidth: 0, totalDepth: 0 };
+  
+  // Sort rooms by size (larger rooms first)
+  const sortedRooms = [...rooms].map((r, idx) => ({ ...r, originalIndex: idx }))
+    .sort((a, b) => (b.breadth * b.length) - (a.breadth * a.length));
+  
+  // Calculate total area and estimate house dimensions
+  const totalArea = rooms.reduce((sum, r) => sum + r.breadth * r.length, 0);
+  const avgRoomWidth = rooms.reduce((sum, r) => sum + r.breadth, 0) / rooms.length;
+  const avgRoomDepth = rooms.reduce((sum, r) => sum + r.length, 0) / rooms.length;
+  
+  // Target a roughly rectangular house (width:depth ratio around 1.5:1)
+  const targetCols = Math.max(2, Math.min(4, Math.ceil(Math.sqrt(rooms.length * 1.5))));
+  const targetRows = Math.ceil(rooms.length / targetCols);
+  
+  // Grid-based positioning
+  const positions: { x: number; z: number; room: Room & { originalIndex: number } }[] = [];
+  const grid: (Room & { originalIndex: number } | null)[][] = [];
+  
+  // Initialize grid
+  for (let row = 0; row < targetRows; row++) {
+    grid[row] = [];
+    for (let col = 0; col < targetCols; col++) {
+      grid[row][col] = null;
+    }
+  }
+  
+  // Place rooms in grid
+  let roomIdx = 0;
+  for (let row = 0; row < targetRows && roomIdx < sortedRooms.length; row++) {
+    for (let col = 0; col < targetCols && roomIdx < sortedRooms.length; col++) {
+      grid[row][col] = sortedRooms[roomIdx];
+      roomIdx++;
+    }
+  }
+  
+  // Calculate actual row heights and column widths
+  const rowDepths: number[] = [];
+  const colWidths: number[] = [];
+  
+  for (let row = 0; row < targetRows; row++) {
+    let maxDepth = 8;
+    for (let col = 0; col < targetCols; col++) {
+      if (grid[row][col]) {
+        maxDepth = Math.max(maxDepth, grid[row][col]!.length);
+      }
+    }
+    rowDepths.push(maxDepth);
+  }
+  
+  for (let col = 0; col < targetCols; col++) {
+    let maxWidth = 8;
+    for (let row = 0; row < targetRows; row++) {
+      if (grid[row][col]) {
+        maxWidth = Math.max(maxWidth, grid[row][col]!.breadth);
+      }
+    }
+    colWidths.push(maxWidth);
+  }
+  
+  // Calculate positions
+  let zOffset = 0;
+  for (let row = 0; row < targetRows; row++) {
+    let xOffset = 0;
+    for (let col = 0; col < targetCols; col++) {
+      const room = grid[row][col];
+      if (room) {
+        positions.push({
+          x: xOffset + colWidths[col] / 2,
+          z: zOffset + rowDepths[row] / 2,
+          room
+        });
+      }
+      xOffset += colWidths[col] + 0.25;
+    }
+    zOffset += rowDepths[row] + 0.25;
+  }
+  
+  const totalWidth = colWidths.reduce((sum, w) => sum + w, 0) + (colWidths.length - 1) * 0.25;
+  const totalDepth = rowDepths.reduce((sum, d) => sum + d, 0) + (rowDepths.length - 1) * 0.25;
+  
+  // Sort back by original index for consistent rendering
+  positions.sort((a, b) => a.room.originalIndex - b.room.originalIndex);
+  
+  return { positions, totalWidth, totalDepth, colWidths, rowDepths, targetCols, targetRows };
+}
+
 // Main House component
 function House({ rooms, style, timeOfDay, showMeasurements }: { 
   rooms: Room[]; 
@@ -141,11 +230,12 @@ function House({ rooms, style, timeOfDay, showMeasurements }: {
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const styleConfig = getStyleMaterials(style);
-  const roomHeight = 3.2; // Slightly taller for better proportions
+  const roomHeight = 3.2;
 
-  const totalWidth = rooms.reduce((sum, room) => sum + room.breadth, 0) + (rooms.length - 1) * 0.25;
-  const maxDepth = Math.max(...rooms.map(r => r.length), 12);
-  const centerOffset = -totalWidth / 2;
+  const layout = calculateFloorPlanLayout(rooms);
+  const { positions, totalWidth, totalDepth } = layout;
+  const centerOffsetX = -totalWidth / 2;
+  const centerOffsetZ = -totalDepth / 2;
 
   const getSkyColor = (time: number) => {
     if (time < 6 || time > 20) return "#0a1628";
@@ -173,7 +263,7 @@ function House({ rooms, style, timeOfDay, showMeasurements }: {
       </Plane>
 
       {/* Grass around house */}
-      <Plane args={[totalWidth + 25, maxDepth + 25]} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+      <Plane args={[totalWidth + 25, totalDepth + 25]} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <meshStandardMaterial color="#5a9f5a" />
       </Plane>
 
@@ -188,25 +278,21 @@ function House({ rooms, style, timeOfDay, showMeasurements }: {
       />
       <hemisphereLight color="#87ceeb" groundColor="#3d6b4a" intensity={0.6} />
 
-      {/* House structure - rooms */}
-      <group position={[centerOffset, 0, 0]}>
-        {rooms.map((room, index) => {
-          let xOffset = 0;
-          for (let i = 0; i < index; i++) {
-            xOffset += rooms[i].breadth + 0.25;
-          }
-          
+      {/* House structure - rooms arranged in proper floor plan */}
+      <group position={[centerOffsetX, 0, centerOffsetZ]}>
+        {positions.map((pos, index) => {
+          const room = pos.room;
           return (
             <RoomComponent
               key={index}
-              position={[xOffset + room.breadth / 2, 0, 0]}
+              position={[pos.x, 0, pos.z]}
               size={[room.breadth, roomHeight, room.length]}
               name={room.roomName}
               styleConfig={styleConfig}
               showMeasurements={showMeasurements}
               roomIndex={index}
               isFirst={index === 0}
-              isLast={index === rooms.length - 1}
+              isLast={index === positions.length - 1}
             />
           );
         })}
@@ -215,20 +301,20 @@ function House({ rooms, style, timeOfDay, showMeasurements }: {
       {/* Style-Specific Roof with chimney and skylights */}
       <StyleSpecificRoof 
         width={totalWidth} 
-        depth={maxDepth} 
+        depth={totalDepth} 
         height={roomHeight} 
         style={style} 
         styleConfig={styleConfig} 
       />
 
       {/* External features */}
-      <ExternalFeatures houseWidth={totalWidth} houseDepth={maxDepth} trimColor={styleConfig.trimColor} />
+      <ExternalFeatures houseWidth={totalWidth} houseDepth={totalDepth} trimColor={styleConfig.trimColor} />
 
       {/* Landscaping */}
-      <Landscaping houseWidth={totalWidth} houseDepth={maxDepth} style={style} />
+      <Landscaping houseWidth={totalWidth} houseDepth={totalDepth} style={style} />
       
       {/* Exterior Lighting */}
-      <ExteriorLighting houseWidth={totalWidth} houseDepth={maxDepth} timeOfDay={timeOfDay} />
+      <ExteriorLighting houseWidth={totalWidth} houseDepth={totalDepth} timeOfDay={timeOfDay} />
     </group>
   );
 }
