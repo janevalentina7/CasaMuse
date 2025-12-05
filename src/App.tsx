@@ -8,6 +8,7 @@ import DesignTool from "./pages/DesignTool";
 import FloorPlanResult from "./pages/FloorPlanResult";
 import AIRenderedView from "./pages/AIRenderedView";
 import Interactive3DView from "./pages/Interactive3DView";
+import DesignSummary from "./pages/DesignSummary";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,7 +25,7 @@ const App = () => (
           <Route path="/floor-plan-result" element={<FloorPlanResult />} />
           <Route path="/ai-rendered-view" element={<AIRenderedView />} />
           <Route path="/interactive-3d" element={<Interactive3DView />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/design-summary" element={<DesignSummary />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
