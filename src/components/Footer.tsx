@@ -11,10 +11,10 @@ const Footer = () => {
               <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
                 <Home className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xl font-bold">DreamHome AI</span>
+              <span className="text-xl font-bold">CasaMuse</span>
             </div>
             <p className="text-white/70 text-sm">
-              Professional architectural design powered by AI. Create your dream home in minutes.
+              AI-powered smart home design with 3D visualization and VR integration.
             </p>
           </div>
 
@@ -53,7 +53,7 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-white/10 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-white/70">
-          <p>© 2024 DreamHome AI. All rights reserved.</p>
+          <p>© 2024 CasaMuse. All rights reserved.</p>
           <div className="flex gap-6">
             <a href="#" className="hover:text-white transition-colors">Twitter</a>
             <a href="#" className="hover:text-white transition-colors">LinkedIn</a>
