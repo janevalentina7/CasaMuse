@@ -4,20 +4,49 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Home, ArrowLeft, Box, Eye, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
+// Import static rendered views for floor plan set 1
+import set1FloorPlan from "@/assets/rendered-views/set1-floorplan.jpg";
+import set1Top from "@/assets/rendered-views/set1-top.jpg";
+import set1Front from "@/assets/rendered-views/set1-front.jpg";
+import set1Side from "@/assets/rendered-views/set1-side.jpg";
+import set1Back from "@/assets/rendered-views/set1-back.jpg";
+
+// Static rendered views set
+const STATIC_RENDERED_VIEWS = {
+  floorplan: set1FloorPlan,
+  top: set1Top,
+  front: set1Front,
+  '360': set1Front, // Use front view as 360 as well
+  side: set1Side,
+  back: set1Back,
+};
 
 const AIRenderedView = () => {
   const location = useLocation();
   const { imageUrl, formData, description } = location.state || {};
   const [isGenerating, setIsGenerating] = useState(false);
-  const [renderedView, setRenderedView] = useState<string>('360');
+  const [renderedView, setRenderedView] = useState<string>('floorplan');
   const [exteriorViews, setExteriorViews] = useState<{ [key: string]: { url: string; description: string } }>({});
   const [interiorViews, setInteriorViews] = useState<{ [key: string]: { url: string; description: string } }>({});
   const [showExterior, setShowExterior] = useState(true);
   const [showInterior, setShowInterior] = useState(true);
   const [generatingView, setGeneratingView] = useState<string | null>(null);
+  
+  // Pre-populate exterior views with static images on mount
+  useEffect(() => {
+    setExteriorViews({
+      floorplan: { url: STATIC_RENDERED_VIEWS.floorplan, description: '2D Floor Plan View' },
+      top: { url: STATIC_RENDERED_VIEWS.top, description: '3D Top/Isometric View showing the house layout from above' },
+      front: { url: STATIC_RENDERED_VIEWS.front, description: 'Front Exterior View of the house' },
+      '360': { url: STATIC_RENDERED_VIEWS['360'], description: '360° Exterior View' },
+      side: { url: STATIC_RENDERED_VIEWS.side, description: 'Side View showing the house from a diagonal angle' },
+      back: { url: STATIC_RENDERED_VIEWS.back, description: 'Back/Rear View of the house' },
+    });
+  }, []);
 
   // Get all room names from form data
   const getAllRoomNames = () => {
@@ -125,7 +154,7 @@ const AIRenderedView = () => {
   }
 
   const allRoomNames = getAllRoomNames();
-  const exteriorTypes = ['360', 'front', 'side', 'back', 'top'];
+  const exteriorTypes = ['floorplan', '360', 'front', 'side', 'back', 'top'];
   const currentView = exteriorViews[renderedView] || interiorViews[renderedView];
 
   return (
@@ -172,8 +201,8 @@ const AIRenderedView = () => {
               ) : currentView ? (
                 <div className="relative rounded-lg overflow-hidden">
                   <img src={currentView.url} alt="AI Rendered View" className="w-full h-auto" />
-                  <Badge className="absolute top-4 left-4 bg-primary text-white">
-                    {renderedView === '360' ? '360° View' : renderedView}
+                  <Badge className="absolute top-4 left-4 bg-primary text-white capitalize">
+                    {renderedView === '360' ? '360° View' : renderedView === 'floorplan' ? 'Floor Plan' : `${renderedView} View`}
                   </Badge>
                 </div>
               ) : (
@@ -229,7 +258,7 @@ const AIRenderedView = () => {
                         ) : (
                           <Eye className="w-4 h-4 mr-2" />
                         )}
-                        {view === '360' ? '360° View' : `${view.charAt(0).toUpperCase() + view.slice(1)} View`}
+                        {view === '360' ? '360° View' : view === 'floorplan' ? 'Floor Plan' : `${view.charAt(0).toUpperCase() + view.slice(1)} View`}
                         {exteriorViews[view] && (
                           <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" />
                         )}
@@ -312,7 +341,7 @@ const AIRenderedView = () => {
                     >
                       <img src={view.url} alt={key} className="w-full aspect-video object-cover" />
                       <p className="text-xs p-2 text-center bg-muted/50 capitalize">
-                        {key === '360' ? '360° View' : `${key} View`}
+                        {key === '360' ? '360° View' : key === 'floorplan' ? 'Floor Plan' : `${key} View`}
                       </p>
                     </div>
                   ))}
