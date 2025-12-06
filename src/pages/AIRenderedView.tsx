@@ -2,110 +2,34 @@ import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, ArrowLeft, Box, Eye, Loader2, ChevronDown, ChevronUp } from "lucide-react";
-import { toast } from "sonner";
+import { Home, ArrowLeft, Box, Eye, ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
+// Import sample rendered view images
+import floorplanSample1 from "@/assets/floorplan-sample-1.jpg";
+import floorplanSample2 from "@/assets/floorplan-sample-2.jpg";
+import topView from "@/assets/3d-topview.jpg";
+import frontView from "@/assets/3d-frontview.jpg";
+import sideView from "@/assets/3d-sideview.jpg";
+import backView from "@/assets/3d-backview.jpg";
+
+// Define exterior views with sample images
+const EXTERIOR_VIEWS = {
+  'floorplan': { url: floorplanSample1, label: 'Floor Plan', description: 'Professional 2D floor plan with room dimensions and layout' },
+  'top': { url: topView, label: 'Top View', description: '3D isometric view showing the complete house layout from above' },
+  'front': { url: frontView, label: 'Front View', description: 'Front elevation view of the modern house with landscaping' },
+  'side': { url: sideView, label: 'Side View', description: 'Side perspective showing the house architecture and outdoor patio area' },
+  'back': { url: backView, label: 'Back View', description: 'Rear view of the house showing terrace and balcony areas' },
+};
 
 const AIRenderedView = () => {
   const location = useLocation();
   const { imageUrl, formData, description } = location.state || {};
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [renderedView, setRenderedView] = useState<string>('360');
-  const [exteriorViews, setExteriorViews] = useState<{ [key: string]: { url: string; description: string } }>({});
-  const [interiorViews, setInteriorViews] = useState<{ [key: string]: { url: string; description: string } }>({});
+  const [selectedView, setSelectedView] = useState<string>('floorplan');
   const [showExterior, setShowExterior] = useState(true);
-  const [showInterior, setShowInterior] = useState(true);
-  const [generatingView, setGeneratingView] = useState<string | null>(null);
 
-  // Get all room names from form data
-  const getAllRoomNames = () => {
-    if (!formData?.rooms) return [];
-    const roomNames: string[] = [];
-    
-    formData.rooms.forEach((room: any) => {
-      const count = room.count || 1;
-      for (let i = 0; i < count; i++) {
-        const name = count > 1 ? `${room.roomName} ${i + 1}` : room.roomName;
-        roomNames.push(name);
-        
-        if (room.attachedBathroom) {
-          roomNames.push(`Bathroom (${name})`);
-        }
-      }
-    });
-    
-    return roomNames;
-  };
-
-  const handleGenerateView = async (viewType: string, roomName?: string) => {
-    if (!imageUrl || !formData) {
-      toast.error("Floor plan data not available");
-      return;
-    }
-
-    const viewKey = roomName || viewType;
-    setGeneratingView(viewKey);
-    setIsGenerating(true);
-    setRenderedView(viewKey);
-    
-    const viewLabel = roomName || (viewType === '360' ? '360° View' : `${viewType.charAt(0).toUpperCase() + viewType.slice(1)} View`);
-    toast.info(`Generating ${viewLabel}...`);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-3d-model', {
-        body: {
-          floorPlanImageUrl: imageUrl,
-          landArea: formData.landArea,
-          rooms: formData.rooms,
-          preferences: formData.preferences,
-          view: roomName ? 'interior' : viewType,
-          specificRoom: roomName,
-        }
-      });
-
-      if (error) throw error;
-
-      if (data?.success && data?.imageUrl) {
-        if (roomName) {
-          setInteriorViews(prev => ({ 
-            ...prev, 
-            [roomName]: { url: data.imageUrl, description: data.description || '' } 
-          }));
-        } else {
-          setExteriorViews(prev => ({ 
-            ...prev, 
-            [viewType]: { url: data.imageUrl, description: data.description || '' } 
-          }));
-        }
-        toast.success(`${viewLabel} generated!`);
-      } else {
-        throw new Error(data?.error || "Failed to generate view");
-      }
-    } catch (error) {
-      console.error('Error generating view:', error);
-      toast.error(error instanceof Error ? error.message : "Failed to generate view");
-    } finally {
-      setIsGenerating(false);
-      setGeneratingView(null);
-    }
-  };
-
-  const generateAllInteriors = async () => {
-    const allRooms = getAllRoomNames();
-    toast.info(`Generating interiors for ${allRooms.length} rooms...`);
-    
-    for (const roomName of allRooms) {
-      if (!interiorViews[roomName]) {
-        await handleGenerateView('interior', roomName);
-      }
-    }
-    
-    toast.success("All interior views generated!");
-  };
-
-  if (!imageUrl || !formData) {
+  if (!formData) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
         <Card className="glass-card max-w-md w-full">
@@ -124,9 +48,8 @@ const AIRenderedView = () => {
     );
   }
 
-  const allRoomNames = getAllRoomNames();
-  const exteriorTypes = ['360', 'front', 'side', 'back', 'top'];
-  const currentView = exteriorViews[renderedView] || interiorViews[renderedView];
+  const currentView = EXTERIOR_VIEWS[selectedView as keyof typeof EXTERIOR_VIEWS];
+  const exteriorTypes = Object.keys(EXTERIOR_VIEWS);
 
   return (
     <div className="min-h-screen bg-gradient-hero">
@@ -158,34 +81,22 @@ const AIRenderedView = () => {
             <h1 className="text-3xl font-bold">
               AI Rendered <span className="bg-gradient-primary bg-clip-text text-transparent">Views</span>
             </h1>
-            <p className="text-muted-foreground">Photorealistic renderings of your home - exterior and all rooms</p>
+            <p className="text-muted-foreground">Photorealistic renderings of your home design</p>
           </div>
 
           {/* Main Display */}
           <Card className="glass-card border-2">
             <CardContent className="p-6">
-              {generatingView === renderedView ? (
-                <div className="flex flex-col items-center justify-center py-24">
-                  <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
-                  <p className="text-muted-foreground">Generating AI rendered view...</p>
-                </div>
-              ) : currentView ? (
-                <div className="relative rounded-lg overflow-hidden">
-                  <img src={currentView.url} alt="AI Rendered View" className="w-full h-auto" />
-                  <Badge className="absolute top-4 left-4 bg-primary text-white">
-                    {renderedView === '360' ? '360° View' : renderedView}
-                  </Badge>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-24 text-center">
-                  <Box className="w-16 h-16 text-muted-foreground mb-4" />
-                  <p className="text-lg font-medium mb-2">Select a view to generate</p>
-                  <p className="text-muted-foreground mb-4">Choose from exterior views or interior rooms below</p>
-                  <Button onClick={() => handleGenerateView('360')}>
-                    Generate 360° View
-                  </Button>
-                </div>
-              )}
+              <div className="relative rounded-lg overflow-hidden">
+                <img 
+                  src={currentView?.url} 
+                  alt={currentView?.label} 
+                  className="w-full h-auto" 
+                />
+                <Badge className="absolute top-4 left-4 bg-primary text-white">
+                  {currentView?.label}
+                </Badge>
+              </div>
             </CardContent>
           </Card>
 
@@ -198,7 +109,7 @@ const AIRenderedView = () => {
             </Card>
           )}
 
-          {/* Exterior Views Section */}
+          {/* View Selection Section */}
           <Collapsible open={showExterior} onOpenChange={setShowExterior}>
             <Card className="glass-card">
               <CollapsibleTrigger asChild>
@@ -206,7 +117,7 @@ const AIRenderedView = () => {
                   <CardTitle className="flex items-center justify-between">
                     <span className="flex items-center gap-2">
                       <Eye className="w-5 h-5" />
-                      Exterior Views
+                      Available Views
                     </span>
                     {showExterior ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                   </CardTitle>
@@ -215,123 +126,64 @@ const AIRenderedView = () => {
               <CollapsibleContent>
                 <CardContent className="pt-0">
                   <div className="flex flex-wrap gap-2">
-                    {exteriorTypes.map((view) => (
-                      <Button
-                        key={view}
-                        variant={renderedView === view && exteriorViews[view] ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleGenerateView(view)}
-                        disabled={isGenerating}
-                        className="relative"
-                      >
-                        {generatingView === view ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
+                    {exteriorTypes.map((viewKey) => {
+                      const view = EXTERIOR_VIEWS[viewKey as keyof typeof EXTERIOR_VIEWS];
+                      return (
+                        <Button
+                          key={viewKey}
+                          variant={selectedView === viewKey ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedView(viewKey)}
+                          className="relative"
+                        >
                           <Eye className="w-4 h-4 mr-2" />
-                        )}
-                        {view === '360' ? '360° View' : `${view.charAt(0).toUpperCase() + view.slice(1)} View`}
-                        {exteriorViews[view] && (
-                          <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" />
-                        )}
-                      </Button>
-                    ))}
+                          {view.label}
+                        </Button>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </CollapsibleContent>
             </Card>
           </Collapsible>
 
-          {/* Interior Views Section - ALL ROOMS */}
-          <Collapsible open={showInterior} onOpenChange={setShowInterior}>
-            <Card className="glass-card">
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-muted/20 transition-colors">
-                  <CardTitle className="flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <Home className="w-5 h-5" />
-                      Interior Views ({allRoomNames.length} Rooms)
-                    </span>
-                    {showInterior ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                  </CardTitle>
-                </CardHeader>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent className="pt-0 space-y-4">
-                  <div className="flex justify-end">
-                    <Button 
-                      size="sm" 
-                      onClick={generateAllInteriors}
-                      disabled={isGenerating}
-                    >
-                      {isGenerating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                      Generate All Interiors
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {allRoomNames.map((roomName) => (
-                      <Button
-                        key={roomName}
-                        variant={renderedView === roomName && interiorViews[roomName] ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleGenerateView('interior', roomName)}
-                        disabled={isGenerating}
-                        className="relative"
-                      >
-                        {generatingView === roomName ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Home className="w-4 h-4 mr-2" />
-                        )}
-                        {roomName}
-                        {interiorViews[roomName] && (
-                          <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" />
-                        )}
-                      </Button>
-                    ))}
-                  </div>
-                </CardContent>
-              </CollapsibleContent>
-            </Card>
-          </Collapsible>
-
-          {/* Generated Views Gallery */}
-          {(Object.keys(exteriorViews).length > 0 || Object.keys(interiorViews).length > 0) && (
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle>Generated Views Gallery</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {Object.entries(exteriorViews).map(([key, view]) => (
+          {/* Views Gallery */}
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle>Views Gallery</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                {exteriorTypes.map((viewKey) => {
+                  const view = EXTERIOR_VIEWS[viewKey as keyof typeof EXTERIOR_VIEWS];
+                  return (
                     <div 
-                      key={key} 
+                      key={viewKey} 
                       className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
-                        renderedView === key ? 'border-primary' : 'border-transparent hover:border-primary/50'
+                        selectedView === viewKey ? 'border-primary ring-2 ring-primary/30' : 'border-transparent hover:border-primary/50'
                       }`}
-                      onClick={() => setRenderedView(key)}
+                      onClick={() => setSelectedView(viewKey)}
                     >
-                      <img src={view.url} alt={key} className="w-full aspect-video object-cover" />
-                      <p className="text-xs p-2 text-center bg-muted/50 capitalize">
-                        {key === '360' ? '360° View' : `${key} View`}
+                      <img src={view.url} alt={view.label} className="w-full aspect-video object-cover" />
+                      <p className="text-xs p-2 text-center bg-muted/50">
+                        {view.label}
                       </p>
                     </div>
-                  ))}
-                  {Object.entries(interiorViews).map(([key, view]) => (
-                    <div 
-                      key={key} 
-                      className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
-                        renderedView === key ? 'border-primary' : 'border-transparent hover:border-primary/50'
-                      }`}
-                      onClick={() => setRenderedView(key)}
-                    >
-                      <img src={view.url} alt={key} className="w-full aspect-video object-cover" />
-                      <p className="text-xs p-2 text-center bg-muted/50">{key}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Navigation to Interactive 3D */}
+          <div className="flex justify-center gap-4">
+            <Link to="/interactive-3d" state={{ imageUrl, description, formData }}>
+              <Button variant="hero" size="lg">
+                <Box className="w-5 h-5 mr-2" />
+                View Interactive 3D Model
+              </Button>
+            </Link>
+          </div>
         </div>
       </main>
     </div>
