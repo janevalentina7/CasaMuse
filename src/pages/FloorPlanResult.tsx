@@ -17,23 +17,29 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import FloorPlanSVG from "@/components/FloorPlanSVG";
 import FloorPlanSummaryPanel from "@/components/FloorPlanSummaryPanel";
 
-// Import floor plan images
+// Import floor plan images - 4 sets available
 import floorPlan1 from "@/assets/floor-plans/floor-plan-1.jpg";
 import floorPlan2 from "@/assets/floor-plans/floor-plan-2.png";
 import floorPlan3 from "@/assets/floor-plans/floor-plan-3.png";
 import floorPlan4 from "@/assets/floor-plans/floor-plan-4.png";
 
-const FLOOR_PLAN_IMAGES = [floorPlan1, floorPlan2, floorPlan3, floorPlan4];
+// Floor plan sets with their corresponding set IDs
+const FLOOR_PLAN_SETS = [
+  { id: 1, image: floorPlan1 },
+  { id: 2, image: floorPlan2 },
+  { id: 3, image: floorPlan3 },
+  { id: 4, image: floorPlan4 },
+];
 
 const FloorPlanResult = () => {
   const location = useLocation();
   const { imageUrl, floorPlanData, description, formData } = location.state || {};
   const svgContainerRef = useRef<HTMLDivElement>(null);
   
-  // Randomly select one of the 4 floor plan images (memoized to persist across re-renders)
-  const randomFloorPlanImage = useMemo(() => {
-    const randomIndex = Math.floor(Math.random() * FLOOR_PLAN_IMAGES.length);
-    return FLOOR_PLAN_IMAGES[randomIndex];
+  // Randomly select one of the floor plan sets (memoized to persist across re-renders)
+  const selectedFloorPlanSet = useMemo(() => {
+    const randomIndex = Math.floor(Math.random() * FLOOR_PLAN_SETS.length);
+    return FLOOR_PLAN_SETS[randomIndex];
   }, []);
   const [is3DGenerating, setIs3DGenerating] = useState(false);
   const [model3DUrl, setModel3DUrl] = useState<string | null>(null);
@@ -395,9 +401,9 @@ const FloorPlanResult = () => {
             <Card className="glass-card border-2 lg:col-span-3">
               <CardContent className="p-6">
                 <div ref={svgContainerRef} className="relative rounded-lg overflow-hidden bg-white">
-                  {/* Display random floor plan image */}
+                  {/* Display floor plan image from selected set */}
                   <img
-                    src={randomFloorPlanImage}
+                    src={selectedFloorPlanSet.image}
                     alt="Generated Floor Plan"
                     className="w-full h-auto"
                   />
@@ -427,13 +433,13 @@ const FloorPlanResult = () => {
               <Download className="w-5 h-5 mr-2" />
               Download Floor Plan
             </Button>
-            <Link to="/interactive-3d" state={{ imageUrl, description, formData }}>
+            <Link to="/interactive-3d" state={{ imageUrl, description, formData, floorPlanSetId: selectedFloorPlanSet.id }}>
               <Button variant="hero" size="lg" className="group">
                 <Box className="w-5 h-5 mr-2" />
                 Interactive 3D
               </Button>
             </Link>
-            <Link to="/ai-rendered-view" state={{ imageUrl, description, formData }}>
+            <Link to="/ai-rendered-view" state={{ imageUrl, description, formData, floorPlanSetId: selectedFloorPlanSet.id }}>
               <Button variant="hero" size="lg" className="group">
                 <Maximize className="w-5 h-5 mr-2" />
                 AI Rendered Views
