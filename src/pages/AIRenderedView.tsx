@@ -22,6 +22,13 @@ import set2Front from "@/assets/rendered-views/set2-front.png";
 import set2Side from "@/assets/rendered-views/set2-side.png";
 import set2Back from "@/assets/rendered-views/set2-back.png";
 
+// Import static rendered views for floor plan set 3
+import set3FloorPlan from "@/assets/rendered-views/set3-floorplan.png";
+import set3Top from "@/assets/rendered-views/set3-top.png";
+import set3Front from "@/assets/rendered-views/set3-front.jpg";
+import set3Side from "@/assets/rendered-views/set3-side.jpg";
+import set3Back from "@/assets/rendered-views/set3-back.jpg";
+
 // All rendered view sets mapped by floor plan set ID
 const RENDERED_VIEW_SETS: { [key: number]: { [view: string]: string } } = {
   1: {
@@ -40,15 +47,15 @@ const RENDERED_VIEW_SETS: { [key: number]: { [view: string]: string } } = {
     side: set2Side,
     back: set2Back,
   },
-  // Sets 3 and 4 will use set 1 as fallback until images are provided
   3: {
-    floorplan: set1FloorPlan,
-    top: set1Top,
-    front: set1Front,
-    '360': set1Front,
-    side: set1Side,
-    back: set1Back,
+    floorplan: set3FloorPlan,
+    top: set3Top,
+    front: set3Front,
+    '360': set3Front,
+    side: set3Side,
+    back: set3Back,
   },
+  // Set 4 uses set 1 as fallback until images are provided
   4: {
     floorplan: set1FloorPlan,
     top: set1Top,
