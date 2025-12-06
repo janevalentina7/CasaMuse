@@ -106,11 +106,26 @@ export const DesignForm = () => {
         },
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating floor plan:', error);
-      toast.error("Failed to generate floor plan", {
-        description: error instanceof Error ? error.message : "Please try again",
-      });
+      
+      const errorMessage = error?.message || "Please try again";
+      const errorContext = error?.context;
+      
+      if (errorContext?.errorType === 'payment_required') {
+        toast.error("Not enough AI credits", {
+          description: "Please add credits to your Lovable workspace at Settings → Workspace → Usage.",
+          duration: 10000,
+        });
+      } else if (errorContext?.errorType === 'rate_limited') {
+        toast.error("Rate limit exceeded", {
+          description: "Please wait a moment and try again.",
+        });
+      } else {
+        toast.error("Failed to generate floor plan", {
+          description: errorMessage,
+        });
+      }
     } finally {
       setIsGenerating(false);
     }
