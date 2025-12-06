@@ -387,6 +387,8 @@ const FloorPlanResult = () => {
                     builtUpArea={floorPlanData.builtUpArea}
                     style={formData?.preferences?.style || 'Modern'}
                     scaleFactor={floorPlanData.scaleFactor}
+                    hasParking={floorPlanData.hasParking}
+                    hasGarden={floorPlanData.hasGarden}
                   />
                 ) : imageUrl ? (
                   <img
