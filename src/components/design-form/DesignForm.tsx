@@ -6,8 +6,8 @@ import { Step2Rooms, RoomSelection } from "./Step2Rooms";
 import { Step3Preferences, DesignPreferences } from "./Step3Preferences";
 import { Step4Review } from "./Step4Review";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { ROOM_DATA } from "@/data/roomSizes";
+import { generateFloorPlan, RoomData, FloorPlanPreferences } from "@/utils/floorPlanGenerator";
 
 const STEPS = ["Land Area", "Rooms", "Preferences", "Review"];
 
@@ -56,13 +56,13 @@ export const DesignForm = () => {
   const handleSubmit = async () => {
     setIsGenerating(true);
     toast.info("Generating your professional floor plan...", {
-      description: "This may take 20-30 seconds",
-      duration: 3000,
+      description: "Processing your design requirements",
+      duration: 2000,
     });
 
     try {
       // Prepare room data with full details
-      const roomsWithDetails = rooms.map((room) => {
+      const roomsWithDetails: RoomData[] = rooms.map((room) => {
         const roomData = ROOM_DATA[room.roomId];
         const sizeData = roomData.sizes[room.size];
         return {
@@ -76,47 +76,31 @@ export const DesignForm = () => {
         };
       });
 
-      // Call the edge function to generate floor plan
-      const { data, error } = await supabase.functions.invoke('generate-floor-plan', {
-        body: {
-          landArea,
-          rooms: roomsWithDetails,
-          preferences,
-        },
-      });
+      // Generate floor plan procedurally (no AI needed!)
+      const floorPlanPrefs: FloorPlanPreferences = {
+        style: preferences.style,
+        floors: preferences.floors,
+        vastuCompliant: preferences.vastuCompliant,
+        dynamicScaling: preferences.dynamicScaling,
+        outdoorFeatures: preferences.outdoorFeatures,
+      };
 
-      // Check for payment/credits error in the response data
-      if (data?.errorType === 'payment_required') {
-        toast.error("Lovable AI Credits Required", {
-          description: "Please add credits to your Lovable workspace at Settings → Workspace → Usage in the Lovable editor.",
-          duration: 10000,
-        });
-        setIsGenerating(false);
-        return;
-      }
+      const floorPlanResult = generateFloorPlan(
+        parseFloat(landArea),
+        roomsWithDetails,
+        floorPlanPrefs
+      );
 
-      if (data?.errorType === 'rate_limited') {
-        toast.error("Rate Limit Reached", {
-          description: "Too many requests. Please wait a moment and try again.",
-          duration: 5000,
-        });
-        setIsGenerating(false);
-        return;
-      }
-
-      if (error) throw error;
-
-      if (!data?.success) {
-        throw new Error(data?.error || 'Failed to generate floor plan');
-      }
+      // Small delay for UX
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       toast.success("Floor plan generated successfully!");
 
-      // Navigate to results page with the generated image
+      // Navigate to results page with the generated data
       navigate('/floor-plan-result', {
         state: {
-          imageUrl: data.imageUrl,
-          description: data.description,
+          floorPlanData: floorPlanResult,
+          description: `Professional ${preferences.style} floor plan for ${landArea} sq ft with ${roomsWithDetails.length} rooms. Built-up area: ${floorPlanResult.builtUpArea} sq ft.`,
           formData: {
             landArea,
             rooms: roomsWithDetails,
