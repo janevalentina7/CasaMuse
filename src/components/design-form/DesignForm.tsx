@@ -6,8 +6,8 @@ import { Step2Rooms, RoomSelection } from "./Step2Rooms";
 import { Step3Preferences, DesignPreferences } from "./Step3Preferences";
 import { Step4Review } from "./Step4Review";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { ROOM_DATA } from "@/data/roomSizes";
+import { generateFloorPlanDataURL, generateFloorPlanDescription } from "@/lib/floorPlanGenerator";
 
 const STEPS = ["Land Area", "Rooms", "Preferences", "Review"];
 
@@ -55,9 +55,9 @@ export const DesignForm = () => {
 
   const handleSubmit = async () => {
     setIsGenerating(true);
-    toast.info("Generating your professional floor plan...", {
-      description: "This may take 20-30 seconds",
-      duration: 3000,
+    toast.info("Generating your floor plan...", {
+      description: "This will only take a moment",
+      duration: 2000,
     });
 
     try {
@@ -76,28 +76,26 @@ export const DesignForm = () => {
         };
       });
 
-      // Call the edge function to generate floor plan
-      const { data, error } = await supabase.functions.invoke('generate-floor-plan', {
-        body: {
-          landArea,
-          rooms: roomsWithDetails,
-          preferences,
-        },
-      });
-
-      if (error) throw error;
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to generate floor plan');
-      }
+      // Generate floor plan locally (no AI required)
+      const imageUrl = generateFloorPlanDataURL(
+        roomsWithDetails,
+        parseFloat(landArea),
+        preferences
+      );
+      
+      const description = generateFloorPlanDescription(
+        roomsWithDetails,
+        parseFloat(landArea),
+        preferences
+      );
 
       toast.success("Floor plan generated successfully!");
 
       // Navigate to results page with the generated image
       navigate('/floor-plan-result', {
         state: {
-          imageUrl: data.imageUrl,
-          description: data.description,
+          imageUrl,
+          description,
           formData: {
             landArea,
             rooms: roomsWithDetails,
@@ -108,24 +106,9 @@ export const DesignForm = () => {
 
     } catch (error: any) {
       console.error('Error generating floor plan:', error);
-      
-      const errorMessage = error?.message || "Please try again";
-      const errorContext = error?.context;
-      
-      if (errorContext?.errorType === 'payment_required') {
-        toast.error("Not enough AI credits", {
-          description: "Please add credits to your Lovable workspace at Settings → Workspace → Usage.",
-          duration: 10000,
-        });
-      } else if (errorContext?.errorType === 'rate_limited') {
-        toast.error("Rate limit exceeded", {
-          description: "Please wait a moment and try again.",
-        });
-      } else {
-        toast.error("Failed to generate floor plan", {
-          description: errorMessage,
-        });
-      }
+      toast.error("Failed to generate floor plan", {
+        description: error?.message || "Please try again",
+      });
     } finally {
       setIsGenerating(false);
     }
