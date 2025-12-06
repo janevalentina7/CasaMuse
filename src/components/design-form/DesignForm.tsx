@@ -85,10 +85,29 @@ export const DesignForm = () => {
         },
       });
 
+      // Check for payment/credits error in the response data
+      if (data?.errorType === 'payment_required') {
+        toast.error("Lovable AI Credits Required", {
+          description: "Please add credits to your Lovable workspace at Settings → Workspace → Usage in the Lovable editor.",
+          duration: 10000,
+        });
+        setIsGenerating(false);
+        return;
+      }
+
+      if (data?.errorType === 'rate_limited') {
+        toast.error("Rate Limit Reached", {
+          description: "Too many requests. Please wait a moment and try again.",
+          duration: 5000,
+        });
+        setIsGenerating(false);
+        return;
+      }
+
       if (error) throw error;
 
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to generate floor plan');
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to generate floor plan');
       }
 
       toast.success("Floor plan generated successfully!");
