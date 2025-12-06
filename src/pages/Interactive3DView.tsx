@@ -1,12 +1,15 @@
 import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Home, ArrowLeft, Box } from "lucide-react";
+import { Home, ArrowLeft, Box, Layers } from "lucide-react";
+import { useState } from "react";
 import HouseModel3D from "@/components/3d/HouseModel3D";
+import TexturedHouseModel from "@/components/3d/TexturedHouseModel";
 
 const Interactive3DView = () => {
   const location = useLocation();
-  const { imageUrl, formData, description } = location.state || {};
+  const { imageUrl, formData, description, floorPlanSetId = 1 } = location.state || {};
+  const [viewMode, setViewMode] = useState<'textured' | 'procedural'>('textured');
 
   // Transform form room data to HouseModel3D format
   const transformRoomsFor3D = (rooms: any[]) => {
@@ -36,7 +39,7 @@ const Interactive3DView = () => {
     return transformed;
   };
 
-  if (!imageUrl || !formData) {
+  if (!formData) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
         <Card className="glass-card max-w-md w-full">
@@ -68,7 +71,7 @@ const Interactive3DView = () => {
               <span className="text-xl font-bold">CasaMuse</span>
             </Link>
             
-            <Link to="/floor-plan-result" state={{ imageUrl, description, formData }}>
+            <Link to="/floor-plan-result" state={{ imageUrl, description, formData, floorPlanSetId }}>
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Results
@@ -88,14 +91,41 @@ const Interactive3DView = () => {
             <p className="text-muted-foreground">Explore your home design in full 3D with VR support</p>
           </div>
 
+          {/* View Mode Toggle */}
+          <div className="flex justify-center gap-2">
+            <Button 
+              variant={viewMode === 'textured' ? 'default' : 'outline'}
+              onClick={() => setViewMode('textured')}
+              className="gap-2"
+            >
+              <Layers className="w-4 h-4" />
+              Rendered View 3D
+            </Button>
+            <Button 
+              variant={viewMode === 'procedural' ? 'default' : 'outline'}
+              onClick={() => setViewMode('procedural')}
+              className="gap-2"
+            >
+              <Box className="w-4 h-4" />
+              Procedural 3D
+            </Button>
+          </div>
+
           {/* 3D Model Viewer */}
           <Card className="glass-card border-2">
             <CardContent className="p-4">
-              {formData?.rooms && (
-                <HouseModel3D 
-                  rooms={transformRoomsFor3D(formData.rooms)} 
+              {viewMode === 'textured' ? (
+                <TexturedHouseModel 
+                  floorPlanSetId={floorPlanSetId}
                   style={formData.preferences?.style || "Modern"}
                 />
+              ) : (
+                formData?.rooms && (
+                  <HouseModel3D 
+                    rooms={transformRoomsFor3D(formData.rooms)} 
+                    style={formData.preferences?.style || "Modern"}
+                  />
+                )
               )}
             </CardContent>
           </Card>
@@ -118,9 +148,9 @@ const Interactive3DView = () => {
             </Card>
             <Card className="glass-card">
               <CardContent className="p-4 text-center">
-                <Box className="w-8 h-8 mx-auto mb-2 text-primary" />
-                <h3 className="font-semibold mb-1">VR Ready</h3>
-                <p className="text-xs text-muted-foreground">Connect VR headset for immersive experience</p>
+                <Layers className="w-8 h-8 mx-auto mb-2 text-primary" />
+                <h3 className="font-semibold mb-1">Two View Modes</h3>
+                <p className="text-xs text-muted-foreground">Toggle between rendered and procedural 3D</p>
               </CardContent>
             </Card>
           </div>
