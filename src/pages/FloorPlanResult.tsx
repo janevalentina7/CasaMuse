@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Home, Download, ArrowLeft, Share2, Box, Eye, Navigation, IndianRupee, Maximize, GitCompare, Plus, MapPin, Wallet, Clock, FileText } from "lucide-react";
 import { toast } from "sonner";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import VirtualWalkthrough from "@/components/VirtualWalkthrough";
 import HouseModel3D from "@/components/3d/HouseModel3D";
@@ -17,10 +17,24 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import FloorPlanSVG from "@/components/FloorPlanSVG";
 import FloorPlanSummaryPanel from "@/components/FloorPlanSummaryPanel";
 
+// Import floor plan images
+import floorPlan1 from "@/assets/floor-plans/floor-plan-1.jpg";
+import floorPlan2 from "@/assets/floor-plans/floor-plan-2.png";
+import floorPlan3 from "@/assets/floor-plans/floor-plan-3.png";
+import floorPlan4 from "@/assets/floor-plans/floor-plan-4.png";
+
+const FLOOR_PLAN_IMAGES = [floorPlan1, floorPlan2, floorPlan3, floorPlan4];
+
 const FloorPlanResult = () => {
   const location = useLocation();
   const { imageUrl, floorPlanData, description, formData } = location.state || {};
   const svgContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Randomly select one of the 4 floor plan images (memoized to persist across re-renders)
+  const randomFloorPlanImage = useMemo(() => {
+    const randomIndex = Math.floor(Math.random() * FLOOR_PLAN_IMAGES.length);
+    return FLOOR_PLAN_IMAGES[randomIndex];
+  }, []);
   const [is3DGenerating, setIs3DGenerating] = useState(false);
   const [model3DUrl, setModel3DUrl] = useState<string | null>(null);
   const [model3DDescription, setModel3DDescription] = useState<string>("");
@@ -381,25 +395,12 @@ const FloorPlanResult = () => {
             <Card className="glass-card border-2 lg:col-span-3">
               <CardContent className="p-6">
                 <div ref={svgContainerRef} className="relative rounded-lg overflow-hidden bg-white">
-                  {floorPlanData ? (
-                    <FloorPlanSVG
-                      rooms={floorPlanData.rooms}
-                      totalWidth={floorPlanData.totalWidth}
-                      totalHeight={floorPlanData.totalHeight}
-                      landArea={floorPlanData.landArea}
-                      builtUpArea={floorPlanData.builtUpArea}
-                      style={formData?.preferences?.style || 'Modern'}
-                      scaleFactor={floorPlanData.scaleFactor}
-                      hasParking={floorPlanData.hasParking}
-                      hasGarden={floorPlanData.hasGarden}
-                    />
-                  ) : imageUrl ? (
-                    <img
-                      src={imageUrl}
-                      alt="Generated Floor Plan"
-                      className="w-full h-auto"
-                    />
-                  ) : null}
+                  {/* Display random floor plan image */}
+                  <img
+                    src={randomFloorPlanImage}
+                    alt="Generated Floor Plan"
+                    className="w-full h-auto"
+                  />
                 </div>
               </CardContent>
             </Card>
