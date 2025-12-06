@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Home, ArrowLeft, Download, FileText, Box, IndianRupee, Image, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
 // Import rendered view images
@@ -45,53 +44,284 @@ const DesignSummary = () => {
   // Extract cost data - handle both nested and flat structures
   const costSummary = costEstimationData?.summary || costEstimationData;
 
+  const loadImageAsBase64 = (src: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = document.createElement('img') as HTMLImageElement;
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.onerror = reject;
+      img.src = src;
+    });
+  };
+
   const handleDownloadSummary = async () => {
-    if (!summaryRef.current) return;
-    
     setIsDownloading(true);
     toast.info("Generating PDF... Please wait.");
 
     try {
-      const element = summaryRef.current;
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-      });
-
-      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4',
       });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      const imgX = (pdfWidth - imgWidth * ratio) / 2;
-      
-      // Calculate how many pages we need
-      const scaledImgHeight = imgHeight * ratio;
-      const pageCount = Math.ceil(scaledImgHeight / pdfHeight);
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 15;
+      const contentWidth = pageWidth - margin * 2;
+      let yPos = margin;
 
-      for (let i = 0; i < pageCount; i++) {
-        if (i > 0) {
+      // Helper functions
+      const addNewPageIfNeeded = (requiredHeight: number) => {
+        if (yPos + requiredHeight > pageHeight - margin) {
           pdf.addPage();
+          yPos = margin;
+          return true;
         }
-        pdf.addImage(
-          imgData,
-          'PNG',
-          imgX,
-          -(i * pdfHeight),
-          imgWidth * ratio,
-          imgHeight * ratio
-        );
+        return false;
+      };
+
+      const drawSection = (title: string) => {
+        addNewPageIfNeeded(20);
+        pdf.setFillColor(236, 91, 109); // Primary color
+        pdf.rect(margin, yPos, contentWidth, 8, 'F');
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(12);
+        pdf.setTextColor(255, 255, 255);
+        pdf.text(title, margin + 3, yPos + 5.5);
+        yPos += 12;
+        pdf.setTextColor(0, 0, 0);
+      };
+
+      const drawKeyValue = (key: string, value: string, inline = false) => {
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(key, margin + 3, yPos);
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFont('helvetica', 'bold');
+        if (inline) {
+          pdf.text(value, margin + 45, yPos);
+        } else {
+          yPos += 5;
+          pdf.text(value, margin + 3, yPos);
+        }
+        yPos += 7;
+      };
+
+      // Title
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(24);
+      pdf.setTextColor(236, 91, 109);
+      pdf.text('CasaMuse', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 8;
+      pdf.setFontSize(14);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('Design Summary Report', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 5;
+      pdf.setFontSize(9);
+      pdf.text(`Generated on: ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`, pageWidth / 2, yPos, { align: 'center' });
+      yPos += 15;
+
+      // Design Inputs Section
+      drawSection('Design Inputs');
+      
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(margin, yPos, contentWidth, 28, 'F');
+      pdf.setDrawColor(220, 220, 220);
+      pdf.rect(margin, yPos, contentWidth, 28, 'S');
+      
+      yPos += 6;
+      const col1 = margin + 5;
+      const col2 = margin + contentWidth / 2 + 5;
+      
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('Land Area:', col1, yPos);
+      pdf.text('Style:', col2, yPos);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(`${formData.landArea} sq ft`, col1 + 25, yPos);
+      pdf.text(formData.preferences?.style || 'Modern', col2 + 15, yPos);
+      
+      yPos += 8;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('Floors:', col1, yPos);
+      pdf.text('Vastu:', col2, yPos);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(`${formData.preferences?.floors || 1}`, col1 + 25, yPos);
+      pdf.text(formData.preferences?.vastuCompliant ? 'Yes' : 'No', col2 + 15, yPos);
+      
+      yPos += 8;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('Rooms:', col1, yPos);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 0, 0);
+      const roomsText = formData.rooms?.map((r: any) => `${r.count}x ${r.roomName}`).join(', ') || 'N/A';
+      const splitRooms = pdf.splitTextToSize(roomsText, contentWidth - 35);
+      pdf.text(splitRooms, col1 + 25, yPos);
+      
+      yPos += 18;
+
+      // Floor Plan Image
+      if (imageUrl) {
+        addNewPageIfNeeded(90);
+        drawSection('Generated Floor Plan');
+        
+        try {
+          const floorPlanBase64 = await loadImageAsBase64(imageUrl);
+          const imgHeight = 70;
+          pdf.addImage(floorPlanBase64, 'JPEG', margin, yPos, contentWidth, imgHeight);
+          yPos += imgHeight + 10;
+        } catch (err) {
+          pdf.setFont('helvetica', 'italic');
+          pdf.setFontSize(10);
+          pdf.setTextColor(150, 150, 150);
+          pdf.text('Floor plan image could not be loaded', margin + 3, yPos);
+          yPos += 10;
+        }
       }
+
+      // AI Rendered Views
+      addNewPageIfNeeded(80);
+      drawSection('AI Rendered Views');
+      
+      const viewWidth = (contentWidth - 5) / 2;
+      const viewHeight = 35;
+      const views = [
+        { label: 'Front View', src: renderedViews.front },
+        { label: 'Back View', src: renderedViews.back },
+        { label: 'Side View', src: renderedViews.side },
+        { label: 'Top View', src: renderedViews.top },
+      ];
+
+      for (let i = 0; i < views.length; i += 2) {
+        addNewPageIfNeeded(viewHeight + 10);
+        
+        for (let j = 0; j < 2 && i + j < views.length; j++) {
+          const view = views[i + j];
+          const xOffset = margin + (j * (viewWidth + 5));
+          
+          try {
+            const viewBase64 = await loadImageAsBase64(view.src);
+            pdf.addImage(viewBase64, 'JPEG', xOffset, yPos, viewWidth, viewHeight);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(8);
+            pdf.setTextColor(100, 100, 100);
+            pdf.text(view.label, xOffset + viewWidth / 2, yPos + viewHeight + 4, { align: 'center' });
+          } catch (err) {
+            pdf.setFillColor(240, 240, 240);
+            pdf.rect(xOffset, yPos, viewWidth, viewHeight, 'F');
+            pdf.setFont('helvetica', 'italic');
+            pdf.setFontSize(8);
+            pdf.text('Image unavailable', xOffset + viewWidth / 2, yPos + viewHeight / 2, { align: 'center' });
+          }
+        }
+        yPos += viewHeight + 10;
+      }
+
+      // Cost Estimation
+      if (costSummary?.totalCost) {
+        addNewPageIfNeeded(60);
+        drawSection('Cost Estimation');
+        
+        // Main cost box
+        pdf.setFillColor(252, 235, 237);
+        pdf.rect(margin, yPos, contentWidth, 20, 'F');
+        pdf.setDrawColor(236, 91, 109);
+        pdf.rect(margin, yPos, contentWidth, 20, 'S');
+        
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(18);
+        pdf.setTextColor(236, 91, 109);
+        pdf.text(`₹${costSummary.totalCost?.toLocaleString('en-IN')}`, pageWidth / 2, yPos + 9, { align: 'center' });
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text('Total Estimated Cost', pageWidth / 2, yPos + 16, { align: 'center' });
+        yPos += 25;
+        
+        // Cost details grid
+        const detailWidth = contentWidth / 3;
+        pdf.setFillColor(245, 245, 245);
+        pdf.rect(margin, yPos, contentWidth, 15, 'F');
+        
+        const details = [
+          { label: 'Cost/Sq Ft', value: `₹${costSummary.costPerSqFt?.toLocaleString('en-IN') || 'N/A'}` },
+          { label: 'Build Time', value: costSummary.buildTime || 'N/A' },
+          { label: 'Land Cost', value: `₹${costSummary.breakdown?.land?.toLocaleString('en-IN') || 'N/A'}` },
+        ];
+        
+        details.forEach((detail, idx) => {
+          const xOffset = margin + idx * detailWidth + detailWidth / 2;
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(8);
+          pdf.setTextColor(100, 100, 100);
+          pdf.text(detail.label, xOffset, yPos + 5, { align: 'center' });
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(10);
+          pdf.setTextColor(0, 0, 0);
+          pdf.text(detail.value, xOffset, yPos + 11, { align: 'center' });
+        });
+        yPos += 20;
+
+        // Cost breakdown
+        if (costSummary.breakdown) {
+          addNewPageIfNeeded(40);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(10);
+          pdf.setTextColor(0, 0, 0);
+          pdf.text('Cost Breakdown', margin + 3, yPos);
+          yPos += 6;
+          
+          const breakdownItems = [
+            { label: 'Civil Work', value: costSummary.breakdown.civil },
+            { label: 'Interior', value: costSummary.breakdown.interior },
+            { label: 'Exterior', value: costSummary.breakdown.exterior },
+            { label: 'Electrical', value: costSummary.breakdown.electrical },
+            { label: 'Plumbing', value: costSummary.breakdown.plumbing },
+            { label: 'Labor', value: costSummary.breakdown.labor },
+          ].filter(item => item.value);
+
+          const itemWidth = contentWidth / 3;
+          for (let i = 0; i < breakdownItems.length; i += 3) {
+            if (i > 0) yPos += 12;
+            for (let j = 0; j < 3 && i + j < breakdownItems.length; j++) {
+              const item = breakdownItems[i + j];
+              const xOffset = margin + j * itemWidth;
+              
+              pdf.setFillColor(250, 250, 250);
+              pdf.rect(xOffset, yPos, itemWidth - 2, 10, 'F');
+              
+              pdf.setFont('helvetica', 'normal');
+              pdf.setFontSize(8);
+              pdf.setTextColor(100, 100, 100);
+              pdf.text(item.label, xOffset + 3, yPos + 4);
+              pdf.setFont('helvetica', 'bold');
+              pdf.setTextColor(0, 0, 0);
+              pdf.text(`₹${item.value?.toLocaleString('en-IN')}`, xOffset + 3, yPos + 8);
+            }
+          }
+          yPos += 15;
+        }
+      }
+
+      // Footer
+      pdf.setFont('helvetica', 'italic');
+      pdf.setFontSize(8);
+      pdf.setTextColor(150, 150, 150);
+      pdf.text('Generated by CasaMuse - AI Powered Smart Home Design', pageWidth / 2, pageHeight - 10, { align: 'center' });
 
       pdf.save('CasaMuse-Design-Summary.pdf');
       toast.success("PDF downloaded successfully!");
