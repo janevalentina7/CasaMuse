@@ -13,11 +13,13 @@ serve(async (req) => {
   try {
     const { floorPlanImageUrl, landArea, rooms, preferences, view = '360', specificRoom } = await req.json();
     
-    console.log("Generating 3D model with Google Gemini:", { landArea, rooms, preferences, view, specificRoom });
+    console.log("Generating 3D model:", { landArea, rooms, preferences, view, specificRoom });
 
     const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
-    if (!GOOGLE_AI_API_KEY) {
-      throw new Error('GOOGLE_AI_API_KEY is not configured. Please add your Google AI API key in the settings.');
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+
+    if (!GOOGLE_AI_API_KEY && !OPENAI_API_KEY) {
+      throw new Error('No AI API key configured. Please add GOOGLE_AI_API_KEY or OPENAI_API_KEY in settings.');
     }
 
     const roomsDescription = rooms.map((room: any) => {
@@ -30,10 +32,81 @@ serve(async (req) => {
       : '';
 
     const styleDetails = getStyleDetails(preferences.style);
+    const prompt = buildViewPrompt(view, specificRoom, landArea, rooms, preferences, roomsDescription, outdoorDescription, styleDetails);
 
-    // Define view-specific prompts
-    const viewPrompts: { [key: string]: string } = {
-      '360': `Generate a photorealistic exterior 3D architectural rendering of a ${preferences.style} style Indian house.
+    let imageUrl: string | null = null;
+    let description: string | undefined = '';
+    let usedProvider = '';
+
+    // Try Google Gemini first
+    if (GOOGLE_AI_API_KEY) {
+      console.log("Trying Google Gemini for 3D...");
+      try {
+        const geminiResult = await generateWithGemini(GOOGLE_AI_API_KEY, prompt);
+        if (geminiResult.success && geminiResult.imageUrl) {
+          imageUrl = geminiResult.imageUrl;
+          description = geminiResult.description || '';
+          usedProvider = 'Google Gemini';
+        }
+      } catch (geminiError: any) {
+        console.log("Gemini failed, trying OpenAI fallback:", geminiError.message);
+      }
+    }
+
+    // Fallback to OpenAI if Gemini failed
+    if (!imageUrl && OPENAI_API_KEY) {
+      console.log("Using OpenAI fallback for 3D...");
+      try {
+        const openaiResult = await generateWithOpenAI(OPENAI_API_KEY, prompt);
+        if (openaiResult.success && openaiResult.imageUrl) {
+          imageUrl = openaiResult.imageUrl;
+          description = openaiResult.description || '';
+          usedProvider = 'OpenAI';
+        }
+      } catch (openaiError: any) {
+        console.error("OpenAI also failed:", openaiError.message);
+        throw openaiError;
+      }
+    }
+
+    if (!imageUrl) {
+      throw new Error('Failed to generate 3D visualization with both Gemini and OpenAI');
+    }
+
+    const viewLabels: { [key: string]: string } = {
+      '360': 'Exterior 360° view',
+      'top': 'Aerial top view',
+      'side': 'Side elevation',
+      'back': 'Rear elevation',
+      'interior': specificRoom ? `${specificRoom} interior` : 'Living room interior'
+    };
+
+    const finalDescription = description || `${viewLabels[view]} of your ${preferences.style} style ${landArea} sq ft home. Generated with ${usedProvider}.`;
+
+    return new Response(
+      JSON.stringify({ 
+        imageUrl, 
+        description: finalDescription,
+        provider: usedProvider,
+        success: true 
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+    );
+  } catch (error) {
+    console.error('Error in generate-3d-model function:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        success: false 
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    );
+  }
+});
+
+function buildViewPrompt(view: string, specificRoom: string | undefined, landArea: string, rooms: any[], preferences: any, roomsDescription: string, outdoorDescription: string, styleDetails: string): string {
+  const viewPrompts: { [key: string]: string } = {
+    '360': `Generate a photorealistic exterior 3D architectural rendering of a ${preferences.style} style Indian house.
 
 SPECIFICATIONS:
 - Plot size: ${landArea} sq ft
@@ -57,235 +130,138 @@ REQUIREMENTS:
 
 Generate a high-quality, photorealistic 3D rendering suitable for presentation.`,
 
-      'top': `Generate a professional aerial/bird's eye view 3D rendering of a ${preferences.style} style house.
+    'top': `Generate a professional aerial/bird's eye view 3D rendering of a ${preferences.style} style house.
 
 SPECIFICATIONS:
-- Plot size: ${landArea} sq ft
-- Floors: ${preferences.floors} floors
+- Plot size: ${landArea} sq ft, Floors: ${preferences.floors}
 - Rooms: ${roomsDescription}
 ${outdoorDescription}
 
-REQUIREMENTS:
-1. Top-down 45-degree aerial perspective
-2. Show complete roof layout and design
-3. Property boundaries clearly visible
-4. Parking area, driveway visible
-5. Garden areas, landscaping, outdoor features
-6. Shadows indicating building height and depth
-7. Clean architectural visualization style
-8. Realistic materials and colors for roof
-9. Surrounding context (lawn, pathways)
+Show: Top-down 45-degree aerial view, complete roof layout, property boundaries, parking, garden areas, shadows indicating building height.`,
 
-Generate a professional bird's eye architectural visualization.`,
+    'side': `Generate a professional side elevation 3D rendering of a ${preferences.style} style house.
 
-      'side': `Generate a professional side elevation 3D rendering of a ${preferences.style} style house.
+SPECIFICATIONS: ${landArea} sq ft, ${preferences.floors}-story
+STYLE: ${styleDetails}
 
-SPECIFICATIONS:
-- Plot size: ${landArea} sq ft
-- Floors: ${preferences.floors}-story building
-- Style: ${preferences.style}
+Show: Perfect side view, all floor levels with windows, balconies, roof profile, foundation, realistic materials.`,
 
-STYLE DETAILS: ${styleDetails}
+    'back': `Generate a professional rear elevation 3D rendering of a ${preferences.style} style house.
 
-REQUIREMENTS:
-1. Perfect side view showing full building height
-2. All floor levels visible with windows
-3. Balconies from side perspective
-4. Roof profile and architectural details
-5. Foundation and ground level visible
-6. Realistic material textures
-7. Professional lighting with soft shadows
-8. Landscaping visible at sides
+SPECIFICATIONS: ${landArea} sq ft, ${preferences.floors}-story
+STYLE: ${styleDetails}
 
-Generate a high-quality side elevation rendering.`,
+Show: Rear facade, back windows/doors, service areas, back garden, realistic materials.`,
 
-      'back': `Generate a professional rear elevation 3D rendering of a ${preferences.style} style house.
+    'interior': specificRoom 
+      ? `Generate a beautiful photorealistic interior 3D rendering of a ${specificRoom} in ${preferences.style} style Indian home.
 
-SPECIFICATIONS:
-- Plot size: ${landArea} sq ft
-- Floors: ${preferences.floors}-story building
-- Style: ${preferences.style}
+Show fully furnished ${specificRoom} with:
+- Appropriate furniture for ${specificRoom}
+- ${preferences.style} style interior design and décor
+- Natural light from windows with curtains
+- Ceiling fan (Indian home essential), lighting fixtures
+- Quality flooring, wall textures
+- Decorative elements: plants, artwork, rugs
+- Warm, inviting atmosphere`
+      : `Generate a photorealistic living room interior in ${preferences.style} style Indian home.
 
-STYLE DETAILS: ${styleDetails}
+Show: Comfortable sofa set, coffee table, TV unit, ${preferences.style} décor, natural light, ceiling fan, quality flooring, indoor plants, warm inviting atmosphere.`
+  };
 
-REQUIREMENTS:
-1. Rear facade view of the house
-2. Back windows and doors visible
-3. Service areas, utility spaces visible
-4. Back garden or yard area
-5. Balconies from rear perspective
-6. Realistic materials and textures
-7. Professional architectural quality
-8. Natural lighting
+  return viewPrompts[view] || viewPrompts['360'];
+}
 
-Generate a photorealistic rear view rendering.`,
+async function generateWithGemini(apiKey: string, prompt: string): Promise<{ success: boolean; imageUrl?: string; description?: string }> {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseModalities: ["TEXT", "IMAGE"] }
+    }),
+  });
 
-      'interior': specificRoom 
-        ? `Generate a beautiful photorealistic interior 3D rendering of a ${specificRoom} in ${preferences.style} style Indian home.
-
-ROOM: ${specificRoom}
-
-STYLE: ${preferences.style}
-
-REQUIREMENTS:
-1. Fully furnished ${specificRoom} with appropriate furniture
-2. ${preferences.style} style interior design and décor
-3. Proper color scheme matching the style
-4. Natural light from windows with curtains/blinds
-5. Ceiling details with ceiling fan (Indian home essential)
-6. Appropriate lighting fixtures (chandelier/pendant/recessed)
-7. Flooring appropriate to room (tiles/wood/marble)
-8. Wall textures, paint, or accent walls
-9. Decorative elements: plants, artwork, rugs
-10. Warm, inviting atmosphere
-11. Professional interior design visualization quality
-
-Generate a photorealistic interior rendering of this ${specificRoom}.`
-        : `Generate a beautiful photorealistic interior 3D rendering of a living room in ${preferences.style} style Indian home.
-
-STYLE: ${preferences.style}
-
-REQUIREMENTS:
-1. Spacious living room with comfortable sofa set
-2. Coffee table, side tables, TV unit
-3. ${preferences.style} style furniture and décor
-4. Natural light from large windows with curtains
-5. Ceiling fan (Indian home essential)
-6. Modern lighting fixtures
-7. Quality flooring (marble/tiles/wood)
-8. Indoor plants, artwork, decorative items
-9. View/connection to dining area
-10. Warm, inviting family living space
-11. Professional interior visualization quality
-
-Generate a photorealistic living room interior rendering.`
-    };
-
-    const prompt = viewPrompts[view] || viewPrompts['360'];
-
-    console.log('Calling Google Gemini for 3D visualization...');
-
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${GOOGLE_AI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          responseModalities: ["TEXT", "IMAGE"]
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Google Gemini API error:', response.status, errorText);
-      
-      if (response.status === 401 || response.status === 403) {
-        return new Response(
-          JSON.stringify({ 
-            error: 'Invalid Google AI API key. Please check your API key.',
-            errorType: 'auth_error',
-            success: false 
-          }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ 
-            error: 'Google API rate limit exceeded. Please wait and try again.',
-            errorType: 'rate_limited',
-            success: false 
-          }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      throw new Error(`Google Gemini API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log('Google Gemini 3D response received');
-
-    // Extract the generated image from Gemini response
-    let imageUrl = null;
-    let textDescription = '';
-
-    const candidates = data.candidates;
-    if (candidates && candidates.length > 0) {
-      const parts = candidates[0].content?.parts || [];
-      for (const part of parts) {
-        if (part.inlineData) {
-          const mimeType = part.inlineData.mimeType || 'image/png';
-          const base64Data = part.inlineData.data;
-          imageUrl = `data:${mimeType};base64,${base64Data}`;
-        }
-        if (part.text) {
-          textDescription = part.text;
-        }
-      }
-    }
-
-    if (!imageUrl) {
-      console.error('No image in Gemini response:', JSON.stringify(data));
-      throw new Error('No 3D visualization generated from Google Gemini');
-    }
-
-    const viewLabels: { [key: string]: string } = {
-      '360': 'Exterior 360° view',
-      'top': 'Aerial top view',
-      'side': 'Side elevation',
-      'back': 'Rear elevation',
-      'interior': specificRoom ? `${specificRoom} interior` : 'Living room interior'
-    };
-
-    const description = textDescription || `${viewLabels[view]} of your ${preferences.style} style ${landArea} sq ft home. Generated with Google Gemini.`;
-
-    return new Response(
-      JSON.stringify({ 
-        imageUrl, 
-        description,
-        success: true 
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
-      }
-    );
-  } catch (error) {
-    console.error('Error in generate-3d-model function:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        success: false 
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 
-      }
-    );
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Gemini API error:', response.status, errorText);
+    throw new Error(`Gemini API error: ${response.status}`);
   }
-});
+
+  const data = await response.json();
+  let imageUrl = null;
+  let textDescription = '';
+
+  const candidates = data.candidates;
+  if (candidates && candidates.length > 0) {
+    const parts = candidates[0].content?.parts || [];
+    for (const part of parts) {
+      if (part.inlineData) {
+        const mimeType = part.inlineData.mimeType || 'image/png';
+        imageUrl = `data:${mimeType};base64,${part.inlineData.data}`;
+      }
+      if (part.text) {
+        textDescription = part.text;
+      }
+    }
+  }
+
+  if (!imageUrl) {
+    throw new Error('No image in Gemini response');
+  }
+
+  return { success: true, imageUrl, description: textDescription };
+}
+
+async function generateWithOpenAI(apiKey: string, prompt: string): Promise<{ success: boolean; imageUrl?: string; description?: string }> {
+  const response = await fetch('https://api.openai.com/v1/images/generations', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-image-1',
+      prompt: prompt,
+      n: 1,
+      size: '1536x1024',
+      quality: 'high',
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('OpenAI API error:', response.status, errorText);
+    throw new Error(`OpenAI API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const imageData = data.data?.[0];
+  let imageUrl = imageData?.url;
+  
+  if (imageData?.b64_json) {
+    imageUrl = `data:image/png;base64,${imageData.b64_json}`;
+  }
+
+  if (!imageUrl) {
+    throw new Error('No image in OpenAI response');
+  }
+
+  return { success: true, imageUrl };
+}
 
 function getStyleDetails(style: string): string {
   const details: { [key: string]: string } = {
-    'Modern': 'Clean geometric lines, flat or low-slope roof, large floor-to-ceiling glass windows, white/grey/concrete exterior, minimalist design with no ornamentation, sharp edges',
-    'Contemporary': 'Mixed materials (wood panels, glass, natural stone), asymmetric design, trendy finishes, organic curves mixed with geometric shapes, innovative window designs',
-    'Traditional': 'Sloped clay tile roof, wooden accents and frames, symmetrical facade, warm earthy colors (terracotta, cream, brown), classic Indian home features',
-    'Minimalist': 'Ultra-clean design, simple rectangular geometry, neutral white/grey/beige colors, no ornamentation, focus on essential forms only',
-    'Luxury': 'Grand double-height entrance with pillars, marble or stone cladding, premium finishes, large windows, elegant landscaping, fountain or water feature',
-    'Scandinavian': 'Light-colored wood panels, large panoramic windows, soft pastel colors (white, light grey, muted blue), cozy minimalist design, connection to nature',
-    'Industrial': 'Exposed brick walls, metal frame elements, raw concrete surfaces, factory-inspired large windows, urban loft aesthetic, neutral grey palette',
-    'Colonial': 'Large classical pillars at entrance, arched windows and doorways, symmetrical facade design, heritage cream/white color, balustrades and verandahs',
-    'Mediterranean': 'Terracotta clay tile roof, arched doorways and windows, stucco walls in warm earth tones, wrought iron details, courtyard elements, coastal villa feel',
-    'Rustic': 'Natural stone walls, exposed wooden beams, earthy brown tones, organic natural materials, mountain lodge feel, timber accents',
+    'Modern': 'Clean geometric lines, flat roof, large glass windows, white/grey exterior, minimalist design',
+    'Contemporary': 'Mixed materials (wood, glass, stone), asymmetric design, trendy finishes',
+    'Traditional': 'Sloped clay tile roof, wooden accents, symmetrical facade, warm earthy colors',
+    'Minimalist': 'Ultra-clean design, simple geometry, neutral colors, no ornamentation',
+    'Luxury': 'Grand entrance with pillars, marble/stone cladding, premium finishes, elegant landscaping',
+    'Scandinavian': 'Light wood panels, large windows, pastel colors, cozy minimalist design',
+    'Industrial': 'Exposed brick, metal frames, raw concrete, factory-inspired elements',
+    'Colonial': 'Large classical pillars, arched windows, symmetrical design, heritage look',
+    'Mediterranean': 'Terracotta tile roof, arched doorways, stucco walls, coastal feel',
+    'Rustic': 'Natural stone walls, exposed wood beams, earthy tones, organic materials',
   };
   return details[style] || details['Modern'];
 }

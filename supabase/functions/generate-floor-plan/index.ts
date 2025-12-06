@@ -13,11 +13,13 @@ serve(async (req) => {
   try {
     const { landArea, rooms, preferences } = await req.json();
     
-    console.log("Generating floor plan with Google Gemini:", { landArea, rooms, preferences });
+    console.log("Generating floor plan:", { landArea, rooms, preferences });
 
     const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
-    if (!GOOGLE_AI_API_KEY) {
-      throw new Error('GOOGLE_AI_API_KEY is not configured. Please add your Google AI API key in the settings.');
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+
+    if (!GOOGLE_AI_API_KEY && !OPENAI_API_KEY) {
+      throw new Error('No AI API key configured. Please add GOOGLE_AI_API_KEY or OPENAI_API_KEY in settings.');
     }
 
     // Build detailed room list for prompt
@@ -31,66 +33,29 @@ serve(async (req) => {
 
     const outdoorFeatures = preferences.outdoorFeatures?.join(", ") || "None";
 
-    // Comprehensive Floor Plan Generation Prompt based on CasaMuse requirements
-    const systemPrompt = `You are the Floor Plan Generation Engine for CasaMuse — an AI-powered smart home design system.
-Your role is to generate professional, architect-level 2D floor plans that strictly follow Indian construction standards, functional placement rules, and user requirements.
-
-STANDARD INDIAN ROOM DIMENSIONS:
-Bedrooms:
-- Master Bedroom: 12×12 ft to 14×14 ft
-- Normal Bedroom: 10×10 ft to 12×12 ft
-
-Living/Dining/Foyer:
-- Living: 12×15 ft to 14×18 ft
-- Dining: 8×10 ft to 10×12 ft
-- Foyer: 4×6 ft to 6×8 ft
-
-Kitchen & Utility:
-- Kitchen: 8×10 ft to 10×12 ft
-- Utility: 4×6 ft to 5×7 ft
-
-Bathrooms:
-- Attached: 6×8 ft
-- Common: 5×7 ft
-
-Other:
-- Balcony Depth: 4–6 ft
-- Hallway width: 3.5–4.5 ft
-- Staircase width: 3–4 ft
-- Parking: Minimum 10×15 ft for single car
-
-ARCHITECTURAL PLACEMENT RULES:
-1. Entrance & Foyer: Entrance leads into foyer or living. Avoid main door facing bathrooms or bedrooms.
-2. Living Room: Positioned at front, easily accessible from entrance, near dining, optionally attached to balcony.
-3. Kitchen: Always near dining, preferably in corner, must have ventilation, should not share wall with bathrooms.
-4. Dining: Between kitchen & living, accessible but not blocking circulation.
-5. Bedrooms: Placed toward quieter rear or sides. Master Bedroom must include attached bathroom. Avoid bedroom doors opening directly into living room.
-6. Bathrooms: Attached bathrooms inside bedrooms. Common bathroom accessible from hallway. Should not be near entrance.
-7. Hallways: Connect major rooms efficiently. Avoid dead ends. Maintain minimum required width.
-8. Balcony: Preferably attached to living or master bedroom. Should face open space or sunlight.
-9. Staircase: Ideally near center or side. Should connect floors without blocking layout.
-10. Parking: Placed at front side of house. Direct driveway access.
-11. Garden: Front or side based on leftover land and aesthetics.
-
-${preferences.vastuCompliant ? `VASTU COMPLIANCE REQUIRED:
-- Main entrance should face North or East
-- Kitchen in South-East corner
-- Master bedroom in South-West
-- Pooja room in North-East
-- Avoid toilets in North-East corner` : ''}`;
-
-    const userPrompt = `Generate a professional 2D architectural floor plan with the following specifications:
+    // Comprehensive Floor Plan Generation Prompt
+    const floorPlanPrompt = `Generate a professional 2D architectural floor plan with the following specifications:
 
 PLOT SPECIFICATIONS:
 - Total Land Area: ${landArea} sq ft
 - Number of Floors: ${preferences.floors}
 - Architectural Style: ${preferences.style}
-${preferences.vastuCompliant ? '- Vastu Compliant: YES' : '- Vastu Compliant: NO'}
+${preferences.vastuCompliant ? '- Vastu Compliant: YES (Main entrance North/East, Kitchen South-East, Master bedroom South-West)' : '- Vastu Compliant: NO'}
 
 REQUIRED ROOMS:
 - ${roomDetails}
 
 OUTDOOR FEATURES: ${outdoorFeatures}
+
+STANDARD INDIAN ROOM DIMENSIONS TO FOLLOW:
+- Master Bedroom: 12×12 ft to 14×14 ft
+- Normal Bedroom: 10×10 ft to 12×12 ft
+- Living Room: 12×15 ft to 14×18 ft
+- Dining: 8×10 ft to 10×12 ft
+- Kitchen: 8×10 ft to 10×12 ft
+- Attached Bathroom: 6×8 ft
+- Common Bathroom: 5×7 ft
+- Hallway width: 3.5–4.5 ft
 
 DRAWING REQUIREMENTS:
 1. Professional AutoCAD-style black and white technical drawing
@@ -114,99 +79,59 @@ LAYOUT REQUIREMENTS:
 - Master bedroom with attached bathroom
 - Common bathroom accessible from hallway
 - Minimum 3.5 ft wide hallways/corridors
-- Parking area at front with driveway access
 - Efficient circulation without dead ends
 
 Generate a clean, professional, ready-for-construction 2D floor plan image.`;
 
-    console.log("Calling Google Gemini for floor plan generation...");
+    let imageUrl: string | null = null;
+    let description: string | undefined = '';
+    let usedProvider = '';
 
-    // Call Google Gemini API for image generation
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${GOOGLE_AI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `${systemPrompt}\n\n${userPrompt}`
-          }]
-        }],
-        generationConfig: {
-          responseModalities: ["TEXT", "IMAGE"]
+    // Try Google Gemini first
+    if (GOOGLE_AI_API_KEY) {
+      console.log("Trying Google Gemini...");
+      try {
+        const geminiResult = await generateWithGemini(GOOGLE_AI_API_KEY, floorPlanPrompt);
+        if (geminiResult.success && geminiResult.imageUrl) {
+          imageUrl = geminiResult.imageUrl;
+          description = geminiResult.description || '';
+          usedProvider = 'Google Gemini';
         }
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Google Gemini API error:', response.status, errorText);
-      
-      if (response.status === 401 || response.status === 403) {
-        return new Response(
-          JSON.stringify({ 
-            error: 'Invalid Google AI API key. Please check your API key in settings.',
-            errorType: 'auth_error',
-            success: false 
-          }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      } catch (geminiError: any) {
+        console.log("Gemini failed, trying OpenAI fallback:", geminiError.message);
       }
-      
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ 
-            error: 'Google API rate limit exceeded. Please wait a moment and try again.',
-            errorType: 'rate_limited',
-            success: false 
-          }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      throw new Error(`Google Gemini API error: ${response.status} - ${errorText}`);
     }
 
-    const data = await response.json();
-    console.log("Google Gemini response received");
-
-    // Extract the generated image from Gemini response
-    let imageUrl = null;
-    let textDescription = '';
-
-    const candidates = data.candidates;
-    if (candidates && candidates.length > 0) {
-      const parts = candidates[0].content?.parts || [];
-      for (const part of parts) {
-        if (part.inlineData) {
-          // Image data found
-          const mimeType = part.inlineData.mimeType || 'image/png';
-          const base64Data = part.inlineData.data;
-          imageUrl = `data:${mimeType};base64,${base64Data}`;
+    // Fallback to OpenAI if Gemini failed
+    if (!imageUrl && OPENAI_API_KEY) {
+      console.log("Using OpenAI fallback...");
+      try {
+        const openaiResult = await generateWithOpenAI(OPENAI_API_KEY, floorPlanPrompt);
+        if (openaiResult.success && openaiResult.imageUrl) {
+          imageUrl = openaiResult.imageUrl;
+          description = openaiResult.description || '';
+          usedProvider = 'OpenAI';
         }
-        if (part.text) {
-          textDescription = part.text;
-        }
+      } catch (openaiError: any) {
+        console.error("OpenAI also failed:", openaiError.message);
+        throw openaiError;
       }
     }
 
     if (!imageUrl) {
-      console.error('No image in Gemini response:', JSON.stringify(data));
-      throw new Error('No image generated from Google Gemini. The model may not have generated an image for this prompt.');
+      throw new Error('Failed to generate floor plan with both Gemini and OpenAI');
     }
 
-    const description = textDescription || `Professional ${preferences.style} floor plan for ${landArea} sq ft plot with ${rooms.length} room types. Generated using Google Gemini.`;
+    const finalDescription = description || `Professional ${preferences.style} floor plan for ${landArea} sq ft plot. Generated with ${usedProvider}.`;
 
     return new Response(
       JSON.stringify({ 
         imageUrl, 
-        description,
+        description: finalDescription,
+        provider: usedProvider,
         success: true 
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
@@ -216,10 +141,85 @@ Generate a clean, professional, ready-for-construction 2D floor plan image.`;
         error: error instanceof Error ? error.message : 'Unknown error',
         success: false 
       }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
+
+async function generateWithGemini(apiKey: string, prompt: string): Promise<{ success: boolean; imageUrl?: string; description?: string }> {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseModalities: ["TEXT", "IMAGE"] }
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Gemini API error:', response.status, errorText);
+    throw new Error(`Gemini API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  let imageUrl = null;
+  let textDescription = '';
+
+  const candidates = data.candidates;
+  if (candidates && candidates.length > 0) {
+    const parts = candidates[0].content?.parts || [];
+    for (const part of parts) {
+      if (part.inlineData) {
+        const mimeType = part.inlineData.mimeType || 'image/png';
+        imageUrl = `data:${mimeType};base64,${part.inlineData.data}`;
+      }
+      if (part.text) {
+        textDescription = part.text;
+      }
+    }
+  }
+
+  if (!imageUrl) {
+    throw new Error('No image in Gemini response');
+  }
+
+  return { success: true, imageUrl, description: textDescription };
+}
+
+async function generateWithOpenAI(apiKey: string, prompt: string): Promise<{ success: boolean; imageUrl?: string; description?: string }> {
+  const response = await fetch('https://api.openai.com/v1/images/generations', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-image-1',
+      prompt: prompt,
+      n: 1,
+      size: '1024x1024',
+      quality: 'high',
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('OpenAI API error:', response.status, errorText);
+    throw new Error(`OpenAI API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const imageData = data.data?.[0];
+  let imageUrl = imageData?.url;
+  
+  if (imageData?.b64_json) {
+    imageUrl = `data:image/png;base64,${imageData.b64_json}`;
+  }
+
+  if (!imageUrl) {
+    throw new Error('No image in OpenAI response');
+  }
+
+  return { success: true, imageUrl };
+}
