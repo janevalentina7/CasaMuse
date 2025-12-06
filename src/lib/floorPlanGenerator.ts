@@ -137,31 +137,11 @@ export function generateFloorPlanSVG(
   landArea: number,
   preferences: Preferences
 ): string {
-  // Handle empty rooms case
-  if (!rooms || rooms.length === 0) {
-    const svgWidth = 800;
-    const svgHeight = 600;
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}">
-      <rect width="${svgWidth}" height="${svgHeight}" fill="#FAFAFA"/>
-      <text x="${svgWidth / 2}" y="${svgHeight / 2}" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#666">No rooms selected</text>
-    </svg>`;
-  }
-
   const placements = calculateLayout(rooms, landArea, preferences);
   
-  // Handle empty placements
-  if (placements.length === 0) {
-    const svgWidth = 800;
-    const svgHeight = 600;
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}">
-      <rect width="${svgWidth}" height="${svgHeight}" fill="#FAFAFA"/>
-      <text x="${svgWidth / 2}" y="${svgHeight / 2}" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#666">Unable to generate layout</text>
-    </svg>`;
-  }
-  
-  // Calculate SVG dimensions safely
-  const maxX = Math.max(100, ...placements.map(p => p.x + p.width)) + 40;
-  const maxY = Math.max(100, ...placements.map(p => p.y + p.height)) + 80;
+  // Calculate SVG dimensions
+  const maxX = Math.max(...placements.map(p => p.x + p.width)) + 40;
+  const maxY = Math.max(...placements.map(p => p.y + p.height)) + 80;
   
   const svgWidth = Math.max(800, maxX);
   const svgHeight = Math.max(600, maxY);
@@ -171,9 +151,10 @@ export function generateFloorPlanSVG(
   // Background
   svg += `<rect width="${svgWidth}" height="${svgHeight}" fill="#FAFAFA"/>`;
   
-  // Title - escape special characters
-  const styleText = String(preferences.style || 'Modern').replace(/[<>&'"]/g, '');
-  svg += `<text x="${svgWidth / 2}" y="15" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#333">${styleText} Floor Plan - ${landArea} sq ft</text>`;
+  // Title
+  svg += `<text x="${svgWidth / 2}" y="15" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#333">
+    ${preferences.style} Floor Plan - ${landArea} sq ft
+  </text>`;
   
   // North arrow
   svg += `<g transform="translate(${svgWidth - 50}, 30)">
@@ -183,30 +164,32 @@ export function generateFloorPlanSVG(
   
   // Draw rooms
   placements.forEach((room) => {
-    const safeName = String(room.name || 'Room').replace(/[<>&'"]/g, '');
-    
     // Room rectangle with shadow
     svg += `<rect x="${room.x + 2}" y="${room.y + 2}" width="${room.width}" height="${room.height}" fill="#00000020" rx="2"/>`;
     svg += `<rect x="${room.x}" y="${room.y}" width="${room.width}" height="${room.height}" fill="${room.color}" stroke="#666" stroke-width="2" rx="2"/>`;
     
     // Room label
-    const fontSize = Math.max(8, Math.min(12, room.width / 8));
-    svg += `<text x="${room.x + room.width / 2}" y="${room.y + room.height / 2 - 5}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="bold" fill="#333">${safeName}</text>`;
+    const fontSize = Math.min(12, room.width / 8);
+    svg += `<text x="${room.x + room.width / 2}" y="${room.y + room.height / 2 - 5}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="bold" fill="#333">
+      ${room.name}
+    </text>`;
     
     // Dimensions
-    const dimWidth = Math.round(room.width / 8);
-    const dimHeight = Math.round(room.height / 8);
-    svg += `<text x="${room.x + room.width / 2}" y="${room.y + room.height / 2 + 10}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize - 2}" fill="#666">${dimWidth} x ${dimHeight} ft</text>`;
+    const dimWidth = (room.width / 8).toFixed(0);
+    const dimHeight = (room.height / 8).toFixed(0);
+    svg += `<text x="${room.x + room.width / 2}" y="${room.y + room.height / 2 + 10}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize - 2}" fill="#666">
+      ${dimWidth}' × ${dimHeight}'
+    </text>`;
     
     // Draw door (simple representation)
-    if (!safeName.includes('Attached Bath')) {
+    if (room.name !== 'Attached Bath') {
       const doorWidth = Math.min(25, room.width * 0.3);
       svg += `<rect x="${room.x}" y="${room.y + room.height / 2 - 3}" width="4" height="20" fill="#8B4513"/>`;
       svg += `<path d="M ${room.x} ${room.y + room.height / 2 - 3} A ${doorWidth} ${doorWidth} 0 0 0 ${room.x + doorWidth} ${room.y + room.height / 2 + 17}" stroke="#8B4513" stroke-width="1" fill="none"/>`;
     }
     
     // Draw window
-    if (safeName.includes('Bedroom') || safeName.includes('Living')) {
+    if (room.name.includes('Bedroom') || room.name.includes('Living')) {
       const winY = room.y + room.height - 4;
       svg += `<rect x="${room.x + room.width / 3}" y="${winY}" width="${room.width / 3}" height="4" fill="#87CEEB" stroke="#333" stroke-width="1"/>`;
     }
@@ -221,10 +204,9 @@ export function generateFloorPlanSVG(
   </g>`;
   
   // Legend
-  const vastuText = preferences.vastuCompliant ? 'Vastu Compliant' : 'Optimized Layout';
   svg += `<text x="${svgWidth - 150}" y="${svgHeight - 40}" font-family="Arial" font-size="10" fill="#666">Scale: 1:100</text>`;
-  svg += `<text x="${svgWidth - 150}" y="${svgHeight - 25}" font-family="Arial" font-size="10" fill="#666">${vastuText}</text>`;
-  svg += `<text x="${svgWidth - 150}" y="${svgHeight - 10}" font-family="Arial" font-size="10" fill="#666">Floors: ${preferences.floors || 1}</text>`;
+  svg += `<text x="${svgWidth - 150}" y="${svgHeight - 25}" font-family="Arial" font-size="10" fill="#666">${preferences.vastuCompliant ? 'Vastu Compliant' : 'Optimized Layout'}</text>`;
+  svg += `<text x="${svgWidth - 150}" y="${svgHeight - 10}" font-family="Arial" font-size="10" fill="#666">Floors: ${preferences.floors}</text>`;
   
   svg += '</svg>';
   
@@ -236,19 +218,9 @@ export function generateFloorPlanDataURL(
   landArea: number,
   preferences: Preferences
 ): string {
-  try {
-    const svg = generateFloorPlanSVG(rooms, landArea, preferences);
-    // Use a safer encoding method
-    const encoded = encodeURIComponent(svg)
-      .replace(/%([0-9A-F]{2})/g, (_, p1) => String.fromCharCode(parseInt(p1, 16)));
-    const base64 = btoa(encoded);
-    return `data:image/svg+xml;base64,${base64}`;
-  } catch (error) {
-    console.error('Error generating floor plan:', error);
-    // Return a fallback SVG
-    const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="#f5f5f5"/><text x="400" y="300" text-anchor="middle" font-family="Arial" font-size="16" fill="#666">Floor plan generated</text></svg>`;
-    return `data:image/svg+xml;base64,${btoa(fallbackSvg)}`;
-  }
+  const svg = generateFloorPlanSVG(rooms, landArea, preferences);
+  const base64 = btoa(unescape(encodeURIComponent(svg)));
+  return `data:image/svg+xml;base64,${base64}`;
 }
 
 export function generateFloorPlanDescription(
