@@ -2,12 +2,43 @@ import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, ArrowLeft, Download, FileText, Box, IndianRupee } from "lucide-react";
+import { Home, ArrowLeft, Download, FileText, Box, IndianRupee, Image } from "lucide-react";
 import { toast } from "sonner";
+
+// Import rendered view images
+import set1Front from "@/assets/rendered-views/set1-front.jpg";
+import set1Back from "@/assets/rendered-views/set1-back.jpg";
+import set1Side from "@/assets/rendered-views/set1-side.jpg";
+import set1Top from "@/assets/rendered-views/set1-top.jpg";
+import set2Front from "@/assets/rendered-views/set2-front.png";
+import set2Back from "@/assets/rendered-views/set2-back.png";
+import set2Side from "@/assets/rendered-views/set2-side.png";
+import set2Top from "@/assets/rendered-views/set2-top.png";
+import set3Front from "@/assets/rendered-views/set3-front.jpg";
+import set3Back from "@/assets/rendered-views/set3-back.jpg";
+import set3Side from "@/assets/rendered-views/set3-side.jpg";
+import set3Top from "@/assets/rendered-views/set3-top.png";
+import set4Front from "@/assets/rendered-views/set4-front.jpg";
+import set4Back from "@/assets/rendered-views/set4-back.jpg";
+import set4Side from "@/assets/rendered-views/set4-side.jpg";
+import set4Top from "@/assets/rendered-views/set4-top.png";
+
+const RENDERED_VIEW_SETS: Record<number, { front: string; back: string; side: string; top: string }> = {
+  1: { front: set1Front, back: set1Back, side: set1Side, top: set1Top },
+  2: { front: set2Front, back: set2Back, side: set2Side, top: set2Top },
+  3: { front: set3Front, back: set3Back, side: set3Side, top: set3Top },
+  4: { front: set4Front, back: set4Back, side: set4Side, top: set4Top },
+};
 
 const DesignSummary = () => {
   const location = useLocation();
   const { imageUrl, formData, description, costEstimationData, floorPlanSetId } = location.state || {};
+
+  // Get rendered views for the current floor plan set
+  const renderedViews = RENDERED_VIEW_SETS[floorPlanSetId] || RENDERED_VIEW_SETS[1];
+
+  // Extract cost data - handle both nested and flat structures
+  const costSummary = costEstimationData?.summary || costEstimationData;
 
   const handleDownloadSummary = () => {
     toast.success("Summary download feature coming soon!");
@@ -144,6 +175,52 @@ const DesignSummary = () => {
             </CardContent>
           </Card>
 
+          {/* AI Rendered Views Section */}
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Image className="w-5 h-5" />
+                AI Rendered Views
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-center">Front View</p>
+                  <div className="rounded-lg overflow-hidden bg-muted">
+                    <img src={renderedViews.front} alt="Front View" className="w-full h-auto aspect-video object-cover" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-center">Back View</p>
+                  <div className="rounded-lg overflow-hidden bg-muted">
+                    <img src={renderedViews.back} alt="Back View" className="w-full h-auto aspect-video object-cover" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-center">Side View</p>
+                  <div className="rounded-lg overflow-hidden bg-muted">
+                    <img src={renderedViews.side} alt="Side View" className="w-full h-auto aspect-video object-cover" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-center">Top View</p>
+                  <div className="rounded-lg overflow-hidden bg-muted">
+                    <img src={renderedViews.top} alt="Top View" className="w-full h-auto aspect-video object-cover" />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 text-center">
+                <Link to="/ai-rendered-view" state={{ imageUrl, description, formData, floorPlanSetId }}>
+                  <Button variant="outline">
+                    <Image className="w-4 h-4 mr-2" />
+                    View All Rendered Images
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Interactive 3D Preview */}
           <Card className="glass-card">
             <CardHeader>
@@ -174,25 +251,25 @@ const DesignSummary = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {costEstimationData ? (
+              {costSummary?.totalCost ? (
                 <div className="space-y-4">
                   <div className="grid sm:grid-cols-3 gap-4">
                     <div className="p-4 rounded-lg bg-primary/10 text-center">
                       <p className="text-sm text-muted-foreground">Total Estimated Cost</p>
                       <p className="text-2xl font-bold text-primary">
-                        ₹{costEstimationData.totalCost?.toLocaleString('en-IN') || 'N/A'}
+                        ₹{costSummary.totalCost?.toLocaleString('en-IN') || 'N/A'}
                       </p>
                     </div>
                     <div className="p-4 rounded-lg bg-muted/30 text-center">
                       <p className="text-sm text-muted-foreground">Cost per Sq Ft</p>
                       <p className="text-xl font-semibold">
-                        ₹{costEstimationData.costPerSqFt?.toLocaleString('en-IN') || 'N/A'}
+                        ₹{costSummary.costPerSqFt?.toLocaleString('en-IN') || 'N/A'}
                       </p>
                     </div>
                     <div className="p-4 rounded-lg bg-muted/30 text-center">
                       <p className="text-sm text-muted-foreground">Build Time</p>
                       <p className="text-xl font-semibold">
-                        {costEstimationData.buildTime || '9-12 months'}
+                        {costSummary.buildTime || '9-12 months'}
                       </p>
                     </div>
                   </div>
