@@ -60,9 +60,8 @@ serve(async (req) => {
     const { landArea, rooms, preferences, floorPlanDescription, userBudget, location, desiredBuildTime } = await req.json();
 
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY is not configured. Please add your OpenAI API key in the settings.');
-    }
+    const SAMBA_CLOUD_API_KEY = Deno.env.get('SAMBA_CLOUD_API_KEY');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     console.log('Generating cost estimation for:', { landArea, roomCount: rooms?.length, style: preferences?.style, budget: userBudget, location });
 
@@ -168,181 +167,47 @@ REQUIREMENTS:
 5. Give downgrade/savings options with exact savings
 6. Include labor costs, contingencies (10%), and taxes (GST 18%)`;
 
-    // Use OpenAI for structured cost estimation
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "generate_cost_estimation",
-              description: "Generate a detailed construction cost estimation with materials, breakdown, and optimization suggestions",
-              parameters: {
-                type: "object",
-                properties: {
-                  summary: {
-                    type: "object",
-                    properties: {
-                      totalCost: { type: "number", description: "Total construction cost in INR (must be > 0)" },
-                      landCost: { type: "number", description: "Land cost based on location" },
-                      constructionCost: { type: "number", description: "Building construction cost" },
-                      costPerSqFt: { type: "number", description: "Cost per square foot" },
-                      breakdown: {
-                        type: "object",
-                        properties: {
-                          civil: { type: "number" },
-                          interior: { type: "number" },
-                          exterior: { type: "number" },
-                          labor: { type: "number" },
-                          electrical: { type: "number" },
-                          plumbing: { type: "number" }
-                        },
-                        required: ["civil", "interior", "exterior", "labor", "electrical", "plumbing"]
-                      },
-                      buildTime: { type: "string" },
-                      contingency: { type: "number" },
-                      gst: { type: "number" }
-                    },
-                    required: ["totalCost", "costPerSqFt", "breakdown", "buildTime"]
-                  },
-                  materials: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        category: { type: "string" },
-                        items: {
-                          type: "array",
-                          items: {
-                            type: "object",
-                            properties: {
-                              name: { type: "string" },
-                              quantity: { type: "string" },
-                              cost: { type: "number" },
-                              total: { type: "number" },
-                              whyChosen: { type: "string" },
-                              advantages: { type: "array", items: { type: "string" } },
-                              disadvantages: { type: "array", items: { type: "string" } },
-                              alternatives: { type: "string" }
-                            },
-                            required: ["name", "quantity", "cost", "total", "advantages", "disadvantages"]
-                          }
-                        }
-                      },
-                      required: ["category", "items"]
-                    }
-                  },
-                  costOptimization: {
-                    type: "object",
-                    properties: {
-                      savings: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            area: { type: "string" },
-                            suggestion: { type: "string" },
-                            savings: { type: "number" },
-                            materialChange: { type: "string" }
-                          },
-                          required: ["area", "suggestion", "savings"]
-                        }
-                      },
-                      improvements: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            area: { type: "string" },
-                            suggestion: { type: "string" },
-                            additionalCost: { type: "number" },
-                            benefit: { type: "string" }
-                          },
-                          required: ["area", "suggestion", "additionalCost", "benefit"]
-                        }
-                      }
-                    },
-                    required: ["savings", "improvements"]
-                  },
-                  budgetAnalysis: {
-                    type: "object",
-                    properties: {
-                      isSufficient: { type: "boolean" },
-                      shortfall: { type: "number" },
-                      recommendations: { type: "array", items: { type: "string" } },
-                      priorityFeatures: { type: "array", items: { type: "string" } },
-                      optionalFeatures: { type: "array", items: { type: "string" } }
-                    }
-                  },
-                  fullDetails: { type: "string", description: "Comprehensive markdown analysis" }
-                },
-                required: ["summary", "materials", "costOptimization", "fullDetails"]
-              }
-            }
-          }
-        ],
-        tool_choice: { type: "function", function: { name: "generate_cost_estimation" } },
-        temperature: 0.3,
-      }),
-    });
+    let estimationData = null;
+    let usedProvider = '';
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
-      
-      // Return fallback with calculated values
-      return new Response(
-        JSON.stringify({
-          success: true,
-          estimation: createFallbackEstimation(totalArea, landArea, adjustedConstructionCost, landCost, preferences?.style, location)
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const aiData = await response.json();
-    console.log('AI Response received');
-
-    let estimationData;
-    
-    // Extract from tool call
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    if (toolCall?.function?.arguments) {
+    // Try OpenAI first
+    if (OPENAI_API_KEY && !estimationData) {
+      console.log('Trying OpenAI for cost estimation...');
       try {
-        estimationData = JSON.parse(toolCall.function.arguments);
-        console.log('Parsed tool call response successfully');
-      } catch (e) {
-        console.error('Failed to parse tool call:', e);
+        estimationData = await generateWithOpenAI(OPENAI_API_KEY, systemPrompt, userPrompt);
+        if (estimationData) usedProvider = 'OpenAI';
+      } catch (openaiError: any) {
+        console.log('OpenAI failed:', openaiError.message);
       }
     }
 
-    // Fallback to content parsing
-    if (!estimationData) {
-      const content = aiData.choices?.[0]?.message?.content;
-      if (content) {
-        try {
-          const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-          estimationData = JSON.parse(cleaned);
-        } catch (e) {
-          console.error('Failed to parse content:', e);
-        }
+    // Fallback to SambaNova
+    if (SAMBA_CLOUD_API_KEY && !estimationData) {
+      console.log('Trying SambaNova for cost estimation...');
+      try {
+        estimationData = await generateWithSambaNova(SAMBA_CLOUD_API_KEY, systemPrompt, userPrompt);
+        if (estimationData) usedProvider = 'SambaNova';
+      } catch (sambaError: any) {
+        console.log('SambaNova failed:', sambaError.message);
       }
     }
 
-    // Use fallback if still no data or zero values
+    // Fallback to Lovable AI
+    if (LOVABLE_API_KEY && !estimationData) {
+      console.log('Trying Lovable AI for cost estimation...');
+      try {
+        estimationData = await generateWithLovableAI(LOVABLE_API_KEY, systemPrompt, userPrompt);
+        if (estimationData) usedProvider = 'Lovable AI';
+      } catch (lovableError: any) {
+        console.log('Lovable AI failed:', lovableError.message);
+      }
+    }
+
+    // Use fallback if still no data
     if (!estimationData || !estimationData.summary?.totalCost || estimationData.summary.totalCost === 0) {
-      console.log('Using fallback estimation');
+      console.log('Using calculated fallback estimation');
       estimationData = createFallbackEstimation(totalArea, landArea, adjustedConstructionCost, landCost, preferences?.style, location);
+      usedProvider = 'Calculated';
     }
 
     // Ensure non-zero values
@@ -363,13 +228,15 @@ REQUIREMENTS:
 
     console.log('Final estimation:', { 
       totalCost: estimationData.summary?.totalCost,
-      costPerSqFt: estimationData.summary?.costPerSqFt 
+      costPerSqFt: estimationData.summary?.costPerSqFt,
+      provider: usedProvider
     });
 
     return new Response(
       JSON.stringify({
         success: true,
-        estimation: estimationData
+        estimation: estimationData,
+        provider: usedProvider
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -388,6 +255,152 @@ REQUIREMENTS:
     );
   }
 });
+
+// OpenAI API call for cost estimation
+async function generateWithOpenAI(apiKey: string, systemPrompt: string, userPrompt: string): Promise<any> {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "generate_cost_estimation",
+            description: "Generate construction cost estimation",
+            parameters: {
+              type: "object",
+              properties: {
+                summary: {
+                  type: "object",
+                  properties: {
+                    totalCost: { type: "number" },
+                    landCost: { type: "number" },
+                    constructionCost: { type: "number" },
+                    costPerSqFt: { type: "number" },
+                    breakdown: {
+                      type: "object",
+                      properties: {
+                        civil: { type: "number" },
+                        interior: { type: "number" },
+                        exterior: { type: "number" },
+                        labor: { type: "number" },
+                        electrical: { type: "number" },
+                        plumbing: { type: "number" }
+                      }
+                    },
+                    buildTime: { type: "string" },
+                    contingency: { type: "number" },
+                    gst: { type: "number" }
+                  }
+                },
+                materials: { type: "array", items: { type: "object" } },
+                costOptimization: { type: "object" },
+                fullDetails: { type: "string" }
+              },
+              required: ["summary", "materials", "costOptimization", "fullDetails"]
+            }
+          }
+        }
+      ],
+      tool_choice: { type: "function", function: { name: "generate_cost_estimation" } },
+      temperature: 0.3,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenAI API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+  if (toolCall?.function?.arguments) {
+    return JSON.parse(toolCall.function.arguments);
+  }
+  return null;
+}
+
+// SambaNova API call for cost estimation
+async function generateWithSambaNova(apiKey: string, systemPrompt: string, userPrompt: string): Promise<any> {
+  const response = await fetch('https://api.sambanova.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'Meta-Llama-3.1-70B-Instruct',
+      messages: [
+        { role: 'system', content: systemPrompt + '\n\nIMPORTANT: Return your response as valid JSON with this structure: {"summary": {"totalCost": number, "landCost": number, "constructionCost": number, "costPerSqFt": number, "breakdown": {"civil": number, "interior": number, "exterior": number, "labor": number, "electrical": number, "plumbing": number}, "buildTime": string, "contingency": number, "gst": number}, "materials": [], "costOptimization": {"savings": [], "improvements": []}, "fullDetails": string}' },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.3,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`SambaNova API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (content) {
+    try {
+      // Try to extract JSON from the response
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+    } catch (e) {
+      console.error('Failed to parse SambaNova response:', e);
+    }
+  }
+  return null;
+}
+
+// Lovable AI API call for cost estimation
+async function generateWithLovableAI(apiKey: string, systemPrompt: string, userPrompt: string): Promise<any> {
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'system', content: systemPrompt + '\n\nIMPORTANT: Return your response as valid JSON with this structure: {"summary": {"totalCost": number, "landCost": number, "constructionCost": number, "costPerSqFt": number, "breakdown": {"civil": number, "interior": number, "exterior": number, "labor": number, "electrical": number, "plumbing": number}, "buildTime": string, "contingency": number, "gst": number}, "materials": [], "costOptimization": {"savings": [], "improvements": []}, "fullDetails": string}' },
+        { role: 'user', content: userPrompt }
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Lovable AI error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (content) {
+    try {
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+    } catch (e) {
+      console.error('Failed to parse Lovable AI response:', e);
+    }
+  }
+  return null;
+}
 
 function createFallbackEstimation(
   totalArea: number, 
