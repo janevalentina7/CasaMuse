@@ -20,9 +20,8 @@ import FloorPlanSummaryPanel from "@/components/FloorPlanSummaryPanel";
 // Import sample floor plan images
 import floorplanSample1 from "@/assets/floorplan-sample-1.jpg";
 import floorplanSample2 from "@/assets/floorplan-sample-2.jpg";
-import floorplanSample3 from "@/assets/floorplan-sample-3.png";
 
-const SAMPLE_FLOORPLANS = [floorplanSample1, floorplanSample2, floorplanSample3];
+const SAMPLE_FLOORPLANS = [floorplanSample1, floorplanSample2];
 
 const FloorPlanResult = () => {
   const location = useLocation();
@@ -387,32 +386,19 @@ const FloorPlanResult = () => {
             )}
           </div>
 
-          {/* Floor Plan Display with Summary Panel */}
-          <div className="grid lg:grid-cols-4 gap-6">
-            {/* Floor Plan */}
-            <Card className="glass-card border-2 lg:col-span-3">
-              <CardContent className="p-6">
-                <div ref={svgContainerRef} className="relative rounded-lg overflow-hidden bg-white">
-                  {/* Always display one of the sample floor plan images */}
-                  <img
-                    src={sampleFloorPlan}
-                    alt="Generated Floor Plan"
-                    className="w-full h-auto"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Summary Panel - Only for procedural floor plans */}
-            {floorPlanData?.summary && (
-              <div className="lg:col-span-1">
-                <FloorPlanSummaryPanel 
-                  summary={floorPlanData.summary}
-                  style={formData?.preferences?.style || 'Modern'}
+          {/* Floor Plan Display */}
+          <Card className="glass-card border-2">
+            <CardContent className="p-6">
+              <div ref={svgContainerRef} className="relative rounded-lg overflow-hidden bg-white">
+                {/* Always display one of the sample floor plan images */}
+                <img
+                  src={sampleFloorPlan}
+                  alt="Generated Floor Plan"
+                  className="w-full h-auto"
                 />
               </div>
-            )}
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-4 justify-center">
