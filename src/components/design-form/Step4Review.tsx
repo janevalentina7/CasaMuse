@@ -1,18 +1,19 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CheckCircle, AlertTriangle, Sparkles, ArrowRight } from "lucide-react";
+import { ArrowLeft, CheckCircle, AlertTriangle, Sparkles, ArrowRight, Cpu, Pencil } from "lucide-react";
 import { ROOM_DATA, OUTDOOR_FEATURES } from "@/data/roomSizes";
 import { RoomSelection } from "./Step2Rooms";
 import { DesignPreferences } from "./Step3Preferences";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useState } from "react";
 
 interface Step4Props {
   landArea: string;
   rooms: RoomSelection[];
   preferences: DesignPreferences;
   onPrev: () => void;
-  onSubmit: () => void;
+  onSubmit: (useAI: boolean) => void;
   isGenerating?: boolean;
 }
 
@@ -24,6 +25,7 @@ export const Step4Review = ({
   onSubmit,
   isGenerating = false,
 }: Step4Props) => {
+  const [generationType, setGenerationType] = useState<'procedural' | 'ai'>('procedural');
   const calculateTotalArea = () => {
     let total = 0;
     rooms.forEach((room) => {
@@ -210,6 +212,51 @@ export const Step4Review = ({
         </CardContent>
       </Card>
 
+          {/* Generation Type Selection */}
+          <Card className="border-border/50 glass-card">
+            <CardContent className="p-6 space-y-4">
+              <h3 className="font-semibold text-lg mb-3">Generation Method</h3>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setGenerationType('procedural')}
+                  className={cn(
+                    "p-4 rounded-lg border-2 text-left transition-all",
+                    generationType === 'procedural' 
+                      ? "border-primary bg-primary/10 ring-2 ring-primary/30" 
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <Pencil className="w-5 h-5 text-primary" />
+                    <span className="font-semibold">Quick SVG</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Instant procedural floor plan with furniture layout. No API credits needed.
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGenerationType('ai')}
+                  className={cn(
+                    "p-4 rounded-lg border-2 text-left transition-all",
+                    generationType === 'ai' 
+                      ? "border-primary bg-primary/10 ring-2 ring-primary/30" 
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <Cpu className="w-5 h-5 text-primary" />
+                    <span className="font-semibold">AI Generated</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Professional AutoCAD-style plan using OpenAI. Requires API key.
+                  </p>
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="flex gap-3 pt-4">
             <Button
               type="button"
@@ -225,12 +272,16 @@ export const Step4Review = ({
               type="button"
               variant="hero"
               size="xl"
-              onClick={onSubmit}
+              onClick={() => onSubmit(generationType === 'ai')}
               disabled={needsScaling || isGenerating}
               className="flex-1 group bg-primary text-white hover:bg-primary/90"
             >
-              <Sparkles className="w-5 h-5 mr-2" />
-              {isGenerating ? "Generating..." : "Generate Design"}
+              {generationType === 'ai' ? (
+                <Cpu className="w-5 h-5 mr-2" />
+              ) : (
+                <Sparkles className="w-5 h-5 mr-2" />
+              )}
+              {isGenerating ? "Generating..." : generationType === 'ai' ? "Generate with AI" : "Generate Design"}
               <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
           </div>
