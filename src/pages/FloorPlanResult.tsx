@@ -522,6 +522,12 @@ const FloorPlanResult = () => {
                     placeholder="e.g., 5000000"
                     value={userBudget}
                     onChange={(e) => setUserBudget(e.target.value.replace(/[^0-9]/g, ''))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleGenerateCostEstimation();
+                      }
+                    }}
                     className="text-foreground bg-background"
                   />
                   {userBudget && (

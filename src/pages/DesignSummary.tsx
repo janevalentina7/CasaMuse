@@ -1,9 +1,12 @@
 import { useLocation, Link } from "react-router-dom";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, ArrowLeft, Download, FileText, Box, IndianRupee, Image } from "lucide-react";
+import { Home, ArrowLeft, Download, FileText, Box, IndianRupee, Image, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 // Import rendered view images
 import set1Front from "@/assets/rendered-views/set1-front.jpg";
@@ -33,6 +36,8 @@ const RENDERED_VIEW_SETS: Record<number, { front: string; back: string; side: st
 const DesignSummary = () => {
   const location = useLocation();
   const { imageUrl, formData, description, costEstimationData, floorPlanSetId } = location.state || {};
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // Get rendered views for the current floor plan set
   const renderedViews = RENDERED_VIEW_SETS[floorPlanSetId] || RENDERED_VIEW_SETS[1];
@@ -40,8 +45,62 @@ const DesignSummary = () => {
   // Extract cost data - handle both nested and flat structures
   const costSummary = costEstimationData?.summary || costEstimationData;
 
-  const handleDownloadSummary = () => {
-    toast.success("Summary download feature coming soon!");
+  const handleDownloadSummary = async () => {
+    if (!summaryRef.current) return;
+    
+    setIsDownloading(true);
+    toast.info("Generating PDF... Please wait.");
+
+    try {
+      const element = summaryRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      
+      // Calculate how many pages we need
+      const scaledImgHeight = imgHeight * ratio;
+      const pageCount = Math.ceil(scaledImgHeight / pdfHeight);
+
+      for (let i = 0; i < pageCount; i++) {
+        if (i > 0) {
+          pdf.addPage();
+        }
+        pdf.addImage(
+          imgData,
+          'PNG',
+          imgX,
+          -(i * pdfHeight),
+          imgWidth * ratio,
+          imgHeight * ratio
+        );
+      }
+
+      pdf.save('CasaMuse-Design-Summary.pdf');
+      toast.success("PDF downloaded successfully!");
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error("Failed to generate PDF. Please try again.");
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   if (!formData) {
@@ -77,9 +136,18 @@ const DesignSummary = () => {
             </Link>
             
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleDownloadSummary}>
-                <Download className="w-4 h-4 mr-2" />
-                Download PDF
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleDownloadSummary}
+                disabled={isDownloading}
+              >
+                {isDownloading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                {isDownloading ? "Generating..." : "Download PDF"}
               </Button>
               <Link to="/floor-plan-result" state={{ imageUrl, description, formData, floorPlanSetId }}>
                 <Button variant="ghost" size="sm">
@@ -94,7 +162,7 @@ const DesignSummary = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="max-w-6xl mx-auto space-y-8">
+        <div ref={summaryRef} className="max-w-6xl mx-auto space-y-8 bg-background p-4 rounded-lg">
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold">
               Design <span className="bg-gradient-primary bg-clip-text text-transparent">Summary</span>
@@ -111,7 +179,7 @@ const DesignSummary = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="p-4 rounded-lg bg-muted/30">
                   <p className="text-sm text-muted-foreground">Land Area</p>
                   <p className="text-lg font-semibold">{formData.landArea} sq ft</p>
@@ -166,7 +234,7 @@ const DesignSummary = () => {
             <CardContent>
               {imageUrl && (
                 <div className="rounded-lg overflow-hidden bg-white">
-                  <img src={imageUrl} alt="Floor Plan" className="w-full h-auto" />
+                  <img src={imageUrl} alt="Floor Plan" className="w-full h-auto" crossOrigin="anonymous" />
                 </div>
               )}
               {description && (
@@ -188,29 +256,29 @@ const DesignSummary = () => {
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-center">Front View</p>
                   <div className="rounded-lg overflow-hidden bg-muted">
-                    <img src={renderedViews.front} alt="Front View" className="w-full h-auto aspect-video object-cover" />
+                    <img src={renderedViews.front} alt="Front View" className="w-full h-auto aspect-video object-cover" crossOrigin="anonymous" />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-center">Back View</p>
                   <div className="rounded-lg overflow-hidden bg-muted">
-                    <img src={renderedViews.back} alt="Back View" className="w-full h-auto aspect-video object-cover" />
+                    <img src={renderedViews.back} alt="Back View" className="w-full h-auto aspect-video object-cover" crossOrigin="anonymous" />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-center">Side View</p>
                   <div className="rounded-lg overflow-hidden bg-muted">
-                    <img src={renderedViews.side} alt="Side View" className="w-full h-auto aspect-video object-cover" />
+                    <img src={renderedViews.side} alt="Side View" className="w-full h-auto aspect-video object-cover" crossOrigin="anonymous" />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-center">Top View</p>
                   <div className="rounded-lg overflow-hidden bg-muted">
-                    <img src={renderedViews.top} alt="Top View" className="w-full h-auto aspect-video object-cover" />
+                    <img src={renderedViews.top} alt="Top View" className="w-full h-auto aspect-video object-cover" crossOrigin="anonymous" />
                   </div>
                 </div>
               </div>
-              <div className="mt-4 text-center">
+              <div className="mt-4 text-center print:hidden">
                 <Link to="/ai-rendered-view" state={{ imageUrl, description, formData, floorPlanSetId }}>
                   <Button variant="outline">
                     <Image className="w-4 h-4 mr-2" />
@@ -222,7 +290,7 @@ const DesignSummary = () => {
           </Card>
 
           {/* Interactive 3D Preview */}
-          <Card className="glass-card">
+          <Card className="glass-card print:hidden">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Box className="w-5 h-5" />
@@ -273,6 +341,51 @@ const DesignSummary = () => {
                       </p>
                     </div>
                   </div>
+                  
+                  {/* Cost Breakdown */}
+                  {costSummary.breakdown && (
+                    <div className="mt-4">
+                      <p className="text-sm font-medium mb-3">Cost Breakdown</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {costSummary.breakdown.civil && (
+                          <div className="p-3 rounded-lg bg-muted/20 text-center">
+                            <p className="text-xs text-muted-foreground">Civil Work</p>
+                            <p className="font-semibold">₹{costSummary.breakdown.civil.toLocaleString('en-IN')}</p>
+                          </div>
+                        )}
+                        {costSummary.breakdown.interior && (
+                          <div className="p-3 rounded-lg bg-muted/20 text-center">
+                            <p className="text-xs text-muted-foreground">Interior</p>
+                            <p className="font-semibold">₹{costSummary.breakdown.interior.toLocaleString('en-IN')}</p>
+                          </div>
+                        )}
+                        {costSummary.breakdown.exterior && (
+                          <div className="p-3 rounded-lg bg-muted/20 text-center">
+                            <p className="text-xs text-muted-foreground">Exterior</p>
+                            <p className="font-semibold">₹{costSummary.breakdown.exterior.toLocaleString('en-IN')}</p>
+                          </div>
+                        )}
+                        {costSummary.breakdown.electrical && (
+                          <div className="p-3 rounded-lg bg-muted/20 text-center">
+                            <p className="text-xs text-muted-foreground">Electrical</p>
+                            <p className="font-semibold">₹{costSummary.breakdown.electrical.toLocaleString('en-IN')}</p>
+                          </div>
+                        )}
+                        {costSummary.breakdown.plumbing && (
+                          <div className="p-3 rounded-lg bg-muted/20 text-center">
+                            <p className="text-xs text-muted-foreground">Plumbing</p>
+                            <p className="font-semibold">₹{costSummary.breakdown.plumbing.toLocaleString('en-IN')}</p>
+                          </div>
+                        )}
+                        {costSummary.breakdown.labor && (
+                          <div className="p-3 rounded-lg bg-muted/20 text-center">
+                            <p className="text-xs text-muted-foreground">Labor</p>
+                            <p className="font-semibold">₹{costSummary.breakdown.labor.toLocaleString('en-IN')}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-8">
