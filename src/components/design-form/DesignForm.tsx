@@ -8,6 +8,7 @@ import { Step4Review } from "./Step4Review";
 import { toast } from "sonner";
 import { ROOM_DATA } from "@/data/roomSizes";
 import { generateFloorPlan, RoomData, FloorPlanPreferences } from "@/utils/floorPlanGenerator";
+import { supabase } from "@/integrations/supabase/client";
 
 const STEPS = ["Land Area", "Rooms", "Preferences", "Review"];
 
@@ -53,69 +54,132 @@ export const DesignForm = () => {
     toast.success("Preferences saved!");
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (useAI: boolean = false) => {
     setIsGenerating(true);
-    toast.info("Generating your professional floor plan...", {
-      description: "Processing your design requirements",
-      duration: 2000,
+    
+    // Prepare room data with full details
+    const roomsWithDetails: RoomData[] = rooms.map((room) => {
+      const roomData = ROOM_DATA[room.roomId];
+      const sizeData = roomData.sizes[room.size];
+      return {
+        roomId: room.roomId,
+        roomName: roomData.name,
+        count: room.count,
+        size: room.size,
+        width: sizeData.width,
+        height: sizeData.height,
+        attachedBathroom: room.attachedBathroom,
+      };
     });
 
-    try {
-      // Prepare room data with full details
-      const roomsWithDetails: RoomData[] = rooms.map((room) => {
-        const roomData = ROOM_DATA[room.roomId];
-        const sizeData = roomData.sizes[room.size];
-        return {
-          roomId: room.roomId,
-          roomName: roomData.name,
-          count: room.count,
-          size: room.size,
-          width: sizeData.width,
-          height: sizeData.height,
-          attachedBathroom: room.attachedBathroom,
-        };
+    if (useAI) {
+      // Use OpenAI for floor plan generation
+      toast.info("Generating AI floor plan with OpenAI...", {
+        description: "This may take 15-30 seconds",
+        duration: 5000,
       });
 
-      // Generate floor plan procedurally (no AI needed!)
-      const floorPlanPrefs: FloorPlanPreferences = {
-        style: preferences.style,
-        floors: preferences.floors,
-        vastuCompliant: preferences.vastuCompliant,
-        dynamicScaling: preferences.dynamicScaling,
-        outdoorFeatures: preferences.outdoorFeatures,
-      };
-
-      const floorPlanResult = generateFloorPlan(
-        parseFloat(landArea),
-        roomsWithDetails,
-        floorPlanPrefs
-      );
-
-      // Small delay for UX
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      toast.success("Floor plan generated successfully!");
-
-      // Navigate to results page with the generated data
-      navigate('/floor-plan-result', {
-        state: {
-          floorPlanData: floorPlanResult,
-          description: `Professional ${preferences.style} floor plan for ${landArea} sq ft with ${roomsWithDetails.length} rooms. Built-up area: ${floorPlanResult.builtUpArea} sq ft.`,
-          formData: {
+      try {
+        const { data, error } = await supabase.functions.invoke('generate-floor-plan', {
+          body: {
             landArea,
             rooms: roomsWithDetails,
             preferences,
           },
-        },
+        });
+
+        if (data?.errorType === 'auth_error') {
+          toast.error("OpenAI API Key Invalid", {
+            description: "Please check your OpenAI API key in the settings.",
+            duration: 10000,
+          });
+          setIsGenerating(false);
+          return;
+        }
+
+        if (data?.errorType === 'rate_limited') {
+          toast.error("Rate Limit Reached", {
+            description: "OpenAI rate limit exceeded. Please wait and try again.",
+            duration: 5000,
+          });
+          setIsGenerating(false);
+          return;
+        }
+
+        if (error) throw error;
+
+        if (!data?.success) {
+          throw new Error(data?.error || 'Failed to generate floor plan');
+        }
+
+        toast.success("AI floor plan generated successfully!");
+
+        navigate('/floor-plan-result', {
+          state: {
+            imageUrl: data.imageUrl,
+            description: data.description,
+            formData: {
+              landArea,
+              rooms: roomsWithDetails,
+              preferences,
+            },
+          },
+        });
+
+      } catch (error) {
+        console.error('Error generating AI floor plan:', error);
+        toast.error("Failed to generate AI floor plan", {
+          description: error instanceof Error ? error.message : "Please try again or use Quick SVG mode",
+        });
+      } finally {
+        setIsGenerating(false);
+      }
+    } else {
+      // Use procedural SVG generation (no AI needed)
+      toast.info("Generating your professional floor plan...", {
+        description: "Processing your design requirements",
+        duration: 2000,
       });
 
-    } catch (error) {
-      console.error('Error generating floor plan:', error);
-      toast.error("Failed to generate floor plan", {
-        description: error instanceof Error ? error.message : "Please try again",
-      });
-    } finally {
-      setIsGenerating(false);
+      try {
+        const floorPlanPrefs: FloorPlanPreferences = {
+          style: preferences.style,
+          floors: preferences.floors,
+          vastuCompliant: preferences.vastuCompliant,
+          dynamicScaling: preferences.dynamicScaling,
+          outdoorFeatures: preferences.outdoorFeatures,
+        };
+
+        const floorPlanResult = generateFloorPlan(
+          parseFloat(landArea),
+          roomsWithDetails,
+          floorPlanPrefs
+        );
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        toast.success("Floor plan generated successfully!");
+
+        navigate('/floor-plan-result', {
+          state: {
+            floorPlanData: floorPlanResult,
+            description: `Professional ${preferences.style} floor plan for ${landArea} sq ft with ${roomsWithDetails.length} rooms. Built-up area: ${floorPlanResult.builtUpArea} sq ft.`,
+            formData: {
+              landArea,
+              rooms: roomsWithDetails,
+              preferences,
+            },
+          },
+        });
+
+      } catch (error) {
+        console.error('Error generating floor plan:', error);
+        toast.error("Failed to generate floor plan", {
+          description: error instanceof Error ? error.message : "Please try again",
+        });
+      } finally {
+        setIsGenerating(false);
+      }
     }
   };
 
