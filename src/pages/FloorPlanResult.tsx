@@ -324,26 +324,7 @@ const FloorPlanResult = () => {
     setShowCostSettings(true);
   };
 
-  if (!floorPlanData && !imageUrl) {
-    return (
-      <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
-        <Card className="glass-card max-w-md w-full">
-          <CardContent className="p-8 text-center">
-            <h2 className="text-2xl font-bold mb-4">No Floor Plan Available</h2>
-            <p className="text-muted-foreground mb-6">
-              Please generate a floor plan first.
-            </p>
-            <Link to="/design">
-              <Button variant="hero" className="glass-button">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Design Tool
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // Always show the floor plan page - we have sample images to display
 
   return (
     <div className="min-h-screen bg-gradient-hero">
