@@ -21,9 +21,8 @@ import FloorPlanSummaryPanel from "@/components/FloorPlanSummaryPanel";
 import floorplanSample1 from "@/assets/floorplan-sample-1.jpg";
 import floorplanSample2 from "@/assets/floorplan-sample-2.jpg";
 import floorplanSample3 from "@/assets/floorplan-sample-3.png";
-import floorplanSample4 from "@/assets/floorplan-sample-4.png";
 
-const SAMPLE_FLOORPLANS = [floorplanSample1, floorplanSample2, floorplanSample3, floorplanSample4];
+const SAMPLE_FLOORPLANS = [floorplanSample1, floorplanSample2, floorplanSample3];
 
 const FloorPlanResult = () => {
   const location = useLocation();
