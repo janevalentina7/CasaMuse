@@ -116,8 +116,12 @@ serve(async (req) => {
 });
 
 function buildViewPrompt(view: string, specificRoom: string | undefined, landArea: string, rooms: any[], preferences: any, roomsDescription: string, outdoorDescription: string, styleDetails: string): string {
+  const noWatermarkInstruction = `CRITICAL: Do NOT add any watermarks, logos, signatures, text overlays, or branding marks anywhere on the image. The output must be a completely clean image with no watermarks whatsoever.`;
+  
   const viewPrompts: { [key: string]: string } = {
     '360': `Generate a photorealistic exterior 3D architectural rendering of a ${preferences.style} style Indian house.
+
+${noWatermarkInstruction}
 
 SPECIFICATIONS:
 - Plot size: ${landArea} sq ft
@@ -138,34 +142,43 @@ REQUIREMENTS:
 8. Golden hour warm lighting with soft shadows
 9. Realistic textures for walls, roof, windows
 10. Indian residential architecture context
+11. NO watermarks, logos, or any text overlays
 
-Generate a high-quality, photorealistic 3D rendering suitable for presentation.`,
+Generate a high-quality, photorealistic 3D rendering suitable for presentation without any watermarks.`,
 
     'top': `Generate a professional aerial/bird's eye view 3D rendering of a ${preferences.style} style house.
+
+${noWatermarkInstruction}
 
 SPECIFICATIONS:
 - Plot size: ${landArea} sq ft, Floors: ${preferences.floors}
 - Rooms: ${roomsDescription}
 ${outdoorDescription}
 
-Show: Top-down 45-degree aerial view, complete roof layout, property boundaries, parking, garden areas, shadows indicating building height.`,
+Show: Top-down 45-degree aerial view, complete roof layout, property boundaries, parking, garden areas, shadows indicating building height. No watermarks.`,
 
     'side': `Generate a professional side elevation 3D rendering of a ${preferences.style} style house.
 
+${noWatermarkInstruction}
+
 SPECIFICATIONS: ${landArea} sq ft, ${preferences.floors}-story
 STYLE: ${styleDetails}
 
-Show: Perfect side view, all floor levels with windows, balconies, roof profile, foundation, realistic materials.`,
+Show: Perfect side view, all floor levels with windows, balconies, roof profile, foundation, realistic materials. No watermarks or logos.`,
 
     'back': `Generate a professional rear elevation 3D rendering of a ${preferences.style} style house.
 
+${noWatermarkInstruction}
+
 SPECIFICATIONS: ${landArea} sq ft, ${preferences.floors}-story
 STYLE: ${styleDetails}
 
-Show: Rear facade, back windows/doors, service areas, back garden, realistic materials.`,
+Show: Rear facade, back windows/doors, service areas, back garden, realistic materials. No watermarks.`,
 
     'interior': specificRoom 
       ? `Generate a beautiful photorealistic interior 3D rendering of a ${specificRoom} in ${preferences.style} style Indian home.
+
+${noWatermarkInstruction}
 
 Show fully furnished ${specificRoom} with:
 - Appropriate furniture for ${specificRoom}
@@ -174,10 +187,13 @@ Show fully furnished ${specificRoom} with:
 - Ceiling fan (Indian home essential), lighting fixtures
 - Quality flooring, wall textures
 - Decorative elements: plants, artwork, rugs
-- Warm, inviting atmosphere`
+- Warm, inviting atmosphere
+- NO watermarks or logos`
       : `Generate a photorealistic living room interior in ${preferences.style} style Indian home.
 
-Show: Comfortable sofa set, coffee table, TV unit, ${preferences.style} décor, natural light, ceiling fan, quality flooring, indoor plants, warm inviting atmosphere.`
+${noWatermarkInstruction}
+
+Show: Comfortable sofa set, coffee table, TV unit, ${preferences.style} décor, natural light, ceiling fan, quality flooring, indoor plants, warm inviting atmosphere. No watermarks.`
   };
 
   return viewPrompts[view] || viewPrompts['360'];

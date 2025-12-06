@@ -33,6 +33,8 @@ serve(async (req) => {
     // Comprehensive Floor Plan Generation Prompt
     const floorPlanPrompt = `Generate a professional 2D architectural floor plan with the following specifications:
 
+CRITICAL: Do NOT add any watermarks, logos, signatures, text overlays, or branding marks on the image. The output must be a clean image with no watermarks whatsoever.
+
 PLOT SPECIFICATIONS:
 - Total Land Area: ${landArea} sq ft
 - Number of Floors: ${preferences.floors}
@@ -66,6 +68,7 @@ DRAWING REQUIREMENTS:
 9. North arrow indicator in corner
 10. Scale bar showing 10 ft reference
 11. Title block: "FLOOR PLAN - ${landArea} SQ FT - ${preferences.style.toUpperCase()}"
+12. NO watermarks, logos, or any branding marks
 
 LAYOUT REQUIREMENTS:
 - Entrance opens to living room/foyer at front
@@ -78,7 +81,7 @@ LAYOUT REQUIREMENTS:
 - Minimum 3.5 ft wide hallways/corridors
 - Efficient circulation without dead ends
 
-Generate a clean, professional, ready-for-construction 2D floor plan image.`;
+Generate a clean, professional, ready-for-construction 2D floor plan image without any watermarks.`;
 
     let imageUrl: string | null = null;
     let description: string | undefined = '';
