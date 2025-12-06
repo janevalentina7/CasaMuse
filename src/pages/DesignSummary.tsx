@@ -2,105 +2,18 @@ import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, ArrowLeft, Download, FileText, Box, Eye, IndianRupee, Loader2 } from "lucide-react";
+import { Home, ArrowLeft, Download, FileText, Box, IndianRupee } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 
 const DesignSummary = () => {
   const location = useLocation();
-  const { imageUrl, formData, description, costEstimationData } = location.state || {};
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [exteriorViews, setExteriorViews] = useState<{ [key: string]: string }>({});
-  const [interiorViews, setInteriorViews] = useState<{ [key: string]: string }>({});
-  const [generatingView, setGeneratingView] = useState<string | null>(null);
-
-  const generateView = async (viewType: string, roomName?: string) => {
-    if (!imageUrl || !formData) return;
-
-    const viewKey = roomName || viewType;
-    setGeneratingView(viewKey);
-    setIsGenerating(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-3d-model', {
-        body: {
-          floorPlanImageUrl: imageUrl,
-          landArea: formData.landArea,
-          rooms: formData.rooms,
-          preferences: formData.preferences,
-          view: roomName ? 'interior' : viewType,
-          specificRoom: roomName,
-        }
-      });
-
-      if (error) throw error;
-
-      if (data?.success && data?.imageUrl) {
-        if (roomName) {
-          setInteriorViews(prev => ({ ...prev, [roomName]: data.imageUrl }));
-        } else {
-          setExteriorViews(prev => ({ ...prev, [viewType]: data.imageUrl }));
-        }
-        toast.success(`${roomName || viewType} view generated!`);
-      }
-    } catch (error) {
-      console.error('Error generating view:', error);
-      toast.error("Failed to generate view");
-    } finally {
-      setIsGenerating(false);
-      setGeneratingView(null);
-    }
-  };
-
-  const generateAllViews = async () => {
-    if (!formData?.rooms) return;
-    
-    toast.info("Generating all views... This will take a few minutes.");
-    
-    // Generate exterior views
-    const exteriorTypes = ['360', 'front', 'side', 'back', 'top'];
-    for (const view of exteriorTypes) {
-      if (!exteriorViews[view]) {
-        await generateView(view);
-      }
-    }
-    
-    // Generate interior views for all rooms
-    const allRooms = getAllRoomNames();
-    for (const roomName of allRooms) {
-      if (!interiorViews[roomName]) {
-        await generateView('interior', roomName);
-      }
-    }
-    
-    toast.success("All views generated!");
-  };
-
-  const getAllRoomNames = () => {
-    if (!formData?.rooms) return [];
-    const roomNames: string[] = [];
-    
-    formData.rooms.forEach((room: any) => {
-      const count = room.count || 1;
-      for (let i = 0; i < count; i++) {
-        const name = count > 1 ? `${room.roomName} ${i + 1}` : room.roomName;
-        roomNames.push(name);
-        
-        if (room.attachedBathroom) {
-          roomNames.push(`Bathroom (${name})`);
-        }
-      }
-    });
-    
-    return roomNames;
-  };
+  const { imageUrl, formData, description, costEstimationData, floorPlanSetId } = location.state || {};
 
   const handleDownloadSummary = () => {
     toast.success("Summary download feature coming soon!");
   };
 
-  if (!imageUrl || !formData) {
+  if (!formData) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
         <Card className="glass-card max-w-md w-full">
@@ -118,8 +31,6 @@ const DesignSummary = () => {
       </div>
     );
   }
-
-  const allRoomNames = getAllRoomNames();
 
   return (
     <div className="min-h-screen bg-gradient-hero">
@@ -139,7 +50,7 @@ const DesignSummary = () => {
                 <Download className="w-4 h-4 mr-2" />
                 Download PDF
               </Button>
-              <Link to="/floor-plan-result" state={{ imageUrl, description, formData }}>
+              <Link to="/floor-plan-result" state={{ imageUrl, description, formData, floorPlanSetId }}>
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back
@@ -222,98 +133,14 @@ const DesignSummary = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="rounded-lg overflow-hidden bg-white">
-                <img src={imageUrl} alt="Floor Plan" className="w-full h-auto" />
-              </div>
+              {imageUrl && (
+                <div className="rounded-lg overflow-hidden bg-white">
+                  <img src={imageUrl} alt="Floor Plan" className="w-full h-auto" />
+                </div>
+              )}
               {description && (
                 <p className="mt-4 text-sm text-muted-foreground">{description}</p>
               )}
-            </CardContent>
-          </Card>
-
-          {/* AI Rendered Exterior Views */}
-          <Card className="glass-card">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Eye className="w-5 h-5" />
-                AI Rendered Exterior Views
-              </CardTitle>
-              <Button 
-                size="sm" 
-                onClick={generateAllViews}
-                disabled={isGenerating}
-              >
-                {isGenerating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                Generate All Views
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {['360', 'front', 'side', 'back', 'top'].map((view) => (
-                  <div key={view} className="space-y-2">
-                    <div className="aspect-video rounded-lg bg-muted/50 overflow-hidden relative">
-                      {exteriorViews[view] ? (
-                        <img src={exteriorViews[view]} alt={`${view} view`} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          {generatingView === view ? (
-                            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-                          ) : (
-                            <Button 
-                              size="sm" 
-                              variant="ghost"
-                              onClick={() => generateView(view)}
-                              disabled={isGenerating}
-                            >
-                              Generate
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-sm font-medium text-center capitalize">{view === '360' ? '360° View' : `${view} View`}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* AI Rendered Interior Views - All Rooms */}
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Home className="w-5 h-5" />
-                AI Rendered Interior Views (All Rooms)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {allRoomNames.map((roomName) => (
-                  <div key={roomName} className="space-y-2">
-                    <div className="aspect-video rounded-lg bg-muted/50 overflow-hidden relative">
-                      {interiorViews[roomName] ? (
-                        <img src={interiorViews[roomName]} alt={roomName} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          {generatingView === roomName ? (
-                            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-                          ) : (
-                            <Button 
-                              size="sm" 
-                              variant="ghost"
-                              onClick={() => generateView('interior', roomName)}
-                              disabled={isGenerating}
-                            >
-                              Generate
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-sm font-medium text-center">{roomName}</p>
-                  </div>
-                ))}
-              </div>
             </CardContent>
           </Card>
 
@@ -329,7 +156,7 @@ const DesignSummary = () => {
               <p className="text-muted-foreground mb-4">
                 Explore your home in interactive 3D with VR support
               </p>
-              <Link to="/interactive-3d" state={{ imageUrl, description, formData }}>
+              <Link to="/interactive-3d" state={{ imageUrl, description, formData, floorPlanSetId }}>
                 <Button variant="hero">
                   <Box className="w-4 h-4 mr-2" />
                   Open Interactive 3D
@@ -375,7 +202,7 @@ const DesignSummary = () => {
                   <p className="text-muted-foreground mb-4">
                     Cost estimation not generated yet
                   </p>
-                  <Link to="/floor-plan-result" state={{ imageUrl, description, formData }}>
+                  <Link to="/floor-plan-result" state={{ imageUrl, description, formData, floorPlanSetId }}>
                     <Button variant="outline">
                       <IndianRupee className="w-4 h-4 mr-2" />
                       Generate Cost Estimation
