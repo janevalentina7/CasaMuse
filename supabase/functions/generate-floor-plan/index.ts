@@ -107,35 +107,6 @@ The floor plan should look professional, clean, and realistic - as if drawn by a
     if (!response.ok) {
       const errorText = await response.text();
       console.error('AI Gateway error:', response.status, errorText);
-      
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ 
-            error: 'Not enough credits. Please add credits to your Lovable workspace at Settings → Workspace → Usage.',
-            errorType: 'payment_required',
-            success: false 
-          }),
-          {
-            status: 402,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        );
-      }
-      
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ 
-            error: 'Rate limit exceeded. Please try again in a few moments.',
-            errorType: 'rate_limited',
-            success: false 
-          }),
-          {
-            status: 429,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        );
-      }
-      
       throw new Error(`AI Gateway error: ${response.status}`);
     }
 
