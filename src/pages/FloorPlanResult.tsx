@@ -15,6 +15,7 @@ import CostEstimationEnhanced from "@/components/CostEstimationEnhanced";
 import FloorPlanComparison from "@/components/FloorPlanComparison";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import FloorPlanSVG from "@/components/FloorPlanSVG";
+import FloorPlanSummaryPanel from "@/components/FloorPlanSummaryPanel";
 
 const FloorPlanResult = () => {
   const location = useLocation();
@@ -374,32 +375,45 @@ const FloorPlanResult = () => {
             )}
           </div>
 
-          {/* Floor Plan Display */}
-          <Card className="glass-card border-2">
-            <CardContent className="p-6">
-              <div ref={svgContainerRef} className="relative rounded-lg overflow-hidden bg-white">
-                {floorPlanData ? (
-                  <FloorPlanSVG
-                    rooms={floorPlanData.rooms}
-                    totalWidth={floorPlanData.totalWidth}
-                    totalHeight={floorPlanData.totalHeight}
-                    landArea={floorPlanData.landArea}
-                    builtUpArea={floorPlanData.builtUpArea}
-                    style={formData?.preferences?.style || 'Modern'}
-                    scaleFactor={floorPlanData.scaleFactor}
-                    hasParking={floorPlanData.hasParking}
-                    hasGarden={floorPlanData.hasGarden}
-                  />
-                ) : imageUrl ? (
-                  <img
-                    src={imageUrl}
-                    alt="Generated Floor Plan"
-                    className="w-full h-auto"
-                  />
-                ) : null}
+          {/* Floor Plan Display with Summary Panel */}
+          <div className="grid lg:grid-cols-4 gap-6">
+            {/* Floor Plan */}
+            <Card className="glass-card border-2 lg:col-span-3">
+              <CardContent className="p-6">
+                <div ref={svgContainerRef} className="relative rounded-lg overflow-hidden bg-white">
+                  {floorPlanData ? (
+                    <FloorPlanSVG
+                      rooms={floorPlanData.rooms}
+                      totalWidth={floorPlanData.totalWidth}
+                      totalHeight={floorPlanData.totalHeight}
+                      landArea={floorPlanData.landArea}
+                      builtUpArea={floorPlanData.builtUpArea}
+                      style={formData?.preferences?.style || 'Modern'}
+                      scaleFactor={floorPlanData.scaleFactor}
+                      hasParking={floorPlanData.hasParking}
+                      hasGarden={floorPlanData.hasGarden}
+                    />
+                  ) : imageUrl ? (
+                    <img
+                      src={imageUrl}
+                      alt="Generated Floor Plan"
+                      className="w-full h-auto"
+                    />
+                  ) : null}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Summary Panel - Only for procedural floor plans */}
+            {floorPlanData?.summary && (
+              <div className="lg:col-span-1">
+                <FloorPlanSummaryPanel 
+                  summary={floorPlanData.summary}
+                  style={formData?.preferences?.style || 'Modern'}
+                />
               </div>
-            </CardContent>
-          </Card>
+            )}
+          </div>
 
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-4 justify-center">
