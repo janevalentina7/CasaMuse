@@ -15,7 +15,7 @@ import CostEstimationEnhanced from "@/components/CostEstimationEnhanced";
 import FloorPlanComparison from "@/components/FloorPlanComparison";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import FloorPlanSVG from "@/components/FloorPlanSVG";
-import FloorPlanSummaryPanel from "@/components/FloorPlanSummaryPanel";
+
 
 // Import floor plan images - 4 sets available
 import floorPlan1 from "@/assets/floor-plans/floor-plan-1.jpg";
@@ -33,14 +33,18 @@ const FLOOR_PLAN_SETS = [
 
 const FloorPlanResult = () => {
   const location = useLocation();
-  const { imageUrl, floorPlanData, description, formData } = location.state || {};
+  const { imageUrl, floorPlanData, description, formData, floorPlanSetId } = location.state || {};
   const svgContainerRef = useRef<HTMLDivElement>(null);
   
-  // Randomly select one of the floor plan sets (memoized to persist across re-renders)
+  // Use passed floorPlanSetId if available, otherwise randomly select one (memoized to persist across re-renders)
   const selectedFloorPlanSet = useMemo(() => {
+    if (floorPlanSetId) {
+      const found = FLOOR_PLAN_SETS.find(set => set.id === floorPlanSetId);
+      if (found) return found;
+    }
     const randomIndex = Math.floor(Math.random() * FLOOR_PLAN_SETS.length);
     return FLOOR_PLAN_SETS[randomIndex];
-  }, []);
+  }, [floorPlanSetId]);
   const [is3DGenerating, setIs3DGenerating] = useState(false);
   const [model3DUrl, setModel3DUrl] = useState<string | null>(null);
   const [model3DDescription, setModel3DDescription] = useState<string>("");
@@ -395,32 +399,19 @@ const FloorPlanResult = () => {
             )}
           </div>
 
-          {/* Floor Plan Display with Summary Panel */}
-          <div className="grid lg:grid-cols-4 gap-6">
-            {/* Floor Plan */}
-            <Card className="glass-card border-2 lg:col-span-3">
-              <CardContent className="p-6">
-                <div ref={svgContainerRef} className="relative rounded-lg overflow-hidden bg-white">
-                  {/* Display floor plan image from selected set */}
-                  <img
-                    src={selectedFloorPlanSet.image}
-                    alt="Generated Floor Plan"
-                    className="w-full h-auto"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Summary Panel - Only for procedural floor plans */}
-            {floorPlanData?.summary && (
-              <div className="lg:col-span-1">
-                <FloorPlanSummaryPanel 
-                  summary={floorPlanData.summary}
-                  style={formData?.preferences?.style || 'Modern'}
+          {/* Floor Plan Display */}
+          <Card className="glass-card border-2">
+            <CardContent className="p-6">
+              <div ref={svgContainerRef} className="relative rounded-lg overflow-hidden bg-white">
+                {/* Display floor plan image from selected set */}
+                <img
+                  src={selectedFloorPlanSet.image}
+                  alt="Generated Floor Plan"
+                  className="w-full h-auto"
                 />
               </div>
-            )}
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-4 justify-center">
@@ -433,13 +424,13 @@ const FloorPlanResult = () => {
               <Download className="w-5 h-5 mr-2" />
               Download Floor Plan
             </Button>
-            <Link to="/interactive-3d" state={{ imageUrl, description, formData, floorPlanSetId: selectedFloorPlanSet.id }}>
+            <Link to="/interactive-3d" state={{ imageUrl: selectedFloorPlanSet.image, description, formData, floorPlanSetId: selectedFloorPlanSet.id }}>
               <Button variant="hero" size="lg" className="group">
                 <Box className="w-5 h-5 mr-2" />
                 Interactive 3D
               </Button>
             </Link>
-            <Link to="/ai-rendered-view" state={{ imageUrl, description, formData, floorPlanSetId: selectedFloorPlanSet.id }}>
+            <Link to="/ai-rendered-view" state={{ imageUrl: selectedFloorPlanSet.image, description, formData, floorPlanSetId: selectedFloorPlanSet.id }}>
               <Button variant="hero" size="lg" className="group">
                 <Maximize className="w-5 h-5 mr-2" />
                 AI Rendered Views
@@ -455,7 +446,7 @@ const FloorPlanResult = () => {
               <IndianRupee className="w-5 h-5 mr-2" />
               {isGeneratingCost ? "Calculating..." : "Cost Estimation"}
             </Button>
-            <Link to="/design-summary" state={{ imageUrl, description, formData, costEstimationData }}>
+            <Link to="/design-summary" state={{ imageUrl: selectedFloorPlanSet.image, description, formData, costEstimationData, floorPlanSetId: selectedFloorPlanSet.id }}>
               <Button variant="hero" size="lg" className="group">
                 <FileText className="w-5 h-5 mr-2" />
                 Summary

@@ -186,7 +186,7 @@ const AIRenderedView = () => {
     toast.success("All interior views generated!");
   };
 
-  if (!imageUrl || !formData) {
+  if (!formData) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
         <Card className="glass-card max-w-md w-full">
@@ -222,7 +222,7 @@ const AIRenderedView = () => {
               <span className="text-xl font-bold">CasaMuse</span>
             </Link>
             
-            <Link to="/floor-plan-result" state={{ imageUrl, description, formData }}>
+            <Link to="/floor-plan-result" state={{ imageUrl, description, formData, floorPlanSetId }}>
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Results
