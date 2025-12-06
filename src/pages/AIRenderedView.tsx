@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Home, ArrowLeft, Box, Eye, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -15,19 +15,53 @@ import set1Front from "@/assets/rendered-views/set1-front.jpg";
 import set1Side from "@/assets/rendered-views/set1-side.jpg";
 import set1Back from "@/assets/rendered-views/set1-back.jpg";
 
-// Static rendered views set
-const STATIC_RENDERED_VIEWS = {
-  floorplan: set1FloorPlan,
-  top: set1Top,
-  front: set1Front,
-  '360': set1Front, // Use front view as 360 as well
-  side: set1Side,
-  back: set1Back,
+// Import static rendered views for floor plan set 2
+import set2FloorPlan from "@/assets/rendered-views/set2-floorplan.png";
+import set2Top from "@/assets/rendered-views/set2-top.png";
+import set2Front from "@/assets/rendered-views/set2-front.png";
+import set2Side from "@/assets/rendered-views/set2-side.png";
+import set2Back from "@/assets/rendered-views/set2-back.png";
+
+// All rendered view sets mapped by floor plan set ID
+const RENDERED_VIEW_SETS: { [key: number]: { [view: string]: string } } = {
+  1: {
+    floorplan: set1FloorPlan,
+    top: set1Top,
+    front: set1Front,
+    '360': set1Front,
+    side: set1Side,
+    back: set1Back,
+  },
+  2: {
+    floorplan: set2FloorPlan,
+    top: set2Top,
+    front: set2Front,
+    '360': set2Front,
+    side: set2Side,
+    back: set2Back,
+  },
+  // Sets 3 and 4 will use set 1 as fallback until images are provided
+  3: {
+    floorplan: set1FloorPlan,
+    top: set1Top,
+    front: set1Front,
+    '360': set1Front,
+    side: set1Side,
+    back: set1Back,
+  },
+  4: {
+    floorplan: set1FloorPlan,
+    top: set1Top,
+    front: set1Front,
+    '360': set1Front,
+    side: set1Side,
+    back: set1Back,
+  },
 };
 
 const AIRenderedView = () => {
   const location = useLocation();
-  const { imageUrl, formData, description } = location.state || {};
+  const { imageUrl, formData, description, floorPlanSetId = 1 } = location.state || {};
   const [isGenerating, setIsGenerating] = useState(false);
   const [renderedView, setRenderedView] = useState<string>('floorplan');
   const [exteriorViews, setExteriorViews] = useState<{ [key: string]: { url: string; description: string } }>({});
@@ -36,17 +70,22 @@ const AIRenderedView = () => {
   const [showInterior, setShowInterior] = useState(true);
   const [generatingView, setGeneratingView] = useState<string | null>(null);
   
-  // Pre-populate exterior views with static images on mount
+  // Get the correct rendered views based on floor plan set ID
+  const currentViewSet = useMemo(() => {
+    return RENDERED_VIEW_SETS[floorPlanSetId] || RENDERED_VIEW_SETS[1];
+  }, [floorPlanSetId]);
+  
+  // Pre-populate exterior views with static images based on floor plan set
   useEffect(() => {
     setExteriorViews({
-      floorplan: { url: STATIC_RENDERED_VIEWS.floorplan, description: '2D Floor Plan View' },
-      top: { url: STATIC_RENDERED_VIEWS.top, description: '3D Top/Isometric View showing the house layout from above' },
-      front: { url: STATIC_RENDERED_VIEWS.front, description: 'Front Exterior View of the house' },
-      '360': { url: STATIC_RENDERED_VIEWS['360'], description: '360° Exterior View' },
-      side: { url: STATIC_RENDERED_VIEWS.side, description: 'Side View showing the house from a diagonal angle' },
-      back: { url: STATIC_RENDERED_VIEWS.back, description: 'Back/Rear View of the house' },
+      floorplan: { url: currentViewSet.floorplan, description: '2D Floor Plan View' },
+      top: { url: currentViewSet.top, description: '3D Top/Isometric View showing the house layout from above' },
+      front: { url: currentViewSet.front, description: 'Front Exterior View of the house' },
+      '360': { url: currentViewSet['360'], description: '360° Exterior View' },
+      side: { url: currentViewSet.side, description: 'Side View showing the house from a diagonal angle' },
+      back: { url: currentViewSet.back, description: 'Back/Rear View of the house' },
     });
-  }, []);
+  }, [currentViewSet]);
 
   // Get all room names from form data
   const getAllRoomNames = () => {
