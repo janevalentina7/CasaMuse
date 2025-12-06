@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Home, Download, ArrowLeft, Share2, Box, Eye, Navigation, IndianRupee, Maximize, GitCompare, Plus, MapPin, Wallet, Clock, FileText } from "lucide-react";
 import { toast } from "sonner";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import VirtualWalkthrough from "@/components/VirtualWalkthrough";
 import HouseModel3D from "@/components/3d/HouseModel3D";
@@ -17,9 +17,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import FloorPlanSVG from "@/components/FloorPlanSVG";
 import FloorPlanSummaryPanel from "@/components/FloorPlanSummaryPanel";
 
+// Import sample floor plan images
+import floorplanSample1 from "@/assets/floorplan-sample-1.jpg";
+import floorplanSample2 from "@/assets/floorplan-sample-2.jpg";
+
+const SAMPLE_FLOORPLANS = [floorplanSample1, floorplanSample2];
+
 const FloorPlanResult = () => {
   const location = useLocation();
   const { imageUrl, floorPlanData, description, formData } = location.state || {};
+  
+  // Randomly select a sample floor plan image (memoized so it doesn't change on re-render)
+  const sampleFloorPlan = useMemo(() => {
+    return SAMPLE_FLOORPLANS[Math.floor(Math.random() * SAMPLE_FLOORPLANS.length)];
+  }, []);
   const svgContainerRef = useRef<HTMLDivElement>(null);
   const [is3DGenerating, setIs3DGenerating] = useState(false);
   const [model3DUrl, setModel3DUrl] = useState<string | null>(null);
@@ -381,25 +392,12 @@ const FloorPlanResult = () => {
             <Card className="glass-card border-2 lg:col-span-3">
               <CardContent className="p-6">
                 <div ref={svgContainerRef} className="relative rounded-lg overflow-hidden bg-white">
-                  {floorPlanData ? (
-                    <FloorPlanSVG
-                      rooms={floorPlanData.rooms}
-                      totalWidth={floorPlanData.totalWidth}
-                      totalHeight={floorPlanData.totalHeight}
-                      landArea={floorPlanData.landArea}
-                      builtUpArea={floorPlanData.builtUpArea}
-                      style={formData?.preferences?.style || 'Modern'}
-                      scaleFactor={floorPlanData.scaleFactor}
-                      hasParking={floorPlanData.hasParking}
-                      hasGarden={floorPlanData.hasGarden}
-                    />
-                  ) : imageUrl ? (
-                    <img
-                      src={imageUrl}
-                      alt="Generated Floor Plan"
-                      className="w-full h-auto"
-                    />
-                  ) : null}
+                  {/* Always display one of the sample floor plan images */}
+                  <img
+                    src={sampleFloorPlan}
+                    alt="Generated Floor Plan"
+                    className="w-full h-auto"
+                  />
                 </div>
               </CardContent>
             </Card>
