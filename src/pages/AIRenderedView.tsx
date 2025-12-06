@@ -6,21 +6,20 @@ import { Home, ArrowLeft, Box, Eye, ChevronDown, ChevronUp } from "lucide-react"
 import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-// Import sample rendered view images
-import floorplanSample1 from "@/assets/floorplan-sample-1.jpg";
-import floorplanSample2 from "@/assets/floorplan-sample-2.jpg";
-import topView from "@/assets/3d-topview.jpg";
-import frontView from "@/assets/3d-frontview.jpg";
-import sideView from "@/assets/3d-sideview.jpg";
-import backView from "@/assets/3d-backview.jpg";
+// Import sample rendered view images (NEW images)
+import floorplanSample from "@/assets/floorplan-sample-3.png";
+import topView from "@/assets/3d-topview-new.png";
+import frontView from "@/assets/3d-frontview-new.png";
+import sideView from "@/assets/3d-sideview-new.png";
+import backView from "@/assets/3d-backview-new.png";
 
 // Define exterior views with sample images
 const EXTERIOR_VIEWS = {
-  'floorplan': { url: floorplanSample1, label: 'Floor Plan', description: 'Professional 2D floor plan with room dimensions and layout' },
+  'floorplan': { url: floorplanSample, label: 'Floor Plan', description: 'Professional 2D floor plan with room dimensions and layout' },
   'top': { url: topView, label: 'Top View', description: '3D isometric view showing the complete house layout from above' },
-  'front': { url: frontView, label: 'Front View', description: 'Front elevation view of the modern house with landscaping' },
-  'side': { url: sideView, label: 'Side View', description: 'Side perspective showing the house architecture and outdoor patio area' },
-  'back': { url: backView, label: 'Back View', description: 'Rear view of the house showing terrace and balcony areas' },
+  'front': { url: frontView, label: 'Front View', description: 'Front elevation view of the modern house with garage and landscaping' },
+  'side': { url: sideView, label: 'Side View', description: 'Side perspective showing the house architecture and patio area' },
+  'back': { url: backView, label: 'Back View', description: 'Rear view of the house showing covered patio area' },
 };
 
 const AIRenderedView = () => {
@@ -29,25 +28,7 @@ const AIRenderedView = () => {
   const [selectedView, setSelectedView] = useState<string>('floorplan');
   const [showExterior, setShowExterior] = useState(true);
 
-  if (!formData) {
-    return (
-      <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
-        <Card className="glass-card max-w-md w-full">
-          <CardContent className="p-8 text-center">
-            <h2 className="text-2xl font-bold mb-4">No Floor Plan Available</h2>
-            <p className="text-muted-foreground mb-6">Please generate a floor plan first.</p>
-            <Link to="/design">
-              <Button variant="hero" className="glass-button">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Design Tool
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
+  // Always show the page even without formData - use sample images
   const currentView = EXTERIOR_VIEWS[selectedView as keyof typeof EXTERIOR_VIEWS];
   const exteriorTypes = Object.keys(EXTERIOR_VIEWS);
 
