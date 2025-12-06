@@ -206,7 +206,7 @@ REQUIREMENTS:
     // Use fallback if still no data
     if (!estimationData || !estimationData.summary?.totalCost || estimationData.summary.totalCost === 0) {
       console.log('Using calculated fallback estimation');
-      estimationData = createFallbackEstimation(totalArea, landArea, adjustedConstructionCost, landCost, preferences?.style, location);
+      estimationData = createFallbackEstimation(totalArea, landArea, adjustedConstructionCost, landCost, preferences?.style, location, desiredBuildTime);
       usedProvider = 'Calculated';
     }
 
@@ -408,10 +408,19 @@ function createFallbackEstimation(
   constructionCost: number, 
   landCost: number, 
   style: string = 'Modern',
-  location: string = 'India'
+  location: string = 'India',
+  desiredBuildTime?: number
 ) {
   const totalCost = constructionCost + landCost;
   const costPerSqFt = Math.round(constructionCost / totalArea);
+  
+  // Use user's desired build time if provided, otherwise calculate based on area
+  let buildTime: string;
+  if (desiredBuildTime) {
+    buildTime = `${desiredBuildTime} months`;
+  } else {
+    buildTime = totalArea < 1500 ? '6-8 months' : totalArea < 3000 ? '10-12 months' : '14-18 months';
+  }
   
   return {
     summary: {
@@ -427,7 +436,7 @@ function createFallbackEstimation(
         electrical: Math.round(constructionCost * 0.08),
         plumbing: Math.round(constructionCost * 0.07)
       },
-      buildTime: totalArea < 1500 ? '6-8 months' : totalArea < 3000 ? '10-12 months' : '14-18 months',
+      buildTime: buildTime,
       contingency: Math.round(constructionCost * 0.10),
       gst: Math.round(constructionCost * 0.18)
     },
