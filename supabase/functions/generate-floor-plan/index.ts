@@ -31,59 +31,73 @@ serve(async (req) => {
 
     const outdoorFeatures = preferences.outdoorFeatures?.join(", ") || "None";
 
-    // Create comprehensive architectural prompt
-    const prompt = `Create a professional, architect-grade 2D floor plan image with the following specifications:
+    // Create comprehensive architectural prompt - AutoCAD professional style
+    const prompt = `You are the Floor Plan Generation AI of CasaMuse. Generate a professional, architect-grade 2D floor plan that looks exactly like AutoCAD output.
 
-CRITICAL LABELING REQUIREMENTS:
-- Every room MUST have a clear, readable label showing:
-  * Room name (e.g., "Living Room", "Master Bedroom")
-  * Dimensions in feet (e.g., "12' × 16'")
-- Labels must be positioned centrally in each room
-- Use large, bold, professional font for all labels
-- Add dimension arrows on walls showing measurements
-- Include a clear legend/key explaining symbols
-- Add total built-up area calculation at bottom
-
-FLOOR PLAN SPECIFICATIONS:
-
-PLOT DETAILS:
+PLOT SPECIFICATIONS:
 - Total Land Area: ${landArea} sq ft
 - Number of Floors: ${preferences.floors}
 - Architectural Style: ${preferences.style}
-- Vastu Compliant: ${preferences.vastuCompliant ? "Yes" : "No"}
-- Dynamic Scaling: ${preferences.dynamicScaling ? "Enabled" : "Disabled"}
+- Vastu Compliant: ${preferences.vastuCompliant ? "Yes - Follow Vastu directions strictly" : "No"}
+- Dynamic Scaling: ${preferences.dynamicScaling ? "Enabled - Scale rooms proportionally if needed" : "Disabled"}
 
-ROOMS REQUIRED:
+ROOMS REQUIRED (with exact dimensions):
 ${roomDetails}
 
-OUTDOOR FEATURES:
-${outdoorFeatures}
+OUTDOOR FEATURES: ${outdoorFeatures}
 
-DESIGN REQUIREMENTS:
-1. Create a clean, professional 2D floor plan similar to AutoCAD/Revit output
-2. Show all walls with proper thickness (4-6 inches)
-3. Include doors with opening arcs showing swing direction
-4. Add windows with proper symbols
-5. Label each room with dimensions (length × width in feet)
-6. Show furniture layout for each room (beds, sofas, dining table, kitchen counters, bathroom fixtures)
-7. Include a north direction arrow
-8. Add scale indicator (1:50 or 1:100)
-9. Use professional color coding: walls in dark grey, rooms in soft pastels, furniture in light grey
-10. Show circulation paths and ensure logical room flow
-11. ${preferences.vastuCompliant ? "Follow Vastu directions: Living room (North-East/East), Kitchen (South-East), Master bedroom (South-West), etc." : "Optimize for functionality and natural light"}
-12. Include dimensions for all rooms
-13. Add electrical points, plumbing lines if visible
-14. Ensure proper ventilation with window placements
+MANDATORY AUTOCAD-STYLE VISUAL REQUIREMENTS:
+1. BLACK & WHITE technical drawing style with clean crisp lines
+2. Wall thickness: 9 inches (230mm) shown as double parallel lines
+3. All dimensions labeled in FEET with dimension lines and arrows
+4. North arrow indicator in top-right corner
+5. Scale bar showing 1:100 scale
+6. Room names in CAPITAL LETTERS centered in each room
+7. Door swings shown as 90° arcs with proper direction
+8. Window symbols as parallel lines with gaps
+9. Hatching patterns for wet areas (bathrooms, kitchen)
+10. Grid reference system (A, B, C... and 1, 2, 3...)
+11. Title block at bottom with: "FLOOR PLAN - ${landArea} SQ FT - ${preferences.style.toUpperCase()} STYLE"
 
-ROOM LAYOUT RULES:
-- Living room near entrance with good ventilation
-- Kitchen near dining area with utility access
-- Bedrooms in private zones away from living areas
-- Bathrooms should share plumbing walls
-- Balconies attached to living room or bedrooms
-- Proper hallway widths (3-4 feet minimum)
+ROOM PLACEMENT RULES (Follow strictly):
+- ENTRANCE → Opens into Foyer or Living Room (never facing bathroom)
+- LIVING ROOM → Front of house, connected to hallway, minimum 12×15 ft
+- MASTER BEDROOM → Corner placement for privacy, 12×14 ft with attached bathroom 6×8 ft
+- OTHER BEDROOMS → Near hallway, 10×12 ft each
+- KITCHEN → Close to dining, outdoor ventilation, 8×10 ft minimum
+- DINING → Between kitchen and living room, 8×10 ft
+- BATHROOMS → Attached inside bedrooms, common bathroom from hallway (5×7 ft)
+- BALCONY → Attached to living/bedroom, receives sunlight, 4-6 ft depth
+- HALLWAY → 3.5-4.5 ft width connecting all rooms
+- PARKING → Front portion, minimum 10×15 ft
+- UTILITY → Near kitchen, 4×6 ft
+- POOJA ROOM → If included, 4×6 ft, ${preferences.vastuCompliant ? "North-East corner" : "near living area"}
 
-The floor plan should look professional, clean, and realistic - as if drawn by a licensed architect. Use proper architectural symbols and conventions. Make it visually clean with clear labels and measurements.`;
+${preferences.vastuCompliant ? `
+VASTU COMPLIANCE (Mandatory):
+- Main entrance: North or East facing
+- Living room: North-East or East
+- Master bedroom: South-West corner
+- Kitchen: South-East (Agni corner)
+- Bathrooms: North-West or West
+- Pooja room: North-East (Ishan corner)
+- Staircase: South or West
+- No toilets under staircase
+` : ''}
+
+PROFESSIONAL DRAWING STANDARDS:
+- Use standard architectural symbols per Indian construction practices
+- Show electrical points as circles with cross
+- Show plumbing points as triangles
+- Include ceiling fan locations as circles with X
+- Show all door and window schedules
+- Include total built-up area calculation
+- All rooms must be rectangular or L-shaped (valid architectural shapes)
+- No awkward dead spaces - smooth circulation flow
+- Minimum corridor width: 3.5 ft
+- Every room must be accessible from hallway
+
+OUTPUT: Generate a clean, professional 2D floor plan image that could be directly used by architects and contractors. The quality should match AutoCAD/Revit professional standards with precise geometry and clear annotations.`;
 
     // Generate image using Lovable AI (image generation model)
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
