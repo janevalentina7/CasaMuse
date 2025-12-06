@@ -13,11 +13,11 @@ serve(async (req) => {
   try {
     const { floorPlanImageUrl, landArea, rooms, preferences, view = '360', specificRoom } = await req.json();
     
-    console.log("Generating 3D model with OpenAI:", { landArea, rooms, preferences, view, specificRoom });
+    console.log("Generating 3D model with Google Gemini:", { landArea, rooms, preferences, view, specificRoom });
 
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY is not configured. Please add your OpenAI API key in the settings.');
+    const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
+    if (!GOOGLE_AI_API_KEY) {
+      throw new Error('GOOGLE_AI_API_KEY is not configured. Please add your Google AI API key in the settings.');
     }
 
     const roomsDescription = rooms.map((room: any) => {
@@ -26,95 +26,170 @@ serve(async (req) => {
     }).join(', ');
 
     const outdoorDescription = preferences.outdoorFeatures?.length > 0 
-      ? `Outdoor: ${preferences.outdoorFeatures.join(', ')}` 
+      ? `Outdoor features: ${preferences.outdoorFeatures.join(', ')}` 
       : '';
+
+    const styleDetails = getStyleDetails(preferences.style);
 
     // Define view-specific prompts
     const viewPrompts: { [key: string]: string } = {
-      '360': `Photorealistic exterior 3D rendering of a ${preferences.style} style Indian house.
-        
-${preferences.floors}-story building, ${landArea} sq ft plot.
-Rooms: ${roomsDescription}
+      '360': `Generate a photorealistic exterior 3D architectural rendering of a ${preferences.style} style Indian house.
+
+SPECIFICATIONS:
+- Plot size: ${landArea} sq ft
+- Floors: ${preferences.floors}-story building
+- Rooms: ${roomsDescription}
 ${outdoorDescription}
 
-Show: Beautiful front elevation with ${getStyleDetails(preferences.style)}. 
-Include driveway, entrance, windows with proper frames, balconies if applicable.
-Professional architectural visualization, golden hour lighting, high quality render.`,
+STYLE DETAILS: ${styleDetails}
 
-      'top': `Professional aerial/bird's eye view of a ${preferences.style} style house.
-        
-${landArea} sq ft plot, ${preferences.floors} floors.
-Rooms: ${roomsDescription}
+REQUIREMENTS:
+1. Beautiful front elevation view at eye level
+2. Show complete building with all floors visible
+3. Include realistic entrance door, windows with proper frames
+4. Balconies with railings if applicable
+5. Driveway and parking area at front
+6. Landscaping with lawn, plants, trees
+7. Professional architectural visualization quality
+8. Golden hour warm lighting with soft shadows
+9. Realistic textures for walls, roof, windows
+10. Indian residential architecture context
+
+Generate a high-quality, photorealistic 3D rendering suitable for presentation.`,
+
+      'top': `Generate a professional aerial/bird's eye view 3D rendering of a ${preferences.style} style house.
+
+SPECIFICATIONS:
+- Plot size: ${landArea} sq ft
+- Floors: ${preferences.floors} floors
+- Rooms: ${roomsDescription}
 ${outdoorDescription}
 
-Show: Complete roof layout, property boundaries, parking area, garden spaces, outdoor features.
-Clean architectural top-down view with shadows showing building height.`,
+REQUIREMENTS:
+1. Top-down 45-degree aerial perspective
+2. Show complete roof layout and design
+3. Property boundaries clearly visible
+4. Parking area, driveway visible
+5. Garden areas, landscaping, outdoor features
+6. Shadows indicating building height and depth
+7. Clean architectural visualization style
+8. Realistic materials and colors for roof
+9. Surrounding context (lawn, pathways)
 
-      'side': `Side elevation architectural rendering of a ${preferences.style} style house.
-        
-${preferences.floors}-story, ${landArea} sq ft.
-Show: Full building height, side windows, balconies, architectural details.
-${getStyleDetails(preferences.style)}
-Professional visualization with realistic materials and lighting.`,
+Generate a professional bird's eye architectural visualization.`,
 
-      'back': `Rear elevation 3D rendering of a ${preferences.style} style house.
-        
-${preferences.floors}-story building.
-Show: Back facade, rear windows, service areas, back garden/yard.
-${getStyleDetails(preferences.style)}
-Professional architectural visualization.`,
+      'side': `Generate a professional side elevation 3D rendering of a ${preferences.style} style house.
+
+SPECIFICATIONS:
+- Plot size: ${landArea} sq ft
+- Floors: ${preferences.floors}-story building
+- Style: ${preferences.style}
+
+STYLE DETAILS: ${styleDetails}
+
+REQUIREMENTS:
+1. Perfect side view showing full building height
+2. All floor levels visible with windows
+3. Balconies from side perspective
+4. Roof profile and architectural details
+5. Foundation and ground level visible
+6. Realistic material textures
+7. Professional lighting with soft shadows
+8. Landscaping visible at sides
+
+Generate a high-quality side elevation rendering.`,
+
+      'back': `Generate a professional rear elevation 3D rendering of a ${preferences.style} style house.
+
+SPECIFICATIONS:
+- Plot size: ${landArea} sq ft
+- Floors: ${preferences.floors}-story building
+- Style: ${preferences.style}
+
+STYLE DETAILS: ${styleDetails}
+
+REQUIREMENTS:
+1. Rear facade view of the house
+2. Back windows and doors visible
+3. Service areas, utility spaces visible
+4. Back garden or yard area
+5. Balconies from rear perspective
+6. Realistic materials and textures
+7. Professional architectural quality
+8. Natural lighting
+
+Generate a photorealistic rear view rendering.`,
 
       'interior': specificRoom 
-        ? `Beautiful interior 3D rendering of a ${specificRoom} in ${preferences.style} style.
-        
-Show fully furnished room with:
-- Appropriate furniture for ${specificRoom}
-- ${preferences.style} style décor and finishes
-- Natural light from windows with curtains
-- Ceiling details, lighting fixtures
-- Flooring, rugs, indoor plants
-- Indian home features: ceiling fan, proper ventilation
+        ? `Generate a beautiful photorealistic interior 3D rendering of a ${specificRoom} in ${preferences.style} style Indian home.
 
-Photorealistic interior design visualization, warm inviting atmosphere.`
-        : `Beautiful living room interior in ${preferences.style} style Indian home.
-        
-Show fully furnished space with:
-- Comfortable sofa set, coffee table, TV unit
-- ${preferences.style} style décor and color scheme
-- Natural light, ceiling fan, modern lighting
-- Flooring, curtains, indoor plants
-- View of connected dining/kitchen area
+ROOM: ${specificRoom}
 
-Photorealistic interior visualization, warm and inviting.`
+STYLE: ${preferences.style}
+
+REQUIREMENTS:
+1. Fully furnished ${specificRoom} with appropriate furniture
+2. ${preferences.style} style interior design and décor
+3. Proper color scheme matching the style
+4. Natural light from windows with curtains/blinds
+5. Ceiling details with ceiling fan (Indian home essential)
+6. Appropriate lighting fixtures (chandelier/pendant/recessed)
+7. Flooring appropriate to room (tiles/wood/marble)
+8. Wall textures, paint, or accent walls
+9. Decorative elements: plants, artwork, rugs
+10. Warm, inviting atmosphere
+11. Professional interior design visualization quality
+
+Generate a photorealistic interior rendering of this ${specificRoom}.`
+        : `Generate a beautiful photorealistic interior 3D rendering of a living room in ${preferences.style} style Indian home.
+
+STYLE: ${preferences.style}
+
+REQUIREMENTS:
+1. Spacious living room with comfortable sofa set
+2. Coffee table, side tables, TV unit
+3. ${preferences.style} style furniture and décor
+4. Natural light from large windows with curtains
+5. Ceiling fan (Indian home essential)
+6. Modern lighting fixtures
+7. Quality flooring (marble/tiles/wood)
+8. Indoor plants, artwork, decorative items
+9. View/connection to dining area
+10. Warm, inviting family living space
+11. Professional interior visualization quality
+
+Generate a photorealistic living room interior rendering.`
     };
 
     const prompt = viewPrompts[view] || viewPrompts['360'];
 
-    console.log('Calling OpenAI gpt-image-1 for 3D visualization...');
+    console.log('Calling Google Gemini for 3D visualization...');
 
-    const response = await fetch('https://api.openai.com/v1/images/generations', {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${GOOGLE_AI_API_KEY}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-image-1',
-        prompt: prompt,
-        n: 1,
-        size: '1536x1024', // Wider for exterior views
-        quality: 'high',
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          responseModalities: ["TEXT", "IMAGE"]
+        }
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
+      console.error('Google Gemini API error:', response.status, errorText);
       
-      if (response.status === 401) {
+      if (response.status === 401 || response.status === 403) {
         return new Response(
           JSON.stringify({ 
-            error: 'Invalid OpenAI API key. Please check your API key.',
+            error: 'Invalid Google AI API key. Please check your API key.',
             errorType: 'auth_error',
             success: false 
           }),
@@ -125,7 +200,7 @@ Photorealistic interior visualization, warm and inviting.`
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ 
-            error: 'OpenAI rate limit exceeded. Please wait and try again.',
+            error: 'Google API rate limit exceeded. Please wait and try again.',
             errorType: 'rate_limited',
             success: false 
           }),
@@ -133,21 +208,34 @@ Photorealistic interior visualization, warm and inviting.`
         );
       }
       
-      throw new Error(`OpenAI API error: ${response.status}`);
+      throw new Error(`Google Gemini API error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('OpenAI 3D response received');
+    console.log('Google Gemini 3D response received');
 
-    const imageData = data.data?.[0];
-    let imageUrl = imageData?.url;
-    
-    if (imageData?.b64_json) {
-      imageUrl = `data:image/png;base64,${imageData.b64_json}`;
+    // Extract the generated image from Gemini response
+    let imageUrl = null;
+    let textDescription = '';
+
+    const candidates = data.candidates;
+    if (candidates && candidates.length > 0) {
+      const parts = candidates[0].content?.parts || [];
+      for (const part of parts) {
+        if (part.inlineData) {
+          const mimeType = part.inlineData.mimeType || 'image/png';
+          const base64Data = part.inlineData.data;
+          imageUrl = `data:${mimeType};base64,${base64Data}`;
+        }
+        if (part.text) {
+          textDescription = part.text;
+        }
+      }
     }
 
     if (!imageUrl) {
-      throw new Error('No 3D visualization generated');
+      console.error('No image in Gemini response:', JSON.stringify(data));
+      throw new Error('No 3D visualization generated from Google Gemini');
     }
 
     const viewLabels: { [key: string]: string } = {
@@ -158,7 +246,7 @@ Photorealistic interior visualization, warm and inviting.`
       'interior': specificRoom ? `${specificRoom} interior` : 'Living room interior'
     };
 
-    const description = `${viewLabels[view]} of your ${preferences.style} style ${landArea} sq ft home. Generated with OpenAI.`;
+    const description = textDescription || `${viewLabels[view]} of your ${preferences.style} style ${landArea} sq ft home. Generated with Google Gemini.`;
 
     return new Response(
       JSON.stringify({ 
@@ -188,16 +276,16 @@ Photorealistic interior visualization, warm and inviting.`
 
 function getStyleDetails(style: string): string {
   const details: { [key: string]: string } = {
-    'Modern': 'Clean lines, flat roof, large glass windows, white/grey exterior, minimalist design',
-    'Contemporary': 'Mixed materials (wood, glass, stone), asymmetric design, trendy finishes',
-    'Traditional': 'Sloped tile roof, wooden accents, symmetrical facade, warm colors',
-    'Minimalist': 'Ultra-clean design, simple geometry, neutral colors, no ornamentation',
-    'Luxury': 'Grand entrance, marble/stone cladding, premium finishes, double-height spaces',
-    'Scandinavian': 'Light wood panels, large windows, pastel colors, cozy design',
-    'Industrial': 'Exposed brick, metal frames, raw concrete, factory-inspired elements',
-    'Colonial': 'Large pillars, arched windows, symmetrical design, heritage look',
-    'Mediterranean': 'Clay tile roof, arched doorways, terracotta colors, coastal feel',
-    'Rustic': 'Natural stone, exposed wood beams, earthy tones, organic materials',
+    'Modern': 'Clean geometric lines, flat or low-slope roof, large floor-to-ceiling glass windows, white/grey/concrete exterior, minimalist design with no ornamentation, sharp edges',
+    'Contemporary': 'Mixed materials (wood panels, glass, natural stone), asymmetric design, trendy finishes, organic curves mixed with geometric shapes, innovative window designs',
+    'Traditional': 'Sloped clay tile roof, wooden accents and frames, symmetrical facade, warm earthy colors (terracotta, cream, brown), classic Indian home features',
+    'Minimalist': 'Ultra-clean design, simple rectangular geometry, neutral white/grey/beige colors, no ornamentation, focus on essential forms only',
+    'Luxury': 'Grand double-height entrance with pillars, marble or stone cladding, premium finishes, large windows, elegant landscaping, fountain or water feature',
+    'Scandinavian': 'Light-colored wood panels, large panoramic windows, soft pastel colors (white, light grey, muted blue), cozy minimalist design, connection to nature',
+    'Industrial': 'Exposed brick walls, metal frame elements, raw concrete surfaces, factory-inspired large windows, urban loft aesthetic, neutral grey palette',
+    'Colonial': 'Large classical pillars at entrance, arched windows and doorways, symmetrical facade design, heritage cream/white color, balustrades and verandahs',
+    'Mediterranean': 'Terracotta clay tile roof, arched doorways and windows, stucco walls in warm earth tones, wrought iron details, courtyard elements, coastal villa feel',
+    'Rustic': 'Natural stone walls, exposed wooden beams, earthy brown tones, organic natural materials, mountain lodge feel, timber accents',
   };
   return details[style] || details['Modern'];
 }
