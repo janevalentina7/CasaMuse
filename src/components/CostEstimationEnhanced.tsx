@@ -264,26 +264,37 @@ export default function CostEstimationEnhanced({ data, formData, onUpdate }: Cos
   };
 
   const handleApplySuggestions = () => {
-    if (adjustedTotal && data.summary) {
-      // Update the cost data with the new adjusted total
-      const updatedData = {
-        ...data,
-        summary: {
-          ...data.summary,
-          totalCost: adjustedTotal,
-          costPerSqFt: Math.round(adjustedTotal / (data.summary.totalCost / data.summary.costPerSqFt))
-        }
-      };
-      if (onUpdate) {
-        onUpdate(updatedData);
-      }
-      toast.success("Cost adjustments applied to your estimate!");
-      setSuggestions([]);
-      setAdjustedTotal(null);
-      setAdjustmentType(null);
-    } else {
+    if (!adjustedTotal || !data.summary) {
       toast.info("Generate suggestions first by clicking Upgrade or Reduce Costs");
+      return;
     }
+    
+    // Calculate new cost per sq ft
+    const originalCostPerSqFt = data.summary.costPerSqFt;
+    const originalTotal = data.summary.totalCost;
+    const sqFt = originalTotal / originalCostPerSqFt;
+    const newCostPerSqFt = Math.round(adjustedTotal / sqFt);
+    
+    // Update the cost data with the new adjusted total
+    const updatedData = {
+      ...data,
+      summary: {
+        ...data.summary,
+        totalCost: adjustedTotal,
+        costPerSqFt: newCostPerSqFt
+      }
+    };
+    
+    if (onUpdate) {
+      onUpdate(updatedData);
+      toast.success("Cost adjustments applied to your estimate!");
+    } else {
+      toast.error("Unable to apply changes - update handler not available");
+    }
+    
+    setSuggestions([]);
+    setAdjustedTotal(null);
+    setAdjustmentType(null);
   };
 
   return (
@@ -299,7 +310,7 @@ export default function CostEstimationEnhanced({ data, formData, onUpdate }: Cos
         <CardContent className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
-              <label className="text-sm font-medium mb-2 block">Your Target Budget (Optional)</label>
+              <label className="text-sm font-medium mb-2 block text-foreground">Your Target Budget (Optional)</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10">₹</span>
                 <Input
@@ -310,8 +321,12 @@ export default function CostEstimationEnhanced({ data, formData, onUpdate }: Cos
                     const value = e.target.value.replace(/[^0-9]/g, '');
                     setBudget(value);
                   }}
-                  className="pl-8 text-foreground bg-background border-input"
-                  style={{ color: 'inherit' }}
+                  className="pl-8 !text-foreground !bg-background border-input"
+                  style={{ 
+                    color: 'hsl(var(--foreground))', 
+                    backgroundColor: 'hsl(var(--background))',
+                    caretColor: 'hsl(var(--foreground))'
+                  }}
                 />
               </div>
               {budget && (

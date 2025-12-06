@@ -729,7 +729,11 @@ const FloorPlanResult = () => {
                 </DialogTitle>
               </DialogHeader>
               {costEstimationData && (
-                <CostEstimationEnhanced data={costEstimationData} formData={formData} />
+                <CostEstimationEnhanced 
+                  data={costEstimationData} 
+                  formData={formData} 
+                  onUpdate={(newData) => setCostEstimationData(newData)}
+                />
               )}
             </DialogContent>
           </Dialog>
