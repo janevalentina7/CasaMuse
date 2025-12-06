@@ -29,6 +29,13 @@ import set3Front from "@/assets/rendered-views/set3-front.jpg";
 import set3Side from "@/assets/rendered-views/set3-side.jpg";
 import set3Back from "@/assets/rendered-views/set3-back.jpg";
 
+// Import static rendered views for floor plan set 4
+import set4FloorPlan from "@/assets/floor-plans/floor-plan-4.png";
+import set4Top from "@/assets/rendered-views/set4-top.png";
+import set4Front from "@/assets/rendered-views/set4-front.jpg";
+import set4Side from "@/assets/rendered-views/set4-side.jpg";
+import set4Back from "@/assets/rendered-views/set4-back.jpg";
+
 // All rendered view sets mapped by floor plan set ID
 const RENDERED_VIEW_SETS: { [key: number]: { [view: string]: string } } = {
   1: {
@@ -55,14 +62,13 @@ const RENDERED_VIEW_SETS: { [key: number]: { [view: string]: string } } = {
     side: set3Side,
     back: set3Back,
   },
-  // Set 4 uses set 1 as fallback until images are provided
   4: {
-    floorplan: set1FloorPlan,
-    top: set1Top,
-    front: set1Front,
-    '360': set1Front,
-    side: set1Side,
-    back: set1Back,
+    floorplan: set4FloorPlan,
+    top: set4Top,
+    front: set4Front,
+    '360': set4Front,
+    side: set4Side,
+    back: set4Back,
   },
 };
 
