@@ -7,17 +7,19 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Home, Download, ArrowLeft, Share2, Box, Eye, Navigation, IndianRupee, Maximize, GitCompare, Plus, MapPin, Wallet, Clock, FileText } from "lucide-react";
 import { toast } from "sonner";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import VirtualWalkthrough from "@/components/VirtualWalkthrough";
 import HouseModel3D from "@/components/3d/HouseModel3D";
 import CostEstimationEnhanced from "@/components/CostEstimationEnhanced";
 import FloorPlanComparison from "@/components/FloorPlanComparison";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import FloorPlanSVG from "@/components/FloorPlanSVG";
 
 const FloorPlanResult = () => {
   const location = useLocation();
-  const { imageUrl, description, formData } = location.state || {};
+  const { imageUrl, floorPlanData, description, formData } = location.state || {};
+  const svgContainerRef = useRef<HTMLDivElement>(null);
   const [is3DGenerating, setIs3DGenerating] = useState(false);
   const [model3DUrl, setModel3DUrl] = useState<string | null>(null);
   const [model3DDescription, setModel3DDescription] = useState<string>("");
@@ -84,10 +86,12 @@ const FloorPlanResult = () => {
   }, []);
 
   const handleAddToComparison = () => {
-    if (!imageUrl || !formData) return;
+    if (!floorPlanData && !imageUrl) return;
+    if (!formData) return;
     
     const newPlan = {
       id: Date.now().toString(),
+      floorPlanData,
       imageUrl,
       description,
       formData
@@ -107,16 +111,45 @@ const FloorPlanResult = () => {
   };
 
   const handleDownload = () => {
-    if (!imageUrl) return;
+    // For SVG, we need to convert to image
+    if (svgContainerRef.current) {
+      const svgElement = svgContainerRef.current.querySelector('svg');
+      if (svgElement) {
+        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        img.onload = () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx?.drawImage(img, 0, 0);
+          const pngUrl = canvas.toDataURL('image/png');
+          
+          const link = document.createElement('a');
+          link.href = pngUrl;
+          link.download = 'floor-plan.png';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          toast.success("Floor plan downloaded!");
+        };
+        
+        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+        return;
+      }
+    }
     
-    // Create a temporary link and trigger download
-    const link = document.createElement('a');
-    link.href = imageUrl;
-    link.download = 'floor-plan.png';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Floor plan downloaded!");
+    // Fallback for AI-generated image
+    if (imageUrl) {
+      const link = document.createElement('a');
+      link.href = imageUrl;
+      link.download = 'floor-plan.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Floor plan downloaded!");
+    }
   };
 
   const handleShare = async () => {
@@ -279,7 +312,7 @@ const FloorPlanResult = () => {
     setShowCostSettings(true);
   };
 
-  if (!imageUrl) {
+  if (!floorPlanData && !imageUrl) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
         <Card className="glass-card max-w-md w-full">
@@ -344,12 +377,24 @@ const FloorPlanResult = () => {
           {/* Floor Plan Display */}
           <Card className="glass-card border-2">
             <CardContent className="p-6">
-              <div className="relative rounded-lg overflow-hidden bg-white">
-                <img
-                  src={imageUrl}
-                  alt="Generated Floor Plan"
-                  className="w-full h-auto"
-                />
+              <div ref={svgContainerRef} className="relative rounded-lg overflow-hidden bg-white">
+                {floorPlanData ? (
+                  <FloorPlanSVG
+                    rooms={floorPlanData.rooms}
+                    totalWidth={floorPlanData.totalWidth}
+                    totalHeight={floorPlanData.totalHeight}
+                    landArea={floorPlanData.landArea}
+                    builtUpArea={floorPlanData.builtUpArea}
+                    style={formData?.preferences?.style || 'Modern'}
+                    scaleFactor={floorPlanData.scaleFactor}
+                  />
+                ) : imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt="Generated Floor Plan"
+                    className="w-full h-auto"
+                  />
+                ) : null}
               </div>
             </CardContent>
           </Card>
