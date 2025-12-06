@@ -184,69 +184,84 @@ function Balcony({ position, width = 6, depth = 2 }: {
   );
 }
 
-// Sloped Roof with tiles
+// Sloped Roof with proper gable geometry
 function SlopedRoof({ width, depth, style }: { width: number; depth: number; style: string }) {
-  const roofHeight = 4;
-  const overhang = 1.5;
-  const roofAngle = Math.atan2(roofHeight, depth / 2);
-  const roofSlope = (depth / 2) / Math.cos(roofAngle) + 0.5;
+  const roofHeight = 3.5;
+  const overhang = 1.2;
   
   const roofColor = style === 'Mediterranean' ? '#b35a1f' : 
                     style === 'Colonial' ? '#556b2f' :
                     style === 'Traditional' ? '#6b4423' : '#3a3a3a';
   
+  // Calculate roof slope angle and length
+  const halfDepth = (depth / 2) + overhang;
+  const roofAngle = Math.atan2(roofHeight, halfDepth);
+  const slopeLength = Math.sqrt(roofHeight * roofHeight + halfDepth * halfDepth);
+  
   return (
     <group>
-      {/* Main roof slopes */}
-      <group position={[0, 0, 0]}>
-        {/* Front slope */}
-        <Box 
-          args={[width + overhang * 2, 0.15, roofSlope]} 
-          position={[0, roofHeight / 2, depth / 4]}
-          rotation={[-roofAngle, 0, 0]}
-        >
-          <meshStandardMaterial color={roofColor} roughness={0.8} />
-        </Box>
-        
-        {/* Back slope */}
-        <Box 
-          args={[width + overhang * 2, 0.15, roofSlope]} 
-          position={[0, roofHeight / 2, -depth / 4]}
-          rotation={[roofAngle, 0, 0]}
-        >
-          <meshStandardMaterial color={roofColor} roughness={0.8} />
-        </Box>
-      </group>
+      {/* Front slope - tilting backward from front edge up to ridge */}
+      <Box 
+        args={[width + overhang * 2, 0.12, slopeLength]} 
+        position={[0, roofHeight / 2, halfDepth / 2]}
+        rotation={[-roofAngle, 0, 0]}
+      >
+        <meshStandardMaterial color={roofColor} roughness={0.8} />
+      </Box>
       
-      {/* Roof ridge */}
-      <Box args={[width + overhang * 2, 0.25, 0.3]} position={[0, roofHeight, 0]}>
+      {/* Back slope - tilting forward from back edge up to ridge */}
+      <Box 
+        args={[width + overhang * 2, 0.12, slopeLength]} 
+        position={[0, roofHeight / 2, -halfDepth / 2]}
+        rotation={[roofAngle, 0, 0]}
+      >
+        <meshStandardMaterial color={roofColor} roughness={0.8} />
+      </Box>
+      
+      {/* Roof ridge cap */}
+      <Box args={[width + overhang * 2, 0.2, 0.4]} position={[0, roofHeight, 0]}>
         <meshStandardMaterial color={roofColor} roughness={0.7} />
       </Box>
       
-      {/* Gable ends (triangular) */}
-      {[-1, 1].map((side) => (
-        <mesh key={side} position={[side * (width / 2 + overhang), roofHeight / 2, 0]}>
-          <bufferGeometry>
-            <bufferAttribute
-              attach="attributes-position"
-              count={3}
-              array={new Float32Array([
-                0, 0, -depth / 2 - overhang,
-                0, roofHeight, 0,
-                0, 0, depth / 2 + overhang,
-              ])}
-              itemSize={3}
-            />
-          </bufferGeometry>
-          <meshStandardMaterial color="#e8dcc8" side={THREE.DoubleSide} />
-        </mesh>
-      ))}
+      {/* Left gable end wall (triangle) */}
+      <mesh position={[-width / 2, 0, 0]}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={3}
+            array={new Float32Array([
+              0, 0, -depth / 2,
+              0, 0, depth / 2,
+              0, roofHeight, 0,
+            ])}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <meshStandardMaterial color="#e8dcc8" side={THREE.DoubleSide} />
+      </mesh>
       
-      {/* Chimney */}
-      <Box args={[0.8, 2.5, 0.6]} position={[width / 4, roofHeight + 0.8, -depth / 6]}>
+      {/* Right gable end wall (triangle) */}
+      <mesh position={[width / 2, 0, 0]}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={3}
+            array={new Float32Array([
+              0, 0, -depth / 2,
+              0, roofHeight, 0,
+              0, 0, depth / 2,
+            ])}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <meshStandardMaterial color="#e8dcc8" side={THREE.DoubleSide} />
+      </mesh>
+      
+      {/* Chimney positioned on back slope */}
+      <Box args={[0.7, 2, 0.5]} position={[width / 4, roofHeight * 0.7, -depth / 4]}>
         <meshStandardMaterial color="#8b6b52" roughness={0.9} />
       </Box>
-      <Box args={[0.9, 0.15, 0.7]} position={[width / 4, roofHeight + 2.1, -depth / 6]}>
+      <Box args={[0.8, 0.12, 0.6]} position={[width / 4, roofHeight * 0.7 + 1, -depth / 4]}>
         <meshStandardMaterial color="#6b4b3a" roughness={0.8} />
       </Box>
     </group>
