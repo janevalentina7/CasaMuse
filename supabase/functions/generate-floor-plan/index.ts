@@ -17,10 +17,7 @@ serve(async (req) => {
 
     const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-
-    if (!GOOGLE_AI_API_KEY && !OPENAI_API_KEY) {
-      throw new Error('No AI API key configured. Please add GOOGLE_AI_API_KEY or OPENAI_API_KEY in settings.');
-    }
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     // Build detailed room list for prompt
     const roomDetails = rooms.map((room: any) => {
@@ -88,7 +85,7 @@ Generate a clean, professional, ready-for-construction 2D floor plan image.`;
     let usedProvider = '';
 
     // Try Google Gemini first
-    if (GOOGLE_AI_API_KEY) {
+    if (GOOGLE_AI_API_KEY && !imageUrl) {
       console.log("Trying Google Gemini...");
       try {
         const geminiResult = await generateWithGemini(GOOGLE_AI_API_KEY, floorPlanPrompt);
@@ -98,13 +95,13 @@ Generate a clean, professional, ready-for-construction 2D floor plan image.`;
           usedProvider = 'Google Gemini';
         }
       } catch (geminiError: any) {
-        console.log("Gemini failed, trying OpenAI fallback:", geminiError.message);
+        console.log("Gemini failed:", geminiError.message);
       }
     }
 
     // Fallback to OpenAI if Gemini failed
-    if (!imageUrl && OPENAI_API_KEY) {
-      console.log("Using OpenAI fallback...");
+    if (OPENAI_API_KEY && !imageUrl) {
+      console.log("Trying OpenAI...");
       try {
         const openaiResult = await generateWithOpenAI(OPENAI_API_KEY, floorPlanPrompt);
         if (openaiResult.success && openaiResult.imageUrl) {
@@ -113,13 +110,27 @@ Generate a clean, professional, ready-for-construction 2D floor plan image.`;
           usedProvider = 'OpenAI';
         }
       } catch (openaiError: any) {
-        console.error("OpenAI also failed:", openaiError.message);
-        throw openaiError;
+        console.log("OpenAI failed:", openaiError.message);
+      }
+    }
+
+    // Final fallback to Lovable AI (always available)
+    if (LOVABLE_API_KEY && !imageUrl) {
+      console.log("Trying Lovable AI...");
+      try {
+        const lovableResult = await generateWithLovableAI(LOVABLE_API_KEY, floorPlanPrompt);
+        if (lovableResult.success && lovableResult.imageUrl) {
+          imageUrl = lovableResult.imageUrl;
+          description = lovableResult.description || '';
+          usedProvider = 'Lovable AI';
+        }
+      } catch (lovableError: any) {
+        console.error("Lovable AI also failed:", lovableError.message);
       }
     }
 
     if (!imageUrl) {
-      throw new Error('Failed to generate floor plan with both Gemini and OpenAI');
+      throw new Error('All AI providers failed. Please check your API quotas or try again later.');
     }
 
     const finalDescription = description || `Professional ${preferences.style} floor plan for ${landArea} sq ft plot. Generated with ${usedProvider}.`;
@@ -222,4 +233,42 @@ async function generateWithOpenAI(apiKey: string, prompt: string): Promise<{ suc
   }
 
   return { success: true, imageUrl };
+}
+
+async function generateWithLovableAI(apiKey: string, prompt: string): Promise<{ success: boolean; imageUrl?: string; description?: string }> {
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash-image-preview',
+      messages: [
+        { role: 'user', content: prompt }
+      ],
+      modalities: ['image', 'text']
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Lovable AI error:', response.status, errorText);
+    throw new Error(`Lovable AI error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  
+  // Extract image from Lovable AI response
+  const message = data.choices?.[0]?.message;
+  const images = message?.images;
+  
+  if (images && images.length > 0) {
+    const imageUrl = images[0]?.image_url?.url;
+    if (imageUrl) {
+      return { success: true, imageUrl, description: message?.content || '' };
+    }
+  }
+
+  throw new Error('No image in Lovable AI response');
 }
