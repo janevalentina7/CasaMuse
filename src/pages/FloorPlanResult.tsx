@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Home, Download, ArrowLeft, Share2, Box, Eye, Navigation, IndianRupee, Maximize, GitCompare, Plus, MapPin, Wallet, Clock, FileText } from "lucide-react";
 import { toast } from "sonner";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import VirtualWalkthrough from "@/components/VirtualWalkthrough";
 import HouseModel3D from "@/components/3d/HouseModel3D";
@@ -17,20 +17,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import FloorPlanSVG from "@/components/FloorPlanSVG";
 import FloorPlanSummaryPanel from "@/components/FloorPlanSummaryPanel";
 
-// Import sample floor plan images
-import floorplanSample1 from "@/assets/floorplan-sample-1.jpg";
-import floorplanSample2 from "@/assets/floorplan-sample-2.jpg";
-
-const SAMPLE_FLOORPLANS = [floorplanSample1, floorplanSample2];
-
 const FloorPlanResult = () => {
   const location = useLocation();
   const { imageUrl, floorPlanData, description, formData } = location.state || {};
-  
-  // Randomly select a sample floor plan image (memoized so it doesn't change on re-render)
-  const sampleFloorPlan = useMemo(() => {
-    return SAMPLE_FLOORPLANS[Math.floor(Math.random() * SAMPLE_FLOORPLANS.length)];
-  }, []);
   const svgContainerRef = useRef<HTMLDivElement>(null);
   const [is3DGenerating, setIs3DGenerating] = useState(false);
   const [model3DUrl, setModel3DUrl] = useState<string | null>(null);
@@ -324,7 +313,26 @@ const FloorPlanResult = () => {
     setShowCostSettings(true);
   };
 
-  // Always show the floor plan page - we have sample images to display
+  if (!floorPlanData && !imageUrl) {
+    return (
+      <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
+        <Card className="glass-card max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <h2 className="text-2xl font-bold mb-4">No Floor Plan Available</h2>
+            <p className="text-muted-foreground mb-6">
+              Please generate a floor plan first.
+            </p>
+            <Link to="/design">
+              <Button variant="hero" className="glass-button">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Design Tool
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-hero">
@@ -367,19 +375,45 @@ const FloorPlanResult = () => {
             )}
           </div>
 
-          {/* Floor Plan Display */}
-          <Card className="glass-card border-2">
-            <CardContent className="p-6">
-              <div ref={svgContainerRef} className="relative rounded-lg overflow-hidden bg-white">
-                {/* Always display one of the sample floor plan images */}
-                <img
-                  src={sampleFloorPlan}
-                  alt="Generated Floor Plan"
-                  className="w-full h-auto"
+          {/* Floor Plan Display with Summary Panel */}
+          <div className="grid lg:grid-cols-4 gap-6">
+            {/* Floor Plan */}
+            <Card className="glass-card border-2 lg:col-span-3">
+              <CardContent className="p-6">
+                <div ref={svgContainerRef} className="relative rounded-lg overflow-hidden bg-white">
+                  {floorPlanData ? (
+                    <FloorPlanSVG
+                      rooms={floorPlanData.rooms}
+                      totalWidth={floorPlanData.totalWidth}
+                      totalHeight={floorPlanData.totalHeight}
+                      landArea={floorPlanData.landArea}
+                      builtUpArea={floorPlanData.builtUpArea}
+                      style={formData?.preferences?.style || 'Modern'}
+                      scaleFactor={floorPlanData.scaleFactor}
+                      hasParking={floorPlanData.hasParking}
+                      hasGarden={floorPlanData.hasGarden}
+                    />
+                  ) : imageUrl ? (
+                    <img
+                      src={imageUrl}
+                      alt="Generated Floor Plan"
+                      className="w-full h-auto"
+                    />
+                  ) : null}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Summary Panel - Only for procedural floor plans */}
+            {floorPlanData?.summary && (
+              <div className="lg:col-span-1">
+                <FloorPlanSummaryPanel 
+                  summary={floorPlanData.summary}
+                  style={formData?.preferences?.style || 'Modern'}
                 />
               </div>
-            </CardContent>
-          </Card>
+            )}
+          </div>
 
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-4 justify-center">

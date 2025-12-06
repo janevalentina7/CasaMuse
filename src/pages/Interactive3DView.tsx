@@ -1,24 +1,8 @@
 import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Home, ArrowLeft, Box, RotateCcw } from "lucide-react";
+import { Home, ArrowLeft, Box } from "lucide-react";
 import HouseModel3D from "@/components/3d/HouseModel3D";
-
-// Default rooms for demo when no formData is provided
-const DEFAULT_ROOMS = [
-  { roomName: "Living Room", length: 18, breadth: 28 },
-  { roomName: "Kitchen & Dining", length: 16, breadth: 24 },
-  { roomName: "Master Suite", length: 13, breadth: 20 },
-  { roomName: "Bedroom 2", length: 13, breadth: 13 },
-  { roomName: "Bedroom 3", length: 10, breadth: 12 },
-  { roomName: "Guest Room 1", length: 12, breadth: 16 },
-  { roomName: "Guest Room 2", length: 10, breadth: 14 },
-  { roomName: "Family Room", length: 10, breadth: 14 },
-  { roomName: "Bathroom 1", length: 6, breadth: 10 },
-  { roomName: "Bathroom 2", length: 6, breadth: 7 },
-  { roomName: "En-Suite Bath", length: 8, breadth: 18 },
-  { roomName: "Garage", length: 28, breadth: 20 },
-];
 
 const Interactive3DView = () => {
   const location = useLocation();
@@ -52,12 +36,24 @@ const Interactive3DView = () => {
     return transformed;
   };
 
-  // Use formData rooms if available, otherwise use default rooms
-  const rooms3D = formData?.rooms 
-    ? transformRoomsFor3D(formData.rooms) 
-    : DEFAULT_ROOMS;
-
-  const style = formData?.preferences?.style || "Modern";
+  if (!imageUrl || !formData) {
+    return (
+      <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
+        <Card className="glass-card max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <h2 className="text-2xl font-bold mb-4">No Floor Plan Available</h2>
+            <p className="text-muted-foreground mb-6">Please generate a floor plan first.</p>
+            <Link to="/design">
+              <Button variant="hero" className="glass-button">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Design Tool
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-hero">
@@ -72,19 +68,12 @@ const Interactive3DView = () => {
               <span className="text-xl font-bold">CasaMuse</span>
             </Link>
             
-            <div className="flex gap-2">
-              <Link to="/ai-rendered-view" state={{ imageUrl, description, formData }}>
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  AI Rendered Views
-                </Button>
-              </Link>
-              <Link to="/floor-plan-result" state={{ imageUrl, description, formData }}>
-                <Button variant="ghost" size="sm">
-                  Back to Results
-                </Button>
-              </Link>
-            </div>
+            <Link to="/floor-plan-result" state={{ imageUrl, description, formData }}>
+              <Button variant="ghost" size="sm">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Results
+              </Button>
+            </Link>
           </div>
         </div>
       </header>
@@ -102,10 +91,12 @@ const Interactive3DView = () => {
           {/* 3D Model Viewer */}
           <Card className="glass-card border-2">
             <CardContent className="p-4">
-              <HouseModel3D 
-                rooms={rooms3D} 
-                style={style}
-              />
+              {formData?.rooms && (
+                <HouseModel3D 
+                  rooms={transformRoomsFor3D(formData.rooms)} 
+                  style={formData.preferences?.style || "Modern"}
+                />
+              )}
             </CardContent>
           </Card>
 
@@ -113,7 +104,7 @@ const Interactive3DView = () => {
           <div className="grid sm:grid-cols-3 gap-4">
             <Card className="glass-card">
               <CardContent className="p-4 text-center">
-                <RotateCcw className="w-8 h-8 mx-auto mb-2 text-primary" />
+                <Box className="w-8 h-8 mx-auto mb-2 text-primary" />
                 <h3 className="font-semibold mb-1">Rotate & Zoom</h3>
                 <p className="text-xs text-muted-foreground">Click and drag to rotate, scroll to zoom</p>
               </CardContent>
