@@ -184,14 +184,14 @@ function Balcony({ position, width = 6, depth = 2 }: {
   );
 }
 
-// Sloped Roof with proper gable geometry
+// Sloped Roof with proper gable geometry - matching rendered views
 function SlopedRoof({ width, depth, style }: { width: number; depth: number; style: string }) {
-  const roofHeight = 3.5;
-  const overhang = 1.2;
+  const roofHeight = 2.8; // Lower, more realistic roof pitch
+  const overhang = 0.8; // Smaller overhang for better proportions
   
   const roofColor = style === 'Mediterranean' ? '#b35a1f' : 
                     style === 'Colonial' ? '#556b2f' :
-                    style === 'Traditional' ? '#6b4423' : '#3a3a3a';
+                    style === 'Traditional' ? '#6b4423' : '#4a4a4a';
   
   // Calculate roof slope angle and length
   const halfDepth = (depth / 2) + overhang;
@@ -202,24 +202,24 @@ function SlopedRoof({ width, depth, style }: { width: number; depth: number; sty
     <group>
       {/* Front slope - tilting backward from front edge up to ridge */}
       <Box 
-        args={[width + overhang * 2, 0.12, slopeLength]} 
+        args={[width + overhang * 2, 0.15, slopeLength]} 
         position={[0, roofHeight / 2, halfDepth / 2]}
         rotation={[-roofAngle, 0, 0]}
       >
-        <meshStandardMaterial color={roofColor} roughness={0.8} />
+        <meshStandardMaterial color={roofColor} roughness={0.85} />
       </Box>
       
       {/* Back slope - tilting forward from back edge up to ridge */}
       <Box 
-        args={[width + overhang * 2, 0.12, slopeLength]} 
+        args={[width + overhang * 2, 0.15, slopeLength]} 
         position={[0, roofHeight / 2, -halfDepth / 2]}
         rotation={[roofAngle, 0, 0]}
       >
-        <meshStandardMaterial color={roofColor} roughness={0.8} />
+        <meshStandardMaterial color={roofColor} roughness={0.85} />
       </Box>
       
       {/* Roof ridge cap */}
-      <Box args={[width + overhang * 2, 0.2, 0.4]} position={[0, roofHeight, 0]}>
+      <Box args={[width + overhang * 2, 0.18, 0.35]} position={[0, roofHeight, 0]}>
         <meshStandardMaterial color={roofColor} roughness={0.7} />
       </Box>
       
@@ -258,10 +258,10 @@ function SlopedRoof({ width, depth, style }: { width: number; depth: number; sty
       </mesh>
       
       {/* Chimney positioned on back slope */}
-      <Box args={[0.7, 2, 0.5]} position={[width / 4, roofHeight * 0.7, -depth / 4]}>
+      <Box args={[0.6, 1.8, 0.45]} position={[width / 4, roofHeight * 0.6, -depth / 4]}>
         <meshStandardMaterial color="#8b6b52" roughness={0.9} />
       </Box>
-      <Box args={[0.8, 0.12, 0.6]} position={[width / 4, roofHeight * 0.7 + 1, -depth / 4]}>
+      <Box args={[0.7, 0.1, 0.55]} position={[width / 4, roofHeight * 0.6 + 0.9, -depth / 4]}>
         <meshStandardMaterial color="#6b4b3a" roughness={0.8} />
       </Box>
     </group>
@@ -470,13 +470,13 @@ function PhotorealisticHouse({
   const groupRef = useRef<THREE.Group>(null);
   const [autoRotate, setAutoRotate] = useState(true);
   
-  // House dimensions - realistic proportions
-  const groundFloorHeight = 3.5;
-  const firstFloorHeight = 3.2;
+  // House dimensions - improved proportions matching rendered views
+  const groundFloorHeight = 3.2;
+  const firstFloorHeight = 3.0;
   const totalHeight = groundFloorHeight + firstFloorHeight;
-  const houseWidth = 16;
-  const houseDepth = 12;
-  const wallThickness = 0.3;
+  const houseWidth = 14; // Narrower for better proportions
+  const houseDepth = 10; // Shallower for compact look
+  const wallThickness = 0.25;
 
   useFrame(() => {
     if (groupRef.current && autoRotate) {
