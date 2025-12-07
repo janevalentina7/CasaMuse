@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FormProgress } from "./FormProgress";
 import { Step1LandArea } from "./Step1LandArea";
@@ -11,6 +11,9 @@ import { generateFloorPlan, RoomData, FloorPlanPreferences } from "@/utils/floor
 import { supabase } from "@/integrations/supabase/client";
 
 const STEPS = ["Land Area", "Rooms", "Preferences", "Review"];
+
+// Number of available floor plan sets
+const FLOOR_PLAN_SET_COUNT = 4;
 
 export const DesignForm = () => {
   const navigate = useNavigate();
@@ -25,6 +28,12 @@ export const DesignForm = () => {
     outdoorFeatures: [],
   });
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Assign a random floor plan set ID once when the component mounts
+  // This ensures consistency throughout the session
+  const assignedFloorPlanSetId = useMemo(() => {
+    return Math.floor(Math.random() * FLOOR_PLAN_SET_COUNT) + 1;
+  }, []);
 
   const handleStep1Next = () => {
     const area = parseFloat(landArea);
@@ -123,6 +132,7 @@ export const DesignForm = () => {
               rooms: roomsWithDetails,
               preferences,
             },
+            floorPlanSetId: assignedFloorPlanSetId,
           },
         });
 
@@ -169,6 +179,7 @@ export const DesignForm = () => {
               rooms: roomsWithDetails,
               preferences,
             },
+            floorPlanSetId: assignedFloorPlanSetId,
           },
         });
 
