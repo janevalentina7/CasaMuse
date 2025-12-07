@@ -78,10 +78,10 @@ interface CostEstimationProps {
     fullDetails?: string;
   };
   formData?: any;
-  onUpdate?: (newData: any) => void;
+  onUpdate?: (newData: any, suggestions?: AdjustmentSuggestion[], type?: 'upgrade' | 'downgrade') => void;
 }
 
-interface AdjustmentSuggestion {
+export interface AdjustmentSuggestion {
   category: string;
   currentMaterial: string;
   suggestedMaterial: string;
@@ -286,15 +286,17 @@ export default function CostEstimationEnhanced({ data, formData, onUpdate }: Cos
     };
     
     if (onUpdate) {
-      onUpdate(updatedData);
+      // Pass suggestions and type to parent for PDF generation
+      onUpdate(updatedData, suggestions, adjustmentType || undefined);
       toast.success("Cost adjustments applied to your estimate!");
     } else {
       toast.error("Unable to apply changes - update handler not available");
     }
     
-    setSuggestions([]);
-    setAdjustedTotal(null);
-    setAdjustmentType(null);
+    // Don't clear suggestions so they remain visible and can be included in PDF
+    // setSuggestions([]);
+    // setAdjustedTotal(null);
+    // setAdjustmentType(null);
   };
 
   return (

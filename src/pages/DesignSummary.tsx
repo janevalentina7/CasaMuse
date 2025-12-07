@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Home, ArrowLeft, Download, FileText, Box, IndianRupee, Image, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
-import CostEstimationEnhanced from "@/components/CostEstimationEnhanced";
+import CostEstimationEnhanced, { AdjustmentSuggestion } from "@/components/CostEstimationEnhanced";
 
 // Import rendered view images
 import set1Front from "@/assets/rendered-views/set1-front.jpg";
@@ -39,6 +39,8 @@ const DesignSummary = () => {
   const summaryRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [costEstimationData, setCostEstimationData] = useState(initialCostData);
+  const [appliedSuggestions, setAppliedSuggestions] = useState<AdjustmentSuggestion[]>([]);
+  const [suggestionType, setSuggestionType] = useState<'upgrade' | 'downgrade' | null>(null);
 
   // Get rendered views for the current floor plan set
   const renderedViews = RENDERED_VIEW_SETS[floorPlanSetId] || RENDERED_VIEW_SETS[1];
@@ -47,8 +49,12 @@ const DesignSummary = () => {
   const costSummary = costEstimationData?.summary || costEstimationData;
 
   // Handle cost estimation updates from the enhanced component
-  const handleCostUpdate = (newData: any) => {
+  const handleCostUpdate = (newData: any, suggestions?: AdjustmentSuggestion[], type?: 'upgrade' | 'downgrade') => {
     setCostEstimationData(newData);
+    if (suggestions && suggestions.length > 0) {
+      setAppliedSuggestions(suggestions);
+      setSuggestionType(type || null);
+    }
     toast.success("Cost estimation updated!");
   };
 
@@ -344,6 +350,56 @@ const DesignSummary = () => {
         pdf.setTextColor(150, 150, 150);
         pdf.text('Cost estimation not generated', margin + 3, yPos + 5);
         yPos += 15;
+      }
+
+      // Material Suggestions Section
+      if (appliedSuggestions.length > 0) {
+        addNewPageIfNeeded(60);
+        const suggestionTitle = suggestionType === 'upgrade' ? 'Material Upgrades Applied' : 'Cost Savings Applied';
+        drawSection(suggestionTitle);
+        
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        
+        for (const suggestion of appliedSuggestions) {
+          addNewPageIfNeeded(25);
+          
+          // Suggestion card background
+          pdf.setFillColor(suggestionType === 'upgrade' ? 240 : 255, suggestionType === 'upgrade' ? 255 : 248, suggestionType === 'upgrade' ? 240 : 240);
+          pdf.rect(margin, yPos, contentWidth, 22, 'F');
+          pdf.setDrawColor(suggestionType === 'upgrade' ? 144 : 249, suggestionType === 'upgrade' ? 238 : 200, suggestionType === 'upgrade' ? 144 : 150);
+          pdf.rect(margin, yPos, contentWidth, 22, 'S');
+          
+          // Category badge
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(9);
+          pdf.setTextColor(100, 100, 100);
+          pdf.text(suggestion.category, margin + 3, yPos + 5);
+          
+          // Material change
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(8);
+          pdf.setTextColor(60, 60, 60);
+          pdf.text(`${suggestion.currentMaterial} → ${suggestion.suggestedMaterial}`, margin + 3, yPos + 11);
+          
+          // Cost difference
+          const diffText = suggestion.difference >= 0 
+            ? `+₹${suggestion.difference.toLocaleString('en-IN')}` 
+            : `-₹${Math.abs(suggestion.difference).toLocaleString('en-IN')}`;
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(9);
+          pdf.setTextColor(suggestionType === 'upgrade' ? 34 : 194, suggestionType === 'upgrade' ? 139 : 120, suggestionType === 'upgrade' ? 34 : 60);
+          pdf.text(diffText, margin + contentWidth - 25, yPos + 8);
+          
+          // Reason
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(7);
+          pdf.setTextColor(100, 100, 100);
+          const reasonText = pdf.splitTextToSize(`Why: ${suggestion.reason}`, contentWidth - 10);
+          pdf.text(reasonText[0], margin + 3, yPos + 18);
+          
+          yPos += 26;
+        }
       }
 
       // Footer
