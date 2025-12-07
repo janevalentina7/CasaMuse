@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Home, ArrowLeft, Download, FileText, Box, IndianRupee, Image, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
+import CostEstimationEnhanced from "@/components/CostEstimationEnhanced";
 
 // Import rendered view images
 import set1Front from "@/assets/rendered-views/set1-front.jpg";
@@ -34,15 +35,22 @@ const RENDERED_VIEW_SETS: Record<number, { front: string; back: string; side: st
 
 const DesignSummary = () => {
   const location = useLocation();
-  const { imageUrl, formData, description, costEstimationData, floorPlanSetId } = location.state || {};
+  const { imageUrl, formData, description, costEstimationData: initialCostData, floorPlanSetId } = location.state || {};
   const summaryRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [costEstimationData, setCostEstimationData] = useState(initialCostData);
 
   // Get rendered views for the current floor plan set
   const renderedViews = RENDERED_VIEW_SETS[floorPlanSetId] || RENDERED_VIEW_SETS[1];
 
   // Extract cost data - handle both nested and flat structures
   const costSummary = costEstimationData?.summary || costEstimationData;
+
+  // Handle cost estimation updates from the enhanced component
+  const handleCostUpdate = (newData: any) => {
+    setCostEstimationData(newData);
+    toast.success("Cost estimation updated!");
+  };
 
   const loadImageAsBase64 = (src: string): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -540,98 +548,34 @@ const DesignSummary = () => {
             </CardContent>
           </Card>
 
-          {/* Cost Estimation Summary */}
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <IndianRupee className="w-5 h-5" />
-                Cost Estimation Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {costSummary?.totalCost ? (
-                <div className="space-y-4">
-                  <div className="grid sm:grid-cols-3 gap-4">
-                    <div className="p-4 rounded-lg bg-primary/10 text-center">
-                      <p className="text-sm text-muted-foreground">Total Estimated Cost</p>
-                      <p className="text-2xl font-bold text-primary">
-                        ₹{costSummary.totalCost?.toLocaleString('en-IN') || 'N/A'}
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-lg bg-muted/30 text-center">
-                      <p className="text-sm text-muted-foreground">Cost per Sq Ft</p>
-                      <p className="text-xl font-semibold">
-                        ₹{costSummary.costPerSqFt?.toLocaleString('en-IN') || 'N/A'}
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-lg bg-muted/30 text-center">
-                      <p className="text-sm text-muted-foreground">Build Time</p>
-                      <p className="text-xl font-semibold">
-                        {costSummary.buildTime || '9-12 months'}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Cost Breakdown */}
-                  {costSummary.breakdown && (
-                    <div className="mt-4">
-                      <p className="text-sm font-medium mb-3">Cost Breakdown</p>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {costSummary.breakdown.civil && (
-                          <div className="p-3 rounded-lg bg-muted/20 text-center">
-                            <p className="text-xs text-muted-foreground">Civil Work</p>
-                            <p className="font-semibold">₹{costSummary.breakdown.civil.toLocaleString('en-IN')}</p>
-                          </div>
-                        )}
-                        {costSummary.breakdown.interior && (
-                          <div className="p-3 rounded-lg bg-muted/20 text-center">
-                            <p className="text-xs text-muted-foreground">Interior</p>
-                            <p className="font-semibold">₹{costSummary.breakdown.interior.toLocaleString('en-IN')}</p>
-                          </div>
-                        )}
-                        {costSummary.breakdown.exterior && (
-                          <div className="p-3 rounded-lg bg-muted/20 text-center">
-                            <p className="text-xs text-muted-foreground">Exterior</p>
-                            <p className="font-semibold">₹{costSummary.breakdown.exterior.toLocaleString('en-IN')}</p>
-                          </div>
-                        )}
-                        {costSummary.breakdown.electrical && (
-                          <div className="p-3 rounded-lg bg-muted/20 text-center">
-                            <p className="text-xs text-muted-foreground">Electrical</p>
-                            <p className="font-semibold">₹{costSummary.breakdown.electrical.toLocaleString('en-IN')}</p>
-                          </div>
-                        )}
-                        {costSummary.breakdown.plumbing && (
-                          <div className="p-3 rounded-lg bg-muted/20 text-center">
-                            <p className="text-xs text-muted-foreground">Plumbing</p>
-                            <p className="font-semibold">₹{costSummary.breakdown.plumbing.toLocaleString('en-IN')}</p>
-                          </div>
-                        )}
-                        {costSummary.breakdown.labor && (
-                          <div className="p-3 rounded-lg bg-muted/20 text-center">
-                            <p className="text-xs text-muted-foreground">Labor</p>
-                            <p className="font-semibold">₹{costSummary.breakdown.labor.toLocaleString('en-IN')}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">
-                    Cost estimation not generated yet
-                  </p>
-                  <Link to="/floor-plan-result" state={{ imageUrl, description, formData, floorPlanSetId }}>
-                    <Button variant="outline">
-                      <IndianRupee className="w-4 h-4 mr-2" />
-                      Generate Cost Estimation
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Full Cost Estimation with Upgrade/Downgrade */}
+          {costEstimationData ? (
+            <CostEstimationEnhanced 
+              data={costEstimationData} 
+              formData={formData}
+              onUpdate={handleCostUpdate}
+            />
+          ) : (
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <IndianRupee className="w-5 h-5" />
+                  Cost Estimation
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-center py-8">
+                <p className="text-muted-foreground mb-4">
+                  Cost estimation not generated yet
+                </p>
+                <Link to="/floor-plan-result" state={{ imageUrl, description, formData, floorPlanSetId }}>
+                  <Button variant="outline">
+                    <IndianRupee className="w-4 h-4 mr-2" />
+                    Generate Cost Estimation
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </main>
     </div>
