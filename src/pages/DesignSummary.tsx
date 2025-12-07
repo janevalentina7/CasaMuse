@@ -239,9 +239,15 @@ const DesignSummary = () => {
         yPos += viewHeight + 10;
       }
 
-      // Cost Estimation
-      if (costSummary?.totalCost) {
-        addNewPageIfNeeded(60);
+      // Cost Estimation - extract data from various possible structures
+      const pdfCostData = costEstimationData?.summary || costEstimationData;
+      const totalCost = pdfCostData?.totalCost;
+      const costPerSqFt = pdfCostData?.costPerSqFt;
+      const buildTime = pdfCostData?.buildTime || '9-12 months';
+      const breakdown = pdfCostData?.breakdown;
+      
+      if (totalCost) {
+        addNewPageIfNeeded(80);
         drawSection('Cost Estimation');
         
         // Main cost box
@@ -253,7 +259,7 @@ const DesignSummary = () => {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(18);
         pdf.setTextColor(236, 91, 109);
-        pdf.text(`₹${costSummary.totalCost?.toLocaleString('en-IN')}`, pageWidth / 2, yPos + 9, { align: 'center' });
+        pdf.text(`₹${totalCost?.toLocaleString('en-IN')}`, pageWidth / 2, yPos + 9, { align: 'center' });
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(9);
         pdf.setTextColor(100, 100, 100);
@@ -266,9 +272,9 @@ const DesignSummary = () => {
         pdf.rect(margin, yPos, contentWidth, 15, 'F');
         
         const details = [
-          { label: 'Cost/Sq Ft', value: `₹${costSummary.costPerSqFt?.toLocaleString('en-IN') || 'N/A'}` },
-          { label: 'Build Time', value: costSummary.buildTime || 'N/A' },
-          { label: 'Land Cost', value: `₹${costSummary.breakdown?.land?.toLocaleString('en-IN') || 'N/A'}` },
+          { label: 'Cost/Sq Ft', value: costPerSqFt ? `₹${costPerSqFt?.toLocaleString('en-IN')}` : 'N/A' },
+          { label: 'Build Time', value: buildTime },
+          { label: 'Land Cost', value: breakdown?.land ? `₹${breakdown.land?.toLocaleString('en-IN')}` : 'Included' },
         ];
         
         details.forEach((detail, idx) => {
@@ -285,44 +291,59 @@ const DesignSummary = () => {
         yPos += 20;
 
         // Cost breakdown
-        if (costSummary.breakdown) {
-          addNewPageIfNeeded(40);
+        if (breakdown) {
+          addNewPageIfNeeded(50);
           pdf.setFont('helvetica', 'bold');
           pdf.setFontSize(10);
           pdf.setTextColor(0, 0, 0);
           pdf.text('Cost Breakdown', margin + 3, yPos);
-          yPos += 6;
+          yPos += 8;
           
           const breakdownItems = [
-            { label: 'Civil Work', value: costSummary.breakdown.civil },
-            { label: 'Interior', value: costSummary.breakdown.interior },
-            { label: 'Exterior', value: costSummary.breakdown.exterior },
-            { label: 'Electrical', value: costSummary.breakdown.electrical },
-            { label: 'Plumbing', value: costSummary.breakdown.plumbing },
-            { label: 'Labor', value: costSummary.breakdown.labor },
-          ].filter(item => item.value);
+            { label: 'Civil Work', value: breakdown.civil },
+            { label: 'Interior', value: breakdown.interior },
+            { label: 'Exterior', value: breakdown.exterior },
+            { label: 'Electrical', value: breakdown.electrical },
+            { label: 'Plumbing', value: breakdown.plumbing },
+            { label: 'Labor', value: breakdown.labor },
+            { label: 'Land', value: breakdown.land },
+          ].filter(item => item.value && item.value > 0);
 
-          const itemWidth = contentWidth / 3;
-          for (let i = 0; i < breakdownItems.length; i += 3) {
-            if (i > 0) yPos += 12;
-            for (let j = 0; j < 3 && i + j < breakdownItems.length; j++) {
-              const item = breakdownItems[i + j];
-              const xOffset = margin + j * itemWidth;
-              
-              pdf.setFillColor(250, 250, 250);
-              pdf.rect(xOffset, yPos, itemWidth - 2, 10, 'F');
-              
-              pdf.setFont('helvetica', 'normal');
-              pdf.setFontSize(8);
-              pdf.setTextColor(100, 100, 100);
-              pdf.text(item.label, xOffset + 3, yPos + 4);
-              pdf.setFont('helvetica', 'bold');
-              pdf.setTextColor(0, 0, 0);
-              pdf.text(`₹${item.value?.toLocaleString('en-IN')}`, xOffset + 3, yPos + 8);
+          if (breakdownItems.length > 0) {
+            const itemWidth = contentWidth / 3;
+            for (let i = 0; i < breakdownItems.length; i += 3) {
+              if (i > 0) yPos += 14;
+              for (let j = 0; j < 3 && i + j < breakdownItems.length; j++) {
+                const item = breakdownItems[i + j];
+                const xOffset = margin + j * itemWidth;
+                
+                pdf.setFillColor(250, 250, 250);
+                pdf.rect(xOffset, yPos, itemWidth - 2, 12, 'F');
+                pdf.setDrawColor(230, 230, 230);
+                pdf.rect(xOffset, yPos, itemWidth - 2, 12, 'S');
+                
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(8);
+                pdf.setTextColor(100, 100, 100);
+                pdf.text(item.label, xOffset + 3, yPos + 5);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(9);
+                pdf.setTextColor(0, 0, 0);
+                pdf.text(`₹${item.value?.toLocaleString('en-IN')}`, xOffset + 3, yPos + 10);
+              }
             }
+            yPos += 18;
           }
-          yPos += 15;
         }
+      } else {
+        // No cost data available
+        addNewPageIfNeeded(20);
+        drawSection('Cost Estimation');
+        pdf.setFont('helvetica', 'italic');
+        pdf.setFontSize(10);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text('Cost estimation not generated', margin + 3, yPos + 5);
+        yPos += 15;
       }
 
       // Footer
