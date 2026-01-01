@@ -1,424 +1,106 @@
 import { useLocation, Link } from "react-router-dom";
-import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, ArrowLeft, Download, FileText, Box, IndianRupee, Image, Loader2 } from "lucide-react";
+import { Home, ArrowLeft, Download, FileText, Box, Eye, IndianRupee, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import jsPDF from "jspdf";
-import CostEstimationEnhanced, { AdjustmentSuggestion } from "@/components/CostEstimationEnhanced";
-
-// Import rendered view images
-import set1Front from "@/assets/rendered-views/set1-front.jpg";
-import set1Back from "@/assets/rendered-views/set1-back.jpg";
-import set1Side from "@/assets/rendered-views/set1-side.jpg";
-import set1Top from "@/assets/rendered-views/set1-top.jpg";
-import set2Front from "@/assets/rendered-views/set2-front.png";
-import set2Back from "@/assets/rendered-views/set2-back.png";
-import set2Side from "@/assets/rendered-views/set2-side.png";
-import set2Top from "@/assets/rendered-views/set2-top.png";
-import set3Front from "@/assets/rendered-views/set3-front.jpg";
-import set3Back from "@/assets/rendered-views/set3-back.jpg";
-import set3Side from "@/assets/rendered-views/set3-side.jpg";
-import set3Top from "@/assets/rendered-views/set3-top.png";
-import set4Front from "@/assets/rendered-views/set4-front.jpg";
-import set4Back from "@/assets/rendered-views/set4-back.jpg";
-import set4Side from "@/assets/rendered-views/set4-side.jpg";
-import set4Top from "@/assets/rendered-views/set4-top.png";
-
-const RENDERED_VIEW_SETS: Record<number, { front: string; back: string; side: string; top: string }> = {
-  1: { front: set1Front, back: set1Back, side: set1Side, top: set1Top },
-  2: { front: set2Front, back: set2Back, side: set2Side, top: set2Top },
-  3: { front: set3Front, back: set3Back, side: set3Side, top: set3Top },
-  4: { front: set4Front, back: set4Back, side: set4Side, top: set4Top },
-};
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const DesignSummary = () => {
   const location = useLocation();
-  const { imageUrl, formData, description, costEstimationData: initialCostData, floorPlanSetId } = location.state || {};
-  const summaryRef = useRef<HTMLDivElement>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [costEstimationData, setCostEstimationData] = useState(initialCostData);
-  const [appliedSuggestions, setAppliedSuggestions] = useState<AdjustmentSuggestion[]>([]);
-  const [suggestionType, setSuggestionType] = useState<'upgrade' | 'downgrade' | null>(null);
+  const { imageUrl, formData, description, costEstimationData } = location.state || {};
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [exteriorViews, setExteriorViews] = useState<{ [key: string]: string }>({});
+  const [interiorViews, setInteriorViews] = useState<{ [key: string]: string }>({});
+  const [generatingView, setGeneratingView] = useState<string | null>(null);
 
-  // Get rendered views for the current floor plan set
-  const renderedViews = RENDERED_VIEW_SETS[floorPlanSetId] || RENDERED_VIEW_SETS[1];
+  const generateView = async (viewType: string, roomName?: string) => {
+    if (!imageUrl || !formData) return;
 
-  // Extract cost data - handle both nested and flat structures
-  const costSummary = costEstimationData?.summary || costEstimationData;
-
-  // Handle cost estimation updates from the enhanced component
-  const handleCostUpdate = (newData: any, suggestions?: AdjustmentSuggestion[], type?: 'upgrade' | 'downgrade') => {
-    setCostEstimationData(newData);
-    if (suggestions && suggestions.length > 0) {
-      setAppliedSuggestions(suggestions);
-      setSuggestionType(type || null);
-    }
-    toast.success("Cost estimation updated!");
-  };
-
-  const loadImageAsBase64 = (src: string): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const img = document.createElement('img') as HTMLImageElement;
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/jpeg', 0.8));
-      };
-      img.onerror = reject;
-      img.src = src;
-    });
-  };
-
-  const handleDownloadSummary = async () => {
-    setIsDownloading(true);
-    toast.info("Generating PDF... Please wait.");
+    const viewKey = roomName || viewType;
+    setGeneratingView(viewKey);
+    setIsGenerating(true);
 
     try {
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
+      const { data, error } = await supabase.functions.invoke('generate-3d-model', {
+        body: {
+          floorPlanImageUrl: imageUrl,
+          landArea: formData.landArea,
+          rooms: formData.rooms,
+          preferences: formData.preferences,
+          view: roomName ? 'interior' : viewType,
+          specificRoom: roomName,
+        }
       });
 
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 15;
-      const contentWidth = pageWidth - margin * 2;
-      let yPos = margin;
+      if (error) throw error;
 
-      // Helper functions
-      const addNewPageIfNeeded = (requiredHeight: number) => {
-        if (yPos + requiredHeight > pageHeight - margin) {
-          pdf.addPage();
-          yPos = margin;
-          return true;
-        }
-        return false;
-      };
-
-      const drawSection = (title: string) => {
-        addNewPageIfNeeded(20);
-        pdf.setFillColor(236, 91, 109); // Primary color
-        pdf.rect(margin, yPos, contentWidth, 8, 'F');
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(12);
-        pdf.setTextColor(255, 255, 255);
-        pdf.text(title, margin + 3, yPos + 5.5);
-        yPos += 12;
-        pdf.setTextColor(0, 0, 0);
-      };
-
-      const drawKeyValue = (key: string, value: string, inline = false) => {
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(10);
-        pdf.setTextColor(100, 100, 100);
-        pdf.text(key, margin + 3, yPos);
-        pdf.setTextColor(0, 0, 0);
-        pdf.setFont('helvetica', 'bold');
-        if (inline) {
-          pdf.text(value, margin + 45, yPos);
+      if (data?.success && data?.imageUrl) {
+        if (roomName) {
+          setInteriorViews(prev => ({ ...prev, [roomName]: data.imageUrl }));
         } else {
-          yPos += 5;
-          pdf.text(value, margin + 3, yPos);
+          setExteriorViews(prev => ({ ...prev, [viewType]: data.imageUrl }));
         }
-        yPos += 7;
-      };
-
-      // Title
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(24);
-      pdf.setTextColor(236, 91, 109);
-      pdf.text('CasaMuse', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 8;
-      pdf.setFontSize(14);
-      pdf.setTextColor(100, 100, 100);
-      pdf.text('Design Summary Report', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 5;
-      pdf.setFontSize(9);
-      pdf.text(`Generated on: ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`, pageWidth / 2, yPos, { align: 'center' });
-      yPos += 15;
-
-      // Design Inputs Section
-      drawSection('Design Inputs');
-      
-      pdf.setFillColor(245, 245, 245);
-      pdf.rect(margin, yPos, contentWidth, 28, 'F');
-      pdf.setDrawColor(220, 220, 220);
-      pdf.rect(margin, yPos, contentWidth, 28, 'S');
-      
-      yPos += 6;
-      const col1 = margin + 5;
-      const col2 = margin + contentWidth / 2 + 5;
-      
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(9);
-      pdf.setTextColor(100, 100, 100);
-      pdf.text('Land Area:', col1, yPos);
-      pdf.text('Style:', col2, yPos);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(0, 0, 0);
-      pdf.text(`${formData.landArea} sq ft`, col1 + 25, yPos);
-      pdf.text(formData.preferences?.style || 'Modern', col2 + 15, yPos);
-      
-      yPos += 8;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(100, 100, 100);
-      pdf.text('Floors:', col1, yPos);
-      pdf.text('Vastu:', col2, yPos);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(0, 0, 0);
-      pdf.text(`${formData.preferences?.floors || 1}`, col1 + 25, yPos);
-      pdf.text(formData.preferences?.vastuCompliant ? 'Yes' : 'No', col2 + 15, yPos);
-      
-      yPos += 8;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(100, 100, 100);
-      pdf.text('Rooms:', col1, yPos);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(0, 0, 0);
-      const roomsText = formData.rooms?.map((r: any) => `${r.count}x ${r.roomName}`).join(', ') || 'N/A';
-      const splitRooms = pdf.splitTextToSize(roomsText, contentWidth - 35);
-      pdf.text(splitRooms, col1 + 25, yPos);
-      
-      yPos += 18;
-
-      // Floor Plan Image
-      if (imageUrl) {
-        addNewPageIfNeeded(90);
-        drawSection('Generated Floor Plan');
-        
-        try {
-          const floorPlanBase64 = await loadImageAsBase64(imageUrl);
-          const imgHeight = 70;
-          pdf.addImage(floorPlanBase64, 'JPEG', margin, yPos, contentWidth, imgHeight);
-          yPos += imgHeight + 10;
-        } catch (err) {
-          pdf.setFont('helvetica', 'italic');
-          pdf.setFontSize(10);
-          pdf.setTextColor(150, 150, 150);
-          pdf.text('Floor plan image could not be loaded', margin + 3, yPos);
-          yPos += 10;
-        }
+        toast.success(`${roomName || viewType} view generated!`);
       }
-
-      // AI Rendered Views
-      addNewPageIfNeeded(80);
-      drawSection('AI Rendered Views');
-      
-      const viewWidth = (contentWidth - 5) / 2;
-      const viewHeight = 35;
-      const views = [
-        { label: 'Front View', src: renderedViews.front },
-        { label: 'Back View', src: renderedViews.back },
-        { label: 'Side View', src: renderedViews.side },
-        { label: 'Top View', src: renderedViews.top },
-      ];
-
-      for (let i = 0; i < views.length; i += 2) {
-        addNewPageIfNeeded(viewHeight + 10);
-        
-        for (let j = 0; j < 2 && i + j < views.length; j++) {
-          const view = views[i + j];
-          const xOffset = margin + (j * (viewWidth + 5));
-          
-          try {
-            const viewBase64 = await loadImageAsBase64(view.src);
-            pdf.addImage(viewBase64, 'JPEG', xOffset, yPos, viewWidth, viewHeight);
-            pdf.setFont('helvetica', 'normal');
-            pdf.setFontSize(8);
-            pdf.setTextColor(100, 100, 100);
-            pdf.text(view.label, xOffset + viewWidth / 2, yPos + viewHeight + 4, { align: 'center' });
-          } catch (err) {
-            pdf.setFillColor(240, 240, 240);
-            pdf.rect(xOffset, yPos, viewWidth, viewHeight, 'F');
-            pdf.setFont('helvetica', 'italic');
-            pdf.setFontSize(8);
-            pdf.text('Image unavailable', xOffset + viewWidth / 2, yPos + viewHeight / 2, { align: 'center' });
-          }
-        }
-        yPos += viewHeight + 10;
-      }
-
-      // Cost Estimation - extract data from various possible structures
-      const pdfCostData = costEstimationData?.summary || costEstimationData;
-      const totalCost = pdfCostData?.totalCost;
-      const costPerSqFt = pdfCostData?.costPerSqFt;
-      const buildTime = pdfCostData?.buildTime || '9-12 months';
-      const breakdown = pdfCostData?.breakdown;
-      
-      if (totalCost) {
-        addNewPageIfNeeded(80);
-        drawSection('Cost Estimation');
-        
-        // Main cost box
-        pdf.setFillColor(252, 235, 237);
-        pdf.rect(margin, yPos, contentWidth, 20, 'F');
-        pdf.setDrawColor(236, 91, 109);
-        pdf.rect(margin, yPos, contentWidth, 20, 'S');
-        
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(18);
-        pdf.setTextColor(236, 91, 109);
-        pdf.text(`₹${totalCost?.toLocaleString('en-IN')}`, pageWidth / 2, yPos + 9, { align: 'center' });
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(9);
-        pdf.setTextColor(100, 100, 100);
-        pdf.text('Total Estimated Cost', pageWidth / 2, yPos + 16, { align: 'center' });
-        yPos += 25;
-        
-        // Cost details grid
-        const detailWidth = contentWidth / 3;
-        pdf.setFillColor(245, 245, 245);
-        pdf.rect(margin, yPos, contentWidth, 15, 'F');
-        
-        const details = [
-          { label: 'Cost/Sq Ft', value: costPerSqFt ? `₹${costPerSqFt?.toLocaleString('en-IN')}` : 'N/A' },
-          { label: 'Build Time', value: buildTime },
-          { label: 'Land Cost', value: breakdown?.land ? `₹${breakdown.land?.toLocaleString('en-IN')}` : 'Included' },
-        ];
-        
-        details.forEach((detail, idx) => {
-          const xOffset = margin + idx * detailWidth + detailWidth / 2;
-          pdf.setFont('helvetica', 'normal');
-          pdf.setFontSize(8);
-          pdf.setTextColor(100, 100, 100);
-          pdf.text(detail.label, xOffset, yPos + 5, { align: 'center' });
-          pdf.setFont('helvetica', 'bold');
-          pdf.setFontSize(10);
-          pdf.setTextColor(0, 0, 0);
-          pdf.text(detail.value, xOffset, yPos + 11, { align: 'center' });
-        });
-        yPos += 20;
-
-        // Cost breakdown
-        if (breakdown) {
-          addNewPageIfNeeded(50);
-          pdf.setFont('helvetica', 'bold');
-          pdf.setFontSize(10);
-          pdf.setTextColor(0, 0, 0);
-          pdf.text('Cost Breakdown', margin + 3, yPos);
-          yPos += 8;
-          
-          const breakdownItems = [
-            { label: 'Civil Work', value: breakdown.civil },
-            { label: 'Interior', value: breakdown.interior },
-            { label: 'Exterior', value: breakdown.exterior },
-            { label: 'Electrical', value: breakdown.electrical },
-            { label: 'Plumbing', value: breakdown.plumbing },
-            { label: 'Labor', value: breakdown.labor },
-            { label: 'Land', value: breakdown.land },
-          ].filter(item => item.value && item.value > 0);
-
-          if (breakdownItems.length > 0) {
-            const itemWidth = contentWidth / 3;
-            for (let i = 0; i < breakdownItems.length; i += 3) {
-              if (i > 0) yPos += 14;
-              for (let j = 0; j < 3 && i + j < breakdownItems.length; j++) {
-                const item = breakdownItems[i + j];
-                const xOffset = margin + j * itemWidth;
-                
-                pdf.setFillColor(250, 250, 250);
-                pdf.rect(xOffset, yPos, itemWidth - 2, 12, 'F');
-                pdf.setDrawColor(230, 230, 230);
-                pdf.rect(xOffset, yPos, itemWidth - 2, 12, 'S');
-                
-                pdf.setFont('helvetica', 'normal');
-                pdf.setFontSize(8);
-                pdf.setTextColor(100, 100, 100);
-                pdf.text(item.label, xOffset + 3, yPos + 5);
-                pdf.setFont('helvetica', 'bold');
-                pdf.setFontSize(9);
-                pdf.setTextColor(0, 0, 0);
-                pdf.text(`₹${item.value?.toLocaleString('en-IN')}`, xOffset + 3, yPos + 10);
-              }
-            }
-            yPos += 18;
-          }
-        }
-      } else {
-        // No cost data available
-        addNewPageIfNeeded(20);
-        drawSection('Cost Estimation');
-        pdf.setFont('helvetica', 'italic');
-        pdf.setFontSize(10);
-        pdf.setTextColor(150, 150, 150);
-        pdf.text('Cost estimation not generated', margin + 3, yPos + 5);
-        yPos += 15;
-      }
-
-      // Material Suggestions Section
-      if (appliedSuggestions.length > 0) {
-        addNewPageIfNeeded(60);
-        const suggestionTitle = suggestionType === 'upgrade' ? 'Material Upgrades Applied' : 'Cost Savings Applied';
-        drawSection(suggestionTitle);
-        
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(9);
-        
-        for (const suggestion of appliedSuggestions) {
-          addNewPageIfNeeded(25);
-          
-          // Suggestion card background
-          pdf.setFillColor(suggestionType === 'upgrade' ? 240 : 255, suggestionType === 'upgrade' ? 255 : 248, suggestionType === 'upgrade' ? 240 : 240);
-          pdf.rect(margin, yPos, contentWidth, 22, 'F');
-          pdf.setDrawColor(suggestionType === 'upgrade' ? 144 : 249, suggestionType === 'upgrade' ? 238 : 200, suggestionType === 'upgrade' ? 144 : 150);
-          pdf.rect(margin, yPos, contentWidth, 22, 'S');
-          
-          // Category badge
-          pdf.setFont('helvetica', 'bold');
-          pdf.setFontSize(9);
-          pdf.setTextColor(100, 100, 100);
-          pdf.text(suggestion.category, margin + 3, yPos + 5);
-          
-          // Material change
-          pdf.setFont('helvetica', 'normal');
-          pdf.setFontSize(8);
-          pdf.setTextColor(60, 60, 60);
-          pdf.text(`${suggestion.currentMaterial} → ${suggestion.suggestedMaterial}`, margin + 3, yPos + 11);
-          
-          // Cost difference
-          const diffText = suggestion.difference >= 0 
-            ? `+₹${suggestion.difference.toLocaleString('en-IN')}` 
-            : `-₹${Math.abs(suggestion.difference).toLocaleString('en-IN')}`;
-          pdf.setFont('helvetica', 'bold');
-          pdf.setFontSize(9);
-          pdf.setTextColor(suggestionType === 'upgrade' ? 34 : 194, suggestionType === 'upgrade' ? 139 : 120, suggestionType === 'upgrade' ? 34 : 60);
-          pdf.text(diffText, margin + contentWidth - 25, yPos + 8);
-          
-          // Reason
-          pdf.setFont('helvetica', 'normal');
-          pdf.setFontSize(7);
-          pdf.setTextColor(100, 100, 100);
-          const reasonText = pdf.splitTextToSize(`Why: ${suggestion.reason}`, contentWidth - 10);
-          pdf.text(reasonText[0], margin + 3, yPos + 18);
-          
-          yPos += 26;
-        }
-      }
-
-      // Footer
-      pdf.setFont('helvetica', 'italic');
-      pdf.setFontSize(8);
-      pdf.setTextColor(150, 150, 150);
-      pdf.text('Generated by CasaMuse - AI Powered Smart Home Design', pageWidth / 2, pageHeight - 10, { align: 'center' });
-
-      pdf.save('CasaMuse-Design-Summary.pdf');
-      toast.success("PDF downloaded successfully!");
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast.error("Failed to generate PDF. Please try again.");
+      console.error('Error generating view:', error);
+      toast.error("Failed to generate view");
     } finally {
-      setIsDownloading(false);
+      setIsGenerating(false);
+      setGeneratingView(null);
     }
   };
 
-  if (!formData) {
+  const generateAllViews = async () => {
+    if (!formData?.rooms) return;
+    
+    toast.info("Generating all views... This will take a few minutes.");
+    
+    // Generate exterior views
+    const exteriorTypes = ['360', 'front', 'side', 'back', 'top'];
+    for (const view of exteriorTypes) {
+      if (!exteriorViews[view]) {
+        await generateView(view);
+      }
+    }
+    
+    // Generate interior views for all rooms
+    const allRooms = getAllRoomNames();
+    for (const roomName of allRooms) {
+      if (!interiorViews[roomName]) {
+        await generateView('interior', roomName);
+      }
+    }
+    
+    toast.success("All views generated!");
+  };
+
+  const getAllRoomNames = () => {
+    if (!formData?.rooms) return [];
+    const roomNames: string[] = [];
+    
+    formData.rooms.forEach((room: any) => {
+      const count = room.count || 1;
+      for (let i = 0; i < count; i++) {
+        const name = count > 1 ? `${room.roomName} ${i + 1}` : room.roomName;
+        roomNames.push(name);
+        
+        if (room.attachedBathroom) {
+          roomNames.push(`Bathroom (${name})`);
+        }
+      }
+    });
+    
+    return roomNames;
+  };
+
+  const handleDownloadSummary = () => {
+    toast.success("Summary download feature coming soon!");
+  };
+
+  if (!imageUrl || !formData) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
         <Card className="glass-card max-w-md w-full">
@@ -437,6 +119,8 @@ const DesignSummary = () => {
     );
   }
 
+  const allRoomNames = getAllRoomNames();
+
   return (
     <div className="min-h-screen bg-gradient-hero">
       {/* Header */}
@@ -451,20 +135,11 @@ const DesignSummary = () => {
             </Link>
             
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleDownloadSummary}
-                disabled={isDownloading}
-              >
-                {isDownloading ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Download className="w-4 h-4 mr-2" />
-                )}
-                {isDownloading ? "Generating..." : "Download PDF"}
+              <Button variant="outline" size="sm" onClick={handleDownloadSummary}>
+                <Download className="w-4 h-4 mr-2" />
+                Download PDF
               </Button>
-              <Link to="/floor-plan-result" state={{ imageUrl, description, formData, floorPlanSetId }}>
+              <Link to="/floor-plan-result" state={{ imageUrl, description, formData }}>
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back
@@ -477,7 +152,7 @@ const DesignSummary = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div ref={summaryRef} className="max-w-6xl mx-auto space-y-8 bg-background p-4 rounded-lg">
+        <div className="max-w-6xl mx-auto space-y-8">
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold">
               Design <span className="bg-gradient-primary bg-clip-text text-transparent">Summary</span>
@@ -494,7 +169,7 @@ const DesignSummary = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="p-4 rounded-lg bg-muted/30">
                   <p className="text-sm text-muted-foreground">Land Area</p>
                   <p className="text-lg font-semibold">{formData.landArea} sq ft</p>
@@ -547,65 +222,103 @@ const DesignSummary = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {imageUrl && (
-                <div className="rounded-lg overflow-hidden bg-white">
-                  <img src={imageUrl} alt="Floor Plan" className="w-full h-auto" crossOrigin="anonymous" />
-                </div>
-              )}
+              <div className="rounded-lg overflow-hidden bg-white">
+                <img src={imageUrl} alt="Floor Plan" className="w-full h-auto" />
+              </div>
               {description && (
                 <p className="mt-4 text-sm text-muted-foreground">{description}</p>
               )}
             </CardContent>
           </Card>
 
-          {/* AI Rendered Views Section */}
+          {/* AI Rendered Exterior Views */}
+          <Card className="glass-card">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Eye className="w-5 h-5" />
+                AI Rendered Exterior Views
+              </CardTitle>
+              <Button 
+                size="sm" 
+                onClick={generateAllViews}
+                disabled={isGenerating}
+              >
+                {isGenerating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Generate All Views
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {['360', 'front', 'side', 'back', 'top'].map((view) => (
+                  <div key={view} className="space-y-2">
+                    <div className="aspect-video rounded-lg bg-muted/50 overflow-hidden relative">
+                      {exteriorViews[view] ? (
+                        <img src={exteriorViews[view]} alt={`${view} view`} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          {generatingView === view ? (
+                            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                          ) : (
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              onClick={() => generateView(view)}
+                              disabled={isGenerating}
+                            >
+                              Generate
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium text-center capitalize">{view === '360' ? '360° View' : `${view} View`}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* AI Rendered Interior Views - All Rooms */}
           <Card className="glass-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Image className="w-5 h-5" />
-                AI Rendered Views
+                <Home className="w-5 h-5" />
+                AI Rendered Interior Views (All Rooms)
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-center">Front View</p>
-                  <div className="rounded-lg overflow-hidden bg-muted">
-                    <img src={renderedViews.front} alt="Front View" className="w-full h-auto aspect-video object-cover" crossOrigin="anonymous" />
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {allRoomNames.map((roomName) => (
+                  <div key={roomName} className="space-y-2">
+                    <div className="aspect-video rounded-lg bg-muted/50 overflow-hidden relative">
+                      {interiorViews[roomName] ? (
+                        <img src={interiorViews[roomName]} alt={roomName} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          {generatingView === roomName ? (
+                            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                          ) : (
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              onClick={() => generateView('interior', roomName)}
+                              disabled={isGenerating}
+                            >
+                              Generate
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium text-center">{roomName}</p>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-center">Back View</p>
-                  <div className="rounded-lg overflow-hidden bg-muted">
-                    <img src={renderedViews.back} alt="Back View" className="w-full h-auto aspect-video object-cover" crossOrigin="anonymous" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-center">Side View</p>
-                  <div className="rounded-lg overflow-hidden bg-muted">
-                    <img src={renderedViews.side} alt="Side View" className="w-full h-auto aspect-video object-cover" crossOrigin="anonymous" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-center">Top View</p>
-                  <div className="rounded-lg overflow-hidden bg-muted">
-                    <img src={renderedViews.top} alt="Top View" className="w-full h-auto aspect-video object-cover" crossOrigin="anonymous" />
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4 text-center print:hidden">
-                <Link to="/ai-rendered-view" state={{ imageUrl, description, formData, floorPlanSetId }}>
-                  <Button variant="outline">
-                    <Image className="w-4 h-4 mr-2" />
-                    View All Rendered Images
-                  </Button>
-                </Link>
+                ))}
               </div>
             </CardContent>
           </Card>
 
           {/* Interactive 3D Preview */}
-          <Card className="glass-card print:hidden">
+          <Card className="glass-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Box className="w-5 h-5" />
@@ -616,7 +329,7 @@ const DesignSummary = () => {
               <p className="text-muted-foreground mb-4">
                 Explore your home in interactive 3D with VR support
               </p>
-              <Link to="/interactive-3d" state={{ imageUrl, description, formData, floorPlanSetId }}>
+              <Link to="/interactive-3d" state={{ imageUrl, description, formData }}>
                 <Button variant="hero">
                   <Box className="w-4 h-4 mr-2" />
                   Open Interactive 3D
@@ -625,34 +338,53 @@ const DesignSummary = () => {
             </CardContent>
           </Card>
 
-          {/* Full Cost Estimation with Upgrade/Downgrade */}
-          {costEstimationData ? (
-            <CostEstimationEnhanced 
-              data={costEstimationData} 
-              formData={formData}
-              onUpdate={handleCostUpdate}
-            />
-          ) : (
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <IndianRupee className="w-5 h-5" />
-                  Cost Estimation
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-center py-8">
-                <p className="text-muted-foreground mb-4">
-                  Cost estimation not generated yet
-                </p>
-                <Link to="/floor-plan-result" state={{ imageUrl, description, formData, floorPlanSetId }}>
-                  <Button variant="outline">
-                    <IndianRupee className="w-4 h-4 mr-2" />
-                    Generate Cost Estimation
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          )}
+          {/* Cost Estimation Summary */}
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <IndianRupee className="w-5 h-5" />
+                Cost Estimation Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {costEstimationData ? (
+                <div className="space-y-4">
+                  <div className="grid sm:grid-cols-3 gap-4">
+                    <div className="p-4 rounded-lg bg-primary/10 text-center">
+                      <p className="text-sm text-muted-foreground">Total Estimated Cost</p>
+                      <p className="text-2xl font-bold text-primary">
+                        ₹{costEstimationData.totalCost?.toLocaleString('en-IN') || 'N/A'}
+                      </p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-muted/30 text-center">
+                      <p className="text-sm text-muted-foreground">Cost per Sq Ft</p>
+                      <p className="text-xl font-semibold">
+                        ₹{costEstimationData.costPerSqFt?.toLocaleString('en-IN') || 'N/A'}
+                      </p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-muted/30 text-center">
+                      <p className="text-sm text-muted-foreground">Build Time</p>
+                      <p className="text-xl font-semibold">
+                        {costEstimationData.buildTime || '9-12 months'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground mb-4">
+                    Cost estimation not generated yet
+                  </p>
+                  <Link to="/floor-plan-result" state={{ imageUrl, description, formData }}>
+                    <Button variant="outline">
+                      <IndianRupee className="w-4 h-4 mr-2" />
+                      Generate Cost Estimation
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>

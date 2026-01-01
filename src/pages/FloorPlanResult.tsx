@@ -7,44 +7,17 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Home, Download, ArrowLeft, Share2, Box, Eye, Navigation, IndianRupee, Maximize, GitCompare, Plus, MapPin, Wallet, Clock, FileText } from "lucide-react";
 import { toast } from "sonner";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import VirtualWalkthrough from "@/components/VirtualWalkthrough";
 import HouseModel3D from "@/components/3d/HouseModel3D";
 import CostEstimationEnhanced from "@/components/CostEstimationEnhanced";
 import FloorPlanComparison from "@/components/FloorPlanComparison";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import FloorPlanSVG from "@/components/FloorPlanSVG";
-
-
-// Import floor plan images - 4 sets available
-import floorPlan1 from "@/assets/floor-plans/floor-plan-1.jpg";
-import floorPlan2 from "@/assets/floor-plans/floor-plan-2.png";
-import floorPlan3 from "@/assets/floor-plans/floor-plan-3.png";
-import floorPlan4 from "@/assets/floor-plans/floor-plan-4.png";
-
-// Floor plan sets with their corresponding set IDs
-const FLOOR_PLAN_SETS = [
-  { id: 1, image: floorPlan1 },
-  { id: 2, image: floorPlan2 },
-  { id: 3, image: floorPlan3 },
-  { id: 4, image: floorPlan4 },
-];
 
 const FloorPlanResult = () => {
   const location = useLocation();
-  const { imageUrl, floorPlanData, description, formData, floorPlanSetId } = location.state || {};
-  const svgContainerRef = useRef<HTMLDivElement>(null);
-  
-  // Use passed floorPlanSetId if available, otherwise randomly select one (memoized to persist across re-renders)
-  const selectedFloorPlanSet = useMemo(() => {
-    if (floorPlanSetId) {
-      const found = FLOOR_PLAN_SETS.find(set => set.id === floorPlanSetId);
-      if (found) return found;
-    }
-    const randomIndex = Math.floor(Math.random() * FLOOR_PLAN_SETS.length);
-    return FLOOR_PLAN_SETS[randomIndex];
-  }, [floorPlanSetId]);
+  const { imageUrl, description, formData } = location.state || {};
   const [is3DGenerating, setIs3DGenerating] = useState(false);
   const [model3DUrl, setModel3DUrl] = useState<string | null>(null);
   const [model3DDescription, setModel3DDescription] = useState<string>("");
@@ -111,12 +84,10 @@ const FloorPlanResult = () => {
   }, []);
 
   const handleAddToComparison = () => {
-    if (!floorPlanData && !imageUrl) return;
-    if (!formData) return;
+    if (!imageUrl || !formData) return;
     
     const newPlan = {
       id: Date.now().toString(),
-      floorPlanData,
       imageUrl,
       description,
       formData
@@ -136,45 +107,16 @@ const FloorPlanResult = () => {
   };
 
   const handleDownload = () => {
-    // For SVG, we need to convert to image
-    if (svgContainerRef.current) {
-      const svgElement = svgContainerRef.current.querySelector('svg');
-      if (svgElement) {
-        const svgData = new XMLSerializer().serializeToString(svgElement);
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const img = new Image();
-        
-        img.onload = () => {
-          canvas.width = img.width;
-          canvas.height = img.height;
-          ctx?.drawImage(img, 0, 0);
-          const pngUrl = canvas.toDataURL('image/png');
-          
-          const link = document.createElement('a');
-          link.href = pngUrl;
-          link.download = 'floor-plan.png';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          toast.success("Floor plan downloaded!");
-        };
-        
-        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
-        return;
-      }
-    }
+    if (!imageUrl) return;
     
-    // Fallback for AI-generated image
-    if (imageUrl) {
-      const link = document.createElement('a');
-      link.href = imageUrl;
-      link.download = 'floor-plan.png';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success("Floor plan downloaded!");
-    }
+    // Create a temporary link and trigger download
+    const link = document.createElement('a');
+    link.href = imageUrl;
+    link.download = 'floor-plan.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Floor plan downloaded!");
   };
 
   const handleShare = async () => {
@@ -337,7 +279,7 @@ const FloorPlanResult = () => {
     setShowCostSettings(true);
   };
 
-  if (!floorPlanData && !imageUrl) {
+  if (!imageUrl) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
         <Card className="glass-card max-w-md w-full">
@@ -402,10 +344,9 @@ const FloorPlanResult = () => {
           {/* Floor Plan Display */}
           <Card className="glass-card border-2">
             <CardContent className="p-6">
-              <div ref={svgContainerRef} className="relative rounded-lg overflow-hidden bg-white">
-                {/* Display floor plan image from selected set */}
+              <div className="relative rounded-lg overflow-hidden bg-white">
                 <img
-                  src={selectedFloorPlanSet.image}
+                  src={imageUrl}
                   alt="Generated Floor Plan"
                   className="w-full h-auto"
                 />
@@ -424,13 +365,13 @@ const FloorPlanResult = () => {
               <Download className="w-5 h-5 mr-2" />
               Download Floor Plan
             </Button>
-            <Link to="/interactive-3d" state={{ imageUrl: selectedFloorPlanSet.image, description, formData, floorPlanSetId: selectedFloorPlanSet.id }}>
+            <Link to="/interactive-3d" state={{ imageUrl, description, formData }}>
               <Button variant="hero" size="lg" className="group">
                 <Box className="w-5 h-5 mr-2" />
                 Interactive 3D
               </Button>
             </Link>
-            <Link to="/ai-rendered-view" state={{ imageUrl: selectedFloorPlanSet.image, description, formData, floorPlanSetId: selectedFloorPlanSet.id }}>
+            <Link to="/ai-rendered-view" state={{ imageUrl, description, formData }}>
               <Button variant="hero" size="lg" className="group">
                 <Maximize className="w-5 h-5 mr-2" />
                 AI Rendered Views
@@ -446,7 +387,7 @@ const FloorPlanResult = () => {
               <IndianRupee className="w-5 h-5 mr-2" />
               {isGeneratingCost ? "Calculating..." : "Cost Estimation"}
             </Button>
-            <Link to="/design-summary" state={{ imageUrl: selectedFloorPlanSet.image, description, formData, costEstimationData, floorPlanSetId: selectedFloorPlanSet.id }}>
+            <Link to="/design-summary" state={{ imageUrl, description, formData, costEstimationData }}>
               <Button variant="hero" size="lg" className="group">
                 <FileText className="w-5 h-5 mr-2" />
                 Summary
@@ -522,12 +463,6 @@ const FloorPlanResult = () => {
                     placeholder="e.g., 5000000"
                     value={userBudget}
                     onChange={(e) => setUserBudget(e.target.value.replace(/[^0-9]/g, ''))}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleGenerateCostEstimation();
-                      }
-                    }}
                     className="text-foreground bg-background"
                   />
                   {userBudget && (
@@ -735,11 +670,7 @@ const FloorPlanResult = () => {
                 </DialogTitle>
               </DialogHeader>
               {costEstimationData && (
-                <CostEstimationEnhanced 
-                  data={costEstimationData} 
-                  formData={formData} 
-                  onUpdate={(newData) => setCostEstimationData(newData)}
-                />
+                <CostEstimationEnhanced data={costEstimationData} formData={formData} />
               )}
             </DialogContent>
           </Dialog>

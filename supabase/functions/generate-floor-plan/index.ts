@@ -13,11 +13,12 @@ serve(async (req) => {
   try {
     const { landArea, rooms, preferences } = await req.json();
     
-    console.log("Generating floor plan:", { landArea, rooms, preferences });
+    console.log("Generating floor plan with data:", { landArea, rooms, preferences });
 
-    const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY is not configured');
+    }
 
     // Build detailed room list for prompt
     const roomDetails = rooms.map((room: any) => {
@@ -26,126 +27,109 @@ serve(async (req) => {
         return `${roomInfo} with attached bathroom`;
       }
       return roomInfo;
-    }).join("\n- ");
+    }).join(", ");
 
     const outdoorFeatures = preferences.outdoorFeatures?.join(", ") || "None";
 
-    // Comprehensive Floor Plan Generation Prompt
-    const floorPlanPrompt = `Generate a professional 2D architectural floor plan with the following specifications:
+    // Create comprehensive architectural prompt
+    const prompt = `Create a professional, architect-grade 2D floor plan image with the following specifications:
 
-CRITICAL: Do NOT add any watermarks, logos, signatures, text overlays, or branding marks on the image. The output must be a clean image with no watermarks whatsoever.
+CRITICAL LABELING REQUIREMENTS:
+- Every room MUST have a clear, readable label showing:
+  * Room name (e.g., "Living Room", "Master Bedroom")
+  * Dimensions in feet (e.g., "12' × 16'")
+- Labels must be positioned centrally in each room
+- Use large, bold, professional font for all labels
+- Add dimension arrows on walls showing measurements
+- Include a clear legend/key explaining symbols
+- Add total built-up area calculation at bottom
 
-PLOT SPECIFICATIONS:
+FLOOR PLAN SPECIFICATIONS:
+
+PLOT DETAILS:
 - Total Land Area: ${landArea} sq ft
 - Number of Floors: ${preferences.floors}
 - Architectural Style: ${preferences.style}
-${preferences.vastuCompliant ? '- Vastu Compliant: YES (Main entrance North/East, Kitchen South-East, Master bedroom South-West)' : '- Vastu Compliant: NO'}
+- Vastu Compliant: ${preferences.vastuCompliant ? "Yes" : "No"}
+- Dynamic Scaling: ${preferences.dynamicScaling ? "Enabled" : "Disabled"}
 
-REQUIRED ROOMS:
-- ${roomDetails}
+ROOMS REQUIRED:
+${roomDetails}
 
-OUTDOOR FEATURES: ${outdoorFeatures}
+OUTDOOR FEATURES:
+${outdoorFeatures}
 
-STANDARD INDIAN ROOM DIMENSIONS TO FOLLOW:
-- Master Bedroom: 12×12 ft to 14×14 ft
-- Normal Bedroom: 10×10 ft to 12×12 ft
-- Living Room: 12×15 ft to 14×18 ft
-- Dining: 8×10 ft to 10×12 ft
-- Kitchen: 8×10 ft to 10×12 ft
-- Attached Bathroom: 6×8 ft
-- Common Bathroom: 5×7 ft
-- Hallway width: 3.5–4.5 ft
+DESIGN REQUIREMENTS:
+1. Create a clean, professional 2D floor plan similar to AutoCAD/Revit output
+2. Show all walls with proper thickness (4-6 inches)
+3. Include doors with opening arcs showing swing direction
+4. Add windows with proper symbols
+5. Label each room with dimensions (length × width in feet)
+6. Show furniture layout for each room (beds, sofas, dining table, kitchen counters, bathroom fixtures)
+7. Include a north direction arrow
+8. Add scale indicator (1:50 or 1:100)
+9. Use professional color coding: walls in dark grey, rooms in soft pastels, furniture in light grey
+10. Show circulation paths and ensure logical room flow
+11. ${preferences.vastuCompliant ? "Follow Vastu directions: Living room (North-East/East), Kitchen (South-East), Master bedroom (South-West), etc." : "Optimize for functionality and natural light"}
+12. Include dimensions for all rooms
+13. Add electrical points, plumbing lines if visible
+14. Ensure proper ventilation with window placements
 
-DRAWING REQUIREMENTS:
-1. Professional AutoCAD-style black and white technical drawing
-2. Clean black lines on white/light background
-3. Double parallel lines for walls (9 inch wall thickness)
-4. Room names in CAPITAL LETTERS centered in each room
-5. Dimensions labeled in feet (e.g., 12' × 16')
-6. Door swings shown as 90° arcs opening into rooms
-7. Window symbols as parallel lines with gaps in walls
-8. Hatching/patterns for wet areas (bathrooms, kitchen, utility)
-9. North arrow indicator in corner
-10. Scale bar showing 10 ft reference
-11. Title block: "FLOOR PLAN - ${landArea} SQ FT - ${preferences.style.toUpperCase()}"
-12. NO watermarks, logos, or any branding marks
+ROOM LAYOUT RULES:
+- Living room near entrance with good ventilation
+- Kitchen near dining area with utility access
+- Bedrooms in private zones away from living areas
+- Bathrooms should share plumbing walls
+- Balconies attached to living room or bedrooms
+- Proper hallway widths (3-4 feet minimum)
 
-LAYOUT REQUIREMENTS:
-- Entrance opens to living room/foyer at front
-- Living room at front with good natural light
-- Dining area connected to both living and kitchen
-- Kitchen with proper ventilation access and near dining
-- All bedrooms in private zone (rear or sides)
-- Master bedroom with attached bathroom
-- Common bathroom accessible from hallway
-- Minimum 3.5 ft wide hallways/corridors
-- Efficient circulation without dead ends
+The floor plan should look professional, clean, and realistic - as if drawn by a licensed architect. Use proper architectural symbols and conventions. Make it visually clean with clear labels and measurements.`;
 
-Generate a clean, professional, ready-for-construction 2D floor plan image without any watermarks.`;
+    // Generate image using Lovable AI (image generation model)
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-image',
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        modalities: ['image', 'text']
+      }),
+    });
 
-    let imageUrl: string | null = null;
-    let description: string | undefined = '';
-    let usedProvider = '';
-
-    // Try Google Gemini first
-    if (GOOGLE_AI_API_KEY && !imageUrl) {
-      console.log("Trying Google Gemini...");
-      try {
-        const geminiResult = await generateWithGemini(GOOGLE_AI_API_KEY, floorPlanPrompt);
-        if (geminiResult.success && geminiResult.imageUrl) {
-          imageUrl = geminiResult.imageUrl;
-          description = geminiResult.description || '';
-          usedProvider = 'Google Gemini';
-        }
-      } catch (geminiError: any) {
-        console.log("Gemini failed:", geminiError.message);
-      }
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('AI Gateway error:', response.status, errorText);
+      throw new Error(`AI Gateway error: ${response.status}`);
     }
 
-    // Fallback to OpenAI if Gemini failed
-    if (OPENAI_API_KEY && !imageUrl) {
-      console.log("Trying OpenAI...");
-      try {
-        const openaiResult = await generateWithOpenAI(OPENAI_API_KEY, floorPlanPrompt);
-        if (openaiResult.success && openaiResult.imageUrl) {
-          imageUrl = openaiResult.imageUrl;
-          description = openaiResult.description || '';
-          usedProvider = 'OpenAI';
-        }
-      } catch (openaiError: any) {
-        console.log("OpenAI failed:", openaiError.message);
-      }
-    }
+    const data = await response.json();
+    console.log("AI Response received");
 
-    // Final fallback to Lovable AI (always available)
-    if (LOVABLE_API_KEY && !imageUrl) {
-      console.log("Trying Lovable AI...");
-      try {
-        const lovableResult = await generateWithLovableAI(LOVABLE_API_KEY, floorPlanPrompt);
-        if (lovableResult.success && lovableResult.imageUrl) {
-          imageUrl = lovableResult.imageUrl;
-          description = lovableResult.description || '';
-          usedProvider = 'Lovable AI';
-        }
-      } catch (lovableError: any) {
-        console.error("Lovable AI also failed:", lovableError.message);
-      }
-    }
+    // Extract the generated image
+    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    const description = data.choices?.[0]?.message?.content || "Professional 2D floor plan generated based on your specifications.";
 
     if (!imageUrl) {
-      throw new Error('All AI providers failed. Please check your API quotas or try again later.');
+      throw new Error('No image generated');
     }
-
-    const finalDescription = description || `Professional ${preferences.style} floor plan for ${landArea} sq ft plot. Generated with ${usedProvider}.`;
 
     return new Response(
       JSON.stringify({ 
         imageUrl, 
-        description: finalDescription,
-        provider: usedProvider,
+        description,
         success: true 
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
     );
 
   } catch (error) {
@@ -155,123 +139,10 @@ Generate a clean, professional, ready-for-construction 2D floor plan image witho
         error: error instanceof Error ? error.message : 'Unknown error',
         success: false 
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
     );
   }
 });
-
-async function generateWithGemini(apiKey: string, prompt: string): Promise<{ success: boolean; imageUrl?: string; description?: string }> {
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseModalities: ["TEXT", "IMAGE"] }
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Gemini API error:', response.status, errorText);
-    throw new Error(`Gemini API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  let imageUrl = null;
-  let textDescription = '';
-
-  const candidates = data.candidates;
-  if (candidates && candidates.length > 0) {
-    const parts = candidates[0].content?.parts || [];
-    for (const part of parts) {
-      if (part.inlineData) {
-        const mimeType = part.inlineData.mimeType || 'image/png';
-        imageUrl = `data:${mimeType};base64,${part.inlineData.data}`;
-      }
-      if (part.text) {
-        textDescription = part.text;
-      }
-    }
-  }
-
-  if (!imageUrl) {
-    throw new Error('No image in Gemini response');
-  }
-
-  return { success: true, imageUrl, description: textDescription };
-}
-
-async function generateWithOpenAI(apiKey: string, prompt: string): Promise<{ success: boolean; imageUrl?: string; description?: string }> {
-  const response = await fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-image-1',
-      prompt: prompt,
-      n: 1,
-      size: '1024x1024',
-      quality: 'high',
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('OpenAI API error:', response.status, errorText);
-    throw new Error(`OpenAI API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  const imageData = data.data?.[0];
-  let imageUrl = imageData?.url;
-  
-  if (imageData?.b64_json) {
-    imageUrl = `data:image/png;base64,${imageData.b64_json}`;
-  }
-
-  if (!imageUrl) {
-    throw new Error('No image in OpenAI response');
-  }
-
-  return { success: true, imageUrl };
-}
-
-async function generateWithLovableAI(apiKey: string, prompt: string): Promise<{ success: boolean; imageUrl?: string; description?: string }> {
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash-image-preview',
-      messages: [
-        { role: 'user', content: prompt }
-      ],
-      modalities: ['image', 'text']
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Lovable AI error:', response.status, errorText);
-    throw new Error(`Lovable AI error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  
-  // Extract image from Lovable AI response
-  const message = data.choices?.[0]?.message;
-  const images = message?.images;
-  
-  if (images && images.length > 0) {
-    const imageUrl = images[0]?.image_url?.url;
-    if (imageUrl) {
-      return { success: true, imageUrl, description: message?.content || '' };
-    }
-  }
-
-  throw new Error('No image in Lovable AI response');
-}
