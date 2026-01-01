@@ -1,6 +1,6 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, Box, Plane } from '@react-three/drei';
+import { OrbitControls, PerspectiveCamera, Box, Plane, Environment } from '@react-three/drei';
 import { createXRStore, XR } from '@react-three/xr';
 import * as THREE from 'three';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,8 @@ import Landscaping from './Landscaping';
 import ExteriorLighting from './ExteriorLighting';
 import { getStyleMaterials } from './TexturedMaterials';
 import StyleSpecificRoof from './StyleSpecificRoof';
-import { Plus, Sofa, Bed, Table, Download, Ruler, Clock } from 'lucide-react';
+import { useGrassTexture, useStonePaverTexture, useStuccoWallTexture, useRoofTileTexture } from './PBRMaterials';
+import { Ruler, Clock, Download } from 'lucide-react';
 
 interface Room {
   roomName: string;
@@ -132,24 +133,44 @@ function ExternalFeatures({ houseWidth, houseDepth, trimColor }: { houseWidth: n
   );
 }
 
-// Calculate proper rectangular floor plan layout
+// Calculate proper rectangular floor plan layout with L-shape support
 function calculateFloorPlanLayout(rooms: Room[]) {
   if (rooms.length === 0) return { positions: [], totalWidth: 0, totalDepth: 0 };
   
-  // Sort rooms by size (larger rooms first)
+  // Sort rooms by type priority (living areas first, then bedrooms, then utilities)
+  const getPriority = (name: string) => {
+    const lower = name.toLowerCase();
+    if (lower.includes('living') || lower.includes('drawing')) return 1;
+    if (lower.includes('dining')) return 2;
+    if (lower.includes('kitchen')) return 3;
+    if (lower.includes('master') || lower.includes('bedroom')) return 4;
+    if (lower.includes('study') || lower.includes('office')) return 5;
+    if (lower.includes('bathroom')) return 6;
+    return 7;
+  };
+
   const sortedRooms = [...rooms].map((r, idx) => ({ ...r, originalIndex: idx }))
-    .sort((a, b) => (b.breadth * b.length) - (a.breadth * a.length));
+    .sort((a, b) => {
+      const priorityDiff = getPriority(a.roomName) - getPriority(b.roomName);
+      if (priorityDiff !== 0) return priorityDiff;
+      return (b.breadth * b.length) - (a.breadth * a.length);
+    });
   
-  // Calculate total area and estimate house dimensions
-  const totalArea = rooms.reduce((sum, r) => sum + r.breadth * r.length, 0);
-  const avgRoomWidth = rooms.reduce((sum, r) => sum + r.breadth, 0) / rooms.length;
-  const avgRoomDepth = rooms.reduce((sum, r) => sum + r.length, 0) / rooms.length;
+  // Calculate optimal grid dimensions
+  const numRooms = rooms.length;
+  let targetCols = 2;
+  let targetRows = Math.ceil(numRooms / 2);
   
-  // Target a roughly rectangular house (width:depth ratio around 1.5:1)
-  const targetCols = Math.max(2, Math.min(4, Math.ceil(Math.sqrt(rooms.length * 1.5))));
-  const targetRows = Math.ceil(rooms.length / targetCols);
+  if (numRooms >= 6) {
+    targetCols = 3;
+    targetRows = Math.ceil(numRooms / 3);
+  }
+  if (numRooms >= 9) {
+    targetCols = 3;
+    targetRows = Math.ceil(numRooms / 3);
+  }
   
-  // Grid-based positioning
+  // Grid-based positioning with proper spacing
   const positions: { x: number; z: number; room: Room & { originalIndex: number } }[] = [];
   const grid: (Room & { originalIndex: number } | null)[][] = [];
   
@@ -170,12 +191,13 @@ function calculateFloorPlanLayout(rooms: Room[]) {
     }
   }
   
-  // Calculate actual row heights and column widths
+  // Calculate actual row heights and column widths with minimum sizes
   const rowDepths: number[] = [];
   const colWidths: number[] = [];
+  const wallGap = 0.3; // Gap for walls between rooms
   
   for (let row = 0; row < targetRows; row++) {
-    let maxDepth = 8;
+    let maxDepth = 10;
     for (let col = 0; col < targetCols; col++) {
       if (grid[row][col]) {
         maxDepth = Math.max(maxDepth, grid[row][col]!.length);
@@ -185,7 +207,7 @@ function calculateFloorPlanLayout(rooms: Room[]) {
   }
   
   for (let col = 0; col < targetCols; col++) {
-    let maxWidth = 8;
+    let maxWidth = 10;
     for (let row = 0; row < targetRows; row++) {
       if (grid[row][col]) {
         maxWidth = Math.max(maxWidth, grid[row][col]!.breadth);
@@ -194,7 +216,7 @@ function calculateFloorPlanLayout(rooms: Room[]) {
     colWidths.push(maxWidth);
   }
   
-  // Calculate positions
+  // Calculate positions with proper offsets
   let zOffset = 0;
   for (let row = 0; row < targetRows; row++) {
     let xOffset = 0;
@@ -207,13 +229,13 @@ function calculateFloorPlanLayout(rooms: Room[]) {
           room
         });
       }
-      xOffset += colWidths[col] + 0.25;
+      xOffset += colWidths[col] + wallGap;
     }
-    zOffset += rowDepths[row] + 0.25;
+    zOffset += rowDepths[row] + wallGap;
   }
   
-  const totalWidth = colWidths.reduce((sum, w) => sum + w, 0) + (colWidths.length - 1) * 0.25;
-  const totalDepth = rowDepths.reduce((sum, d) => sum + d, 0) + (rowDepths.length - 1) * 0.25;
+  const totalWidth = colWidths.reduce((sum, w) => sum + w, 0) + (colWidths.length - 1) * wallGap;
+  const totalDepth = rowDepths.reduce((sum, d) => sum + d, 0) + (rowDepths.length - 1) * wallGap;
   
   // Sort back by original index for consistent rendering
   positions.sort((a, b) => a.room.originalIndex - b.room.originalIndex);
@@ -221,7 +243,7 @@ function calculateFloorPlanLayout(rooms: Room[]) {
   return { positions, totalWidth, totalDepth, colWidths, rowDepths, targetCols, targetRows };
 }
 
-// Main House component
+// Main House component with PBR materials
 function House({ rooms, style, timeOfDay, showMeasurements }: { 
   rooms: Room[]; 
   style: string;
@@ -231,55 +253,102 @@ function House({ rooms, style, timeOfDay, showMeasurements }: {
   const groupRef = useRef<THREE.Group>(null);
   const styleConfig = getStyleMaterials(style);
   const roomHeight = 3.2;
+  
+  // PBR textures
+  const grassTexture = useGrassTexture();
+  const paverTexture = useStonePaverTexture();
+  const stuccoTexture = useStuccoWallTexture(styleConfig.wallColor);
+  const roofTileTexture = useRoofTileTexture(styleConfig.roofColor);
 
   const layout = calculateFloorPlanLayout(rooms);
   const { positions, totalWidth, totalDepth } = layout;
   const centerOffsetX = -totalWidth / 2;
   const centerOffsetZ = -totalDepth / 2;
 
+  // Time-based sky and lighting
   const getSkyColor = (time: number) => {
     if (time < 6 || time > 20) return "#0a1628";
-    if (time < 8 || time > 18) return "#ff9a5f";
+    if (time < 7) return "#1a3a52";
+    if (time < 8) return "#ff9a5f";
+    if (time > 18) return "#ff7f50";
+    if (time > 17) return "#87ceeb";
     return "#87ceeb";
   };
 
   const getAmbientIntensity = (time: number) => {
-    if (time < 6 || time > 20) return 0.2;
-    if (time < 8 || time > 18) return 0.5;
-    return 0.8;
+    if (time < 6 || time > 20) return 0.15;
+    if (time < 8 || time > 18) return 0.4;
+    return 0.7;
   };
+
+  const getSunIntensity = (time: number) => {
+    if (time < 6 || time > 20) return 0.1;
+    if (time < 8 || time > 18) return 1.5;
+    if (time >= 11 && time <= 14) return 3.0; // Midday brightness
+    return 2.5;
+  };
+
+  // Sun position calculation for realistic shadows
+  const sunPosition = useMemo(() => {
+    const hour = timeOfDay;
+    const angle = ((hour - 6) / 12) * Math.PI;
+    const height = Math.max(Math.sin(angle) * 50, 5);
+    const horizontal = Math.cos(angle) * 40;
+    return [horizontal, height, 30] as [number, number, number];
+  }, [timeOfDay]);
 
   return (
     <group ref={groupRef}>
-      {/* Sky dome */}
+      {/* Sky dome with gradient */}
       <mesh>
-        <sphereGeometry args={[150, 32, 32]} />
+        <sphereGeometry args={[200, 64, 64]} />
         <meshBasicMaterial color={getSkyColor(timeOfDay)} side={THREE.BackSide} />
       </mesh>
 
-      {/* Ground */}
-      <Plane args={[300, 300]} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
-        <meshStandardMaterial color="#4a7c59" />
+      {/* Ground plane with grass texture */}
+      <Plane args={[400, 400]} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
+        <meshStandardMaterial map={grassTexture} roughness={0.9} />
       </Plane>
 
-      {/* Grass around house */}
-      <Plane args={[totalWidth + 25, totalDepth + 25]} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-        <meshStandardMaterial color="#5a9f5a" />
+      {/* House foundation/base */}
+      <Box args={[totalWidth + 2, 0.4, totalDepth + 2]} position={[0, 0.2, 0]} castShadow receiveShadow>
+        <meshStandardMaterial color="#808080" roughness={0.9} />
+      </Box>
+
+      {/* Patio/walkway with stone pavers */}
+      <Plane args={[totalWidth + 4, 4]} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.42, totalDepth / 2 + 2]} receiveShadow>
+        <meshStandardMaterial map={paverTexture} roughness={0.8} />
       </Plane>
 
-      {/* Lighting */}
-      <ambientLight intensity={getAmbientIntensity(timeOfDay)} />
+      {/* Driveway */}
+      <Plane args={[4, 20]} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, totalDepth / 2 + 12]} receiveShadow>
+        <meshStandardMaterial color="#5a5a5a" roughness={0.9} />
+      </Plane>
+
+      {/* Lighting setup - PBR based */}
+      <ambientLight intensity={getAmbientIntensity(timeOfDay)} color="#fff5e6" />
       <directionalLight 
-        position={[25, 35, 25]} 
-        intensity={timeOfDay > 6 && timeOfDay < 20 ? 2.5 : 0.5} 
+        position={sunPosition}
+        intensity={getSunIntensity(timeOfDay)}
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={4096}
+        shadow-mapSize-height={4096}
+        shadow-camera-far={150}
+        shadow-camera-left={-50}
+        shadow-camera-right={50}
+        shadow-camera-top={50}
+        shadow-camera-bottom={-50}
+        shadow-bias={-0.0001}
+        color={timeOfDay >= 8 && timeOfDay <= 18 ? "#ffffff" : "#ff9a5f"}
       />
-      <hemisphereLight color="#87ceeb" groundColor="#3d6b4a" intensity={0.6} />
+      <hemisphereLight 
+        color="#87ceeb" 
+        groundColor="#4a7c4a" 
+        intensity={0.5} 
+      />
 
       {/* House structure - rooms arranged in proper floor plan */}
-      <group position={[centerOffsetX, 0, centerOffsetZ]}>
+      <group position={[centerOffsetX, 0.4, centerOffsetZ]}>
         {positions.map((pos, index) => {
           const room = pos.room;
           return (
@@ -298,11 +367,11 @@ function House({ rooms, style, timeOfDay, showMeasurements }: {
         })}
       </group>
 
-      {/* Style-Specific Roof with chimney and skylights */}
+      {/* Style-Specific Roof */}
       <StyleSpecificRoof 
         width={totalWidth} 
         depth={totalDepth} 
-        height={roomHeight} 
+        height={roomHeight + 0.4} 
         style={style} 
         styleConfig={styleConfig} 
       />

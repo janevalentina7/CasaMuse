@@ -2,10 +2,11 @@ import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, ArrowLeft, Download, FileText, Box, Eye, IndianRupee, Loader2 } from "lucide-react";
+import { Home, ArrowLeft, FileText, Box, Eye, IndianRupee, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import PDFExporter from "@/components/PDFExporter";
 
 const DesignSummary = () => {
   const location = useLocation();
@@ -96,10 +97,6 @@ const DesignSummary = () => {
     return roomNames;
   };
 
-  const handleDownloadSummary = () => {
-    toast.success("Summary download feature coming soon!");
-  };
-
   if (!imageUrl || !formData) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
@@ -135,10 +132,14 @@ const DesignSummary = () => {
             </Link>
             
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleDownloadSummary}>
-                <Download className="w-4 h-4 mr-2" />
-                Download PDF
-              </Button>
+              <PDFExporter 
+                formData={formData}
+                imageUrl={imageUrl}
+                description={description}
+                costEstimationData={costEstimationData}
+                exteriorViews={exteriorViews}
+                interiorViews={interiorViews}
+              />
               <Link to="/floor-plan-result" state={{ imageUrl, description, formData }}>
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="w-4 h-4 mr-2" />
