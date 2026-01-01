@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Home, ArrowLeft, Box, Eye, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -18,6 +18,8 @@ const AIRenderedView = () => {
   const [showExterior, setShowExterior] = useState(true);
   const [showInterior, setShowInterior] = useState(true);
   const [generatingView, setGeneratingView] = useState<string | null>(null);
+  const [generationProgress, setGenerationProgress] = useState({ current: 0, total: 0 });
+  const hasStartedGeneration = useRef(false);
 
   // Get all room names from form data
   const getAllRoomNames = () => {
@@ -39,19 +41,14 @@ const AIRenderedView = () => {
     return roomNames;
   };
 
-  const handleGenerateView = async (viewType: string, roomName?: string) => {
+  const handleGenerateView = async (viewType: string, roomName?: string): Promise<boolean> => {
     if (!imageUrl || !formData) {
-      toast.error("Floor plan data not available");
-      return;
+      return false;
     }
 
     const viewKey = roomName || viewType;
     setGeneratingView(viewKey);
-    setIsGenerating(true);
     setRenderedView(viewKey);
-    
-    const viewLabel = roomName || (viewType === '360' ? '360° View' : `${viewType.charAt(0).toUpperCase() + viewType.slice(1)} View`);
-    toast.info(`Generating ${viewLabel}...`);
 
     try {
       const { data, error } = await supabase.functions.invoke('generate-3d-model', {
@@ -79,31 +76,57 @@ const AIRenderedView = () => {
             [viewType]: { url: data.imageUrl, description: data.description || '' } 
           }));
         }
-        toast.success(`${viewLabel} generated!`);
+        return true;
       } else {
         throw new Error(data?.error || "Failed to generate view");
       }
     } catch (error) {
       console.error('Error generating view:', error);
-      toast.error(error instanceof Error ? error.message : "Failed to generate view");
+      return false;
     } finally {
-      setIsGenerating(false);
       setGeneratingView(null);
     }
   };
 
-  const generateAllInteriors = async () => {
-    const allRooms = getAllRoomNames();
-    toast.info(`Generating interiors for ${allRooms.length} rooms...`);
+  // Auto-generate all views on page load
+  useEffect(() => {
+    if (!imageUrl || !formData || hasStartedGeneration.current) return;
     
-    for (const roomName of allRooms) {
-      if (!interiorViews[roomName]) {
-        await handleGenerateView('interior', roomName);
+    hasStartedGeneration.current = true;
+    
+    const generateAllViews = async () => {
+      const exteriorTypes = ['360', 'front', 'side', 'back', 'top'];
+      const allRooms = getAllRoomNames();
+      const totalViews = exteriorTypes.length + allRooms.length;
+      
+      setIsGenerating(true);
+      setGenerationProgress({ current: 0, total: totalViews });
+      toast.info(`Generating ${totalViews} views automatically...`);
+      
+      let completed = 0;
+      
+      // Generate exterior views
+      for (const view of exteriorTypes) {
+        await handleGenerateView(view);
+        completed++;
+        setGenerationProgress({ current: completed, total: totalViews });
       }
-    }
+      
+      // Generate interior views for all rooms
+      for (const roomName of allRooms) {
+        await handleGenerateView('interior', roomName);
+        completed++;
+        setGenerationProgress({ current: completed, total: totalViews });
+      }
+      
+      setIsGenerating(false);
+      setGenerationProgress({ current: 0, total: 0 });
+      toast.success(`All ${totalViews} views generated!`);
+      setRenderedView('360');
+    };
     
-    toast.success("All interior views generated!");
-  };
+    generateAllViews();
+  }, [imageUrl, formData]);
 
   if (!imageUrl || !formData) {
     return (
@@ -257,16 +280,12 @@ const AIRenderedView = () => {
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <CardContent className="pt-0 space-y-4">
-                  <div className="flex justify-end">
-                    <Button 
-                      size="sm" 
-                      onClick={generateAllInteriors}
-                      disabled={isGenerating}
-                    >
-                      {isGenerating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                      Generate All Interiors
-                    </Button>
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {isGenerating 
+                      ? `Generating views... (${generationProgress.current}/${generationProgress.total})`
+                      : 'All interior views are auto-generated on page load.'
+                    }
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {allRoomNames.map((roomName) => (
                       <Button

@@ -12,6 +12,7 @@ import ExteriorLighting from './ExteriorLighting';
 import { getStyleMaterials } from './TexturedMaterials';
 import StyleSpecificRoof from './StyleSpecificRoof';
 import { useGrassTexture, useStonePaverTexture, useStuccoWallTexture, useRoofTileTexture } from './PBRMaterials';
+import OutdoorFeatures from './OutdoorFeatures';
 import { Ruler, Clock, Download } from 'lucide-react';
 
 interface Room {
@@ -378,6 +379,9 @@ function House({ rooms, style, timeOfDay, showMeasurements }: {
 
       {/* External features */}
       <ExternalFeatures houseWidth={totalWidth} houseDepth={totalDepth} trimColor={styleConfig.trimColor} />
+
+      {/* Outdoor Features - Garage, Pool, Deck */}
+      <OutdoorFeatures houseWidth={totalWidth} houseDepth={totalDepth} style={style} />
 
       {/* Landscaping */}
       <Landscaping houseWidth={totalWidth} houseDepth={totalDepth} style={style} />
