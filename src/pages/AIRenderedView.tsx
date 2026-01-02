@@ -2,7 +2,7 @@ import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, ArrowLeft, Box, Eye, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Home, ArrowLeft, Box, Eye, Loader2, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,7 +17,7 @@ const AIRenderedView = () => {
   const [interiorViews, setInteriorViews] = useState<{ [key: string]: { url: string; description: string } }>({});
   const [showExterior, setShowExterior] = useState(true);
   const [showInterior, setShowInterior] = useState(true);
-  const [generatingView, setGeneratingView] = useState<string | null>(null);
+  const [generatingViews, setGeneratingViews] = useState<Set<string>>(new Set());
   const [generationProgress, setGenerationProgress] = useState({ current: 0, total: 0 });
   const hasStartedGeneration = useRef(false);
 
@@ -41,13 +41,20 @@ const AIRenderedView = () => {
     return roomNames;
   };
 
-  const handleGenerateView = async (viewType: string, roomName?: string): Promise<boolean> => {
+  const handleGenerateView = async (viewType: string, roomName?: string, forceRegenerate = false): Promise<boolean> => {
     if (!imageUrl || !formData) {
       return false;
     }
 
     const viewKey = roomName || viewType;
-    setGeneratingView(viewKey);
+    
+    // Skip if already generated and not forcing regenerate
+    if (!forceRegenerate && (exteriorViews[viewKey] || interiorViews[viewKey])) {
+      setRenderedView(viewKey);
+      return true;
+    }
+
+    setGeneratingViews(prev => new Set(prev).add(viewKey));
     setRenderedView(viewKey);
 
     try {
@@ -84,8 +91,60 @@ const AIRenderedView = () => {
       console.error('Error generating view:', error);
       return false;
     } finally {
-      setGeneratingView(null);
+      setGeneratingViews(prev => {
+        const next = new Set(prev);
+        next.delete(viewKey);
+        return next;
+      });
     }
+  };
+
+  // Generate views in parallel batches for faster generation
+  const generateAllViewsParallel = async () => {
+    const exteriorTypes = ['360', 'front', 'side', 'back', 'top'];
+    const allRooms = getAllRoomNames();
+    const totalViews = exteriorTypes.length + allRooms.length;
+    
+    setIsGenerating(true);
+    setGenerationProgress({ current: 0, total: totalViews });
+    toast.info(`Generating ${totalViews} views in parallel...`);
+    
+    let completed = 0;
+    const updateProgress = () => {
+      completed++;
+      setGenerationProgress({ current: completed, total: totalViews });
+    };
+    
+    // Generate exterior views in parallel (batch of 3)
+    const exteriorBatches = [];
+    for (let i = 0; i < exteriorTypes.length; i += 3) {
+      exteriorBatches.push(exteriorTypes.slice(i, i + 3));
+    }
+    
+    for (const batch of exteriorBatches) {
+      await Promise.all(batch.map(async (view) => {
+        await handleGenerateView(view);
+        updateProgress();
+      }));
+    }
+    
+    // Generate interior views in parallel (batch of 3)
+    const interiorBatches = [];
+    for (let i = 0; i < allRooms.length; i += 3) {
+      interiorBatches.push(allRooms.slice(i, i + 3));
+    }
+    
+    for (const batch of interiorBatches) {
+      await Promise.all(batch.map(async (roomName) => {
+        await handleGenerateView('interior', roomName);
+        updateProgress();
+      }));
+    }
+    
+    setIsGenerating(false);
+    setGenerationProgress({ current: 0, total: 0 });
+    toast.success(`All ${totalViews} views generated!`);
+    setRenderedView('360');
   };
 
   // Auto-generate all views on page load
@@ -93,40 +152,18 @@ const AIRenderedView = () => {
     if (!imageUrl || !formData || hasStartedGeneration.current) return;
     
     hasStartedGeneration.current = true;
-    
-    const generateAllViews = async () => {
-      const exteriorTypes = ['360', 'front', 'side', 'back', 'top'];
-      const allRooms = getAllRoomNames();
-      const totalViews = exteriorTypes.length + allRooms.length;
-      
-      setIsGenerating(true);
-      setGenerationProgress({ current: 0, total: totalViews });
-      toast.info(`Generating ${totalViews} views automatically...`);
-      
-      let completed = 0;
-      
-      // Generate exterior views
-      for (const view of exteriorTypes) {
-        await handleGenerateView(view);
-        completed++;
-        setGenerationProgress({ current: completed, total: totalViews });
-      }
-      
-      // Generate interior views for all rooms
-      for (const roomName of allRooms) {
-        await handleGenerateView('interior', roomName);
-        completed++;
-        setGenerationProgress({ current: completed, total: totalViews });
-      }
-      
-      setIsGenerating(false);
-      setGenerationProgress({ current: 0, total: 0 });
-      toast.success(`All ${totalViews} views generated!`);
-      setRenderedView('360');
-    };
-    
-    generateAllViews();
+    generateAllViewsParallel();
   }, [imageUrl, formData]);
+
+  const handleRegenerateView = async (viewKey: string, isInterior: boolean) => {
+    toast.info(`Regenerating ${viewKey}...`);
+    if (isInterior) {
+      await handleGenerateView('interior', viewKey, true);
+    } else {
+      await handleGenerateView(viewKey, undefined, true);
+    }
+    toast.success(`${viewKey} regenerated!`);
+  };
 
   if (!imageUrl || !formData) {
     return (
@@ -150,6 +187,7 @@ const AIRenderedView = () => {
   const allRoomNames = getAllRoomNames();
   const exteriorTypes = ['360', 'front', 'side', 'back', 'top'];
   const currentView = exteriorViews[renderedView] || interiorViews[renderedView];
+  const isCurrentViewGenerating = generatingViews.has(renderedView);
 
   return (
     <div className="min-h-screen bg-gradient-hero">
@@ -182,12 +220,17 @@ const AIRenderedView = () => {
               AI Rendered <span className="bg-gradient-primary bg-clip-text text-transparent">Views</span>
             </h1>
             <p className="text-muted-foreground">Photorealistic renderings of your home - exterior and all rooms</p>
+            {isGenerating && (
+              <p className="text-sm text-primary">
+                Generating views... ({generationProgress.current}/{generationProgress.total})
+              </p>
+            )}
           </div>
 
           {/* Main Display */}
           <Card className="glass-card border-2">
             <CardContent className="p-6">
-              {generatingView === renderedView ? (
+              {isCurrentViewGenerating ? (
                 <div className="flex flex-col items-center justify-center py-24">
                   <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
                   <p className="text-muted-foreground">Generating AI rendered view...</p>
@@ -198,6 +241,17 @@ const AIRenderedView = () => {
                   <Badge className="absolute top-4 left-4 bg-primary text-white">
                     {renderedView === '360' ? '360° View' : renderedView}
                   </Badge>
+                  {/* Regenerate button */}
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="absolute top-4 right-4"
+                    onClick={() => handleRegenerateView(renderedView, !!interiorViews[renderedView])}
+                    disabled={isGenerating}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Regenerate
+                  </Button>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -239,24 +293,40 @@ const AIRenderedView = () => {
                 <CardContent className="pt-0">
                   <div className="flex flex-wrap gap-2">
                     {exteriorTypes.map((view) => (
-                      <Button
-                        key={view}
-                        variant={renderedView === view && exteriorViews[view] ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleGenerateView(view)}
-                        disabled={isGenerating}
-                        className="relative"
-                      >
-                        {generatingView === view ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Eye className="w-4 h-4 mr-2" />
-                        )}
-                        {view === '360' ? '360° View' : `${view.charAt(0).toUpperCase() + view.slice(1)} View`}
+                      <div key={view} className="flex items-center gap-1">
+                        <Button
+                          variant={renderedView === view && exteriorViews[view] ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => {
+                            setRenderedView(view);
+                            if (!exteriorViews[view]) handleGenerateView(view);
+                          }}
+                          disabled={isGenerating}
+                          className="relative"
+                        >
+                          {generatingViews.has(view) ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <Eye className="w-4 h-4 mr-2" />
+                          )}
+                          {view === '360' ? '360° View' : `${view.charAt(0).toUpperCase() + view.slice(1)} View`}
+                          {exteriorViews[view] && (
+                            <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" />
+                          )}
+                        </Button>
                         {exteriorViews[view] && (
-                          <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRegenerateView(view, false)}
+                            disabled={isGenerating || generatingViews.has(view)}
+                            className="p-1 h-8 w-8"
+                            title="Regenerate this view"
+                          >
+                            <RefreshCw className={`w-3 h-3 ${generatingViews.has(view) ? 'animate-spin' : ''}`} />
+                          </Button>
                         )}
-                      </Button>
+                      </div>
                     ))}
                   </div>
                 </CardContent>
@@ -282,30 +352,46 @@ const AIRenderedView = () => {
                 <CardContent className="pt-0 space-y-4">
                   <p className="text-sm text-muted-foreground">
                     {isGenerating 
-                      ? `Generating views... (${generationProgress.current}/${generationProgress.total})`
-                      : 'All interior views are auto-generated on page load.'
+                      ? `Generating views in parallel... (${generationProgress.current}/${generationProgress.total})`
+                      : 'All interior views are auto-generated. Click regenerate to get a different result.'
                     }
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {allRoomNames.map((roomName) => (
-                      <Button
-                        key={roomName}
-                        variant={renderedView === roomName && interiorViews[roomName] ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleGenerateView('interior', roomName)}
-                        disabled={isGenerating}
-                        className="relative"
-                      >
-                        {generatingView === roomName ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Home className="w-4 h-4 mr-2" />
-                        )}
-                        {roomName}
+                      <div key={roomName} className="flex items-center gap-1">
+                        <Button
+                          variant={renderedView === roomName && interiorViews[roomName] ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => {
+                            setRenderedView(roomName);
+                            if (!interiorViews[roomName]) handleGenerateView('interior', roomName);
+                          }}
+                          disabled={isGenerating}
+                          className="relative"
+                        >
+                          {generatingViews.has(roomName) ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <Home className="w-4 h-4 mr-2" />
+                          )}
+                          {roomName}
+                          {interiorViews[roomName] && (
+                            <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" />
+                          )}
+                        </Button>
                         {interiorViews[roomName] && (
-                          <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRegenerateView(roomName, true)}
+                            disabled={isGenerating || generatingViews.has(roomName)}
+                            className="p-1 h-8 w-8"
+                            title="Regenerate this view"
+                          >
+                            <RefreshCw className={`w-3 h-3 ${generatingViews.has(roomName) ? 'animate-spin' : ''}`} />
+                          </Button>
                         )}
-                      </Button>
+                      </div>
                     ))}
                   </div>
                 </CardContent>
@@ -324,7 +410,7 @@ const AIRenderedView = () => {
                   {Object.entries(exteriorViews).map(([key, view]) => (
                     <div 
                       key={key} 
-                      className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
+                      className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-all relative group ${
                         renderedView === key ? 'border-primary' : 'border-transparent hover:border-primary/50'
                       }`}
                       onClick={() => setRenderedView(key)}
@@ -333,18 +419,42 @@ const AIRenderedView = () => {
                       <p className="text-xs p-2 text-center bg-muted/50 capitalize">
                         {key === '360' ? '360° View' : `${key} View`}
                       </p>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRegenerateView(key, false);
+                        }}
+                        disabled={generatingViews.has(key)}
+                      >
+                        <RefreshCw className={`w-3 h-3 ${generatingViews.has(key) ? 'animate-spin' : ''}`} />
+                      </Button>
                     </div>
                   ))}
                   {Object.entries(interiorViews).map(([key, view]) => (
                     <div 
                       key={key} 
-                      className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
+                      className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-all relative group ${
                         renderedView === key ? 'border-primary' : 'border-transparent hover:border-primary/50'
                       }`}
                       onClick={() => setRenderedView(key)}
                     >
                       <img src={view.url} alt={key} className="w-full aspect-video object-cover" />
                       <p className="text-xs p-2 text-center bg-muted/50">{key}</p>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRegenerateView(key, true);
+                        }}
+                        disabled={generatingViews.has(key)}
+                      >
+                        <RefreshCw className={`w-3 h-3 ${generatingViews.has(key) ? 'animate-spin' : ''}`} />
+                      </Button>
                     </div>
                   ))}
                 </div>

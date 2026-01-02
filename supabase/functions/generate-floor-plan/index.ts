@@ -34,15 +34,38 @@ serve(async (req) => {
     // Create comprehensive architectural prompt
     const prompt = `Create a professional, architect-grade 2D floor plan image with the following specifications:
 
-CRITICAL LABELING REQUIREMENTS:
-- Every room MUST have a clear, readable label showing:
-  * Room name (e.g., "Living Room", "Master Bedroom")
-  * Dimensions in feet (e.g., "12' × 16'")
-- Labels must be positioned centrally in each room
-- Use large, bold, professional font for all labels
-- Add dimension arrows on walls showing measurements
-- Include a clear legend/key explaining symbols
-- Add total built-up area calculation at bottom
+MANDATORY LABELING - EVERY ELEMENT MUST BE LABELED:
+1. ROOM LABELS (Required for ALL rooms):
+   - Each room MUST have its name in LARGE, BOLD text centered in the room
+   - Room names: "LIVING ROOM", "MASTER BEDROOM", "BEDROOM 2", "KITCHEN", "BATHROOM 1", etc.
+   - Dimensions MUST be shown below each room name: "16' × 20'" format
+   - Use contrasting color for text visibility
+
+2. DIMENSION ARROWS (Required on ALL walls):
+   - Show dimension lines with arrows on EVERY wall
+   - Display measurements in feet and inches
+   - External dimensions for overall plot size
+   - Internal dimensions for each room
+
+3. DOOR & WINDOW LABELS:
+   - Mark all doors with "D1", "D2", "D3" etc.
+   - Mark all windows with "W1", "W2", "W3" etc.
+   - Show door swing direction with arcs
+   - Include door/window sizes in legend
+
+4. LEGEND BOX (Required):
+   - Place in corner of floor plan
+   - List all room abbreviations
+   - Door and window schedule
+   - Scale indicator (1:50 or 1:100)
+   - North direction arrow
+   - Total built-up area calculation
+
+5. ROOM-SPECIFIC LABELS:
+   - Kitchen: Label counter, sink, cooking area, storage
+   - Bathroom: Label WC, wash basin, shower
+   - Bedroom: Label wardrobe area, bed placement
+   - Living: Label seating area, TV unit placement
 
 FLOOR PLAN SPECIFICATIONS:
 
@@ -53,7 +76,7 @@ PLOT DETAILS:
 - Vastu Compliant: ${preferences.vastuCompliant ? "Yes" : "No"}
 - Dynamic Scaling: ${preferences.dynamicScaling ? "Enabled" : "Disabled"}
 
-ROOMS REQUIRED:
+ROOMS REQUIRED (Label each with name and dimensions):
 ${roomDetails}
 
 OUTDOOR FEATURES:
@@ -64,14 +87,14 @@ DESIGN REQUIREMENTS:
 2. Show all walls with proper thickness (4-6 inches)
 3. Include doors with opening arcs showing swing direction
 4. Add windows with proper symbols
-5. Label each room with dimensions (length × width in feet)
-6. Show furniture layout for each room (beds, sofas, dining table, kitchen counters, bathroom fixtures)
-7. Include a north direction arrow
-8. Add scale indicator (1:50 or 1:100)
+5. LABEL EVERY ROOM with name and dimensions (length × width in feet)
+6. Show furniture layout for each room with labels
+7. Include a north direction arrow in top-right corner
+8. Add scale indicator (1:50 or 1:100) in legend
 9. Use professional color coding: walls in dark grey, rooms in soft pastels, furniture in light grey
 10. Show circulation paths and ensure logical room flow
 11. ${preferences.vastuCompliant ? "Follow Vastu directions: Living room (North-East/East), Kitchen (South-East), Master bedroom (South-West), etc." : "Optimize for functionality and natural light"}
-12. Include dimensions for all rooms
+12. Include ALL dimensions for ALL rooms and walls
 13. Add electrical points, plumbing lines if visible
 14. Ensure proper ventilation with window placements
 
@@ -83,7 +106,7 @@ ROOM LAYOUT RULES:
 - Balconies attached to living room or bedrooms
 - Proper hallway widths (3-4 feet minimum)
 
-The floor plan should look professional, clean, and realistic - as if drawn by a licensed architect. Use proper architectural symbols and conventions. Make it visually clean with clear labels and measurements.`;
+CRITICAL: The floor plan MUST have visible, readable labels for EVERY room showing the room name and dimensions. Do not generate a floor plan without labels.`;
 
     // Generate image using Lovable AI (image generation model)
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {

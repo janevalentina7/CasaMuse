@@ -57,19 +57,56 @@ serve(async (req) => {
   }
 
   try {
-    const { landArea, rooms, preferences, floorPlanDescription, userBudget, location } = await req.json();
+    const { landArea, rooms, preferences, floorPlanDescription, userBudget, location, desiredBuildTime, action, adjustmentType, currentCost, materials, targetBudget } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
+    // Handle adjustment action for upgrade/downgrade - return fallback suggestions
+    if (action === 'adjust') {
+      const adjustments = generateAdjustmentSuggestions(adjustmentType, currentCost || 5000000);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          adjustments,
+          newTotalCost: adjustmentType === 'upgrade' 
+            ? (currentCost || 5000000) * 1.15 
+            : (currentCost || 5000000) * 0.85
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    function generateAdjustmentSuggestions(type: string, baseCost: number) {
+      if (type === 'upgrade') {
+        return [
+          { category: "Flooring", currentMaterial: "Vitrified Tiles", suggestedMaterial: "Italian Marble", currentCost: baseCost * 0.08, newCost: baseCost * 0.15, difference: baseCost * 0.07, reason: "Premium look and durability", impact: "Luxury finish, 50+ years lifespan" },
+          { category: "Kitchen", currentMaterial: "Granite Countertop", suggestedMaterial: "Quartz Countertop", currentCost: baseCost * 0.03, newCost: baseCost * 0.05, difference: baseCost * 0.02, reason: "Non-porous, stain-resistant", impact: "Modern aesthetics, easier maintenance" },
+          { category: "Windows", currentMaterial: "Aluminum Windows", suggestedMaterial: "UPVC Double Glazed", currentCost: baseCost * 0.04, newCost: baseCost * 0.07, difference: baseCost * 0.03, reason: "Better insulation", impact: "30% reduction in AC costs" },
+        ];
+      } else {
+        return [
+          { category: "Flooring", currentMaterial: "Vitrified Tiles", suggestedMaterial: "Ceramic Tiles", currentCost: baseCost * 0.08, newCost: baseCost * 0.05, difference: baseCost * -0.03, reason: "Good quality at lower cost", impact: "Still 20+ year lifespan" },
+          { category: "Kitchen", currentMaterial: "Modular Kitchen", suggestedMaterial: "Semi-Modular Kitchen", currentCost: baseCost * 0.06, newCost: baseCost * 0.04, difference: baseCost * -0.02, reason: "Functional with good storage", impact: "Equally functional" },
+          { category: "Doors", currentMaterial: "Solid Wood Doors", suggestedMaterial: "Flush Doors with Laminate", currentCost: baseCost * 0.04, newCost: baseCost * 0.025, difference: baseCost * -0.015, reason: "Moisture resistant", impact: "Modern look, 15-year lifespan" },
+        ];
+      }
+    }
+
     console.log('Generating cost estimation for:', { landArea, roomCount: rooms?.length, style: preferences?.style, budget: userBudget, location });
 
-    // Calculate total built-up area
-    const totalArea = rooms?.reduce((sum: number, room: any) => {
-      return sum + (room.length * room.breadth);
-    }, 0) || landArea * 0.6;
+    // Calculate total built-up area - use room dimensions from form
+    let totalArea = 0;
+    if (rooms && rooms.length > 0) {
+      totalArea = rooms.reduce((sum: number, room: any) => {
+        const roomArea = (room.width || 10) * (room.height || 12) * (room.count || 1);
+        const bathroomArea = room.attachedBathroom ? (6 * 7 * (room.count || 1)) : 0;
+        return sum + roomArea + bathroomArea;
+      }, 0);
+    }
+    if (totalArea === 0) totalArea = landArea * 0.6;
 
     // Get location-specific rates
     const cityKey = location?.toLowerCase().replace(/[^a-z]/g, '') || 'default';
@@ -78,9 +115,8 @@ serve(async (req) => {
     const avgLandRate = (landRates.min + landRates.max) / 2;
 
     // Calculate base costs
-    const constructionCost = totalArea * constructionRate;
+    let constructionCost = totalArea * constructionRate;
     const landCost = landArea * avgLandRate;
-    const totalEstimatedCost = constructionCost + landCost;
 
     // Style multiplier
     const styleMultipliers: Record<string, number> = {
@@ -96,7 +132,19 @@ serve(async (req) => {
       'Rustic': 0.9,
     };
     const styleMultiplier = styleMultipliers[preferences?.style] || 1.0;
-    const adjustedConstructionCost = constructionCost * styleMultiplier;
+    let adjustedConstructionCost = constructionCost * styleMultiplier;
+
+    // If user has a budget, adjust the construction cost to fit
+    const budgetValue = userBudget || targetBudget;
+    let budgetConstrained = false;
+    if (budgetValue && budgetValue > 0) {
+      const maxConstructionBudget = budgetValue - landCost;
+      if (maxConstructionBudget > 0 && adjustedConstructionCost > maxConstructionBudget) {
+        // User budget is lower than estimated - we'll provide budget-constrained estimation
+        budgetConstrained = true;
+        console.log('Budget constrained - adjusting to fit user budget:', budgetValue);
+      }
+    }
 
     console.log('Calculated costs:', { totalArea, constructionRate, constructionCost, landCost, styleMultiplier });
 

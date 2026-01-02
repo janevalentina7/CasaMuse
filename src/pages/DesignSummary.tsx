@@ -2,26 +2,31 @@ import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, ArrowLeft, FileText, Box, Eye, IndianRupee, Loader2 } from "lucide-react";
+import { Home, ArrowLeft, FileText, Box, Eye, IndianRupee, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import PDFExporter from "@/components/PDFExporter";
+import CostEstimationEnhanced from "@/components/CostEstimationEnhanced";
+import HouseModel3D from "@/components/3d/HouseModel3D";
 
 const DesignSummary = () => {
   const location = useLocation();
-  const { imageUrl, formData, description, costEstimationData } = location.state || {};
+  const { imageUrl, formData, description, costEstimationData: initialCostData } = location.state || {};
   const [isGenerating, setIsGenerating] = useState(false);
   const [exteriorViews, setExteriorViews] = useState<{ [key: string]: string }>({});
   const [interiorViews, setInteriorViews] = useState<{ [key: string]: string }>({});
-  const [generatingView, setGeneratingView] = useState<string | null>(null);
+  const [generatingViews, setGeneratingViews] = useState<Set<string>>(new Set());
+  const [costEstimationData, setCostEstimationData] = useState<any>(initialCostData || null);
+  const [isGeneratingCost, setIsGeneratingCost] = useState(false);
+  const [show3DModel, setShow3DModel] = useState(false);
+  const hasStartedGeneration = useRef(false);
 
   const generateView = async (viewType: string, roomName?: string) => {
     if (!imageUrl || !formData) return;
 
     const viewKey = roomName || viewType;
-    setGeneratingView(viewKey);
-    setIsGenerating(true);
+    setGeneratingViews(prev => new Set(prev).add(viewKey));
 
     try {
       const { data, error } = await supabase.functions.invoke('generate-3d-model', {
@@ -43,40 +48,89 @@ const DesignSummary = () => {
         } else {
           setExteriorViews(prev => ({ ...prev, [viewType]: data.imageUrl }));
         }
-        toast.success(`${roomName || viewType} view generated!`);
       }
     } catch (error) {
       console.error('Error generating view:', error);
-      toast.error("Failed to generate view");
     } finally {
-      setIsGenerating(false);
-      setGeneratingView(null);
+      setGeneratingViews(prev => {
+        const next = new Set(prev);
+        next.delete(viewKey);
+        return next;
+      });
     }
   };
 
-  const generateAllViews = async () => {
+  const generateAllViewsParallel = async () => {
     if (!formData?.rooms) return;
     
-    toast.info("Generating all views... This will take a few minutes.");
+    setIsGenerating(true);
+    toast.info("Generating all views in parallel...");
     
-    // Generate exterior views
     const exteriorTypes = ['360', 'front', 'side', 'back', 'top'];
-    for (const view of exteriorTypes) {
-      if (!exteriorViews[view]) {
-        await generateView(view);
-      }
-    }
-    
-    // Generate interior views for all rooms
     const allRooms = getAllRoomNames();
-    for (const roomName of allRooms) {
-      if (!interiorViews[roomName]) {
-        await generateView('interior', roomName);
-      }
+    
+    // Generate in parallel batches
+    const exteriorBatches = [];
+    for (let i = 0; i < exteriorTypes.length; i += 3) {
+      exteriorBatches.push(exteriorTypes.slice(i, i + 3));
     }
     
+    for (const batch of exteriorBatches) {
+      await Promise.all(batch.map(view => generateView(view)));
+    }
+    
+    const interiorBatches = [];
+    for (let i = 0; i < allRooms.length; i += 3) {
+      interiorBatches.push(allRooms.slice(i, i + 3));
+    }
+    
+    for (const batch of interiorBatches) {
+      await Promise.all(batch.map(roomName => generateView('interior', roomName)));
+    }
+    
+    setIsGenerating(false);
     toast.success("All views generated!");
   };
+
+  const generateCostEstimation = async () => {
+    if (!formData) return;
+    
+    setIsGeneratingCost(true);
+    toast.info("Generating cost estimation...");
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-cost-estimation', {
+        body: {
+          landArea: formData.landArea,
+          rooms: formData.rooms,
+          preferences: formData.preferences,
+          floorPlanDescription: description,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data?.estimation) {
+        setCostEstimationData(data.estimation);
+        toast.success("Cost estimation generated!");
+      }
+    } catch (error) {
+      console.error('Error generating cost:', error);
+      toast.error("Failed to generate cost estimation");
+    } finally {
+      setIsGeneratingCost(false);
+    }
+  };
+
+  // Auto-generate views on page load
+  useEffect(() => {
+    if (!imageUrl || !formData || hasStartedGeneration.current) return;
+    hasStartedGeneration.current = true;
+    generateAllViewsParallel();
+    if (!costEstimationData) {
+      generateCostEstimation();
+    }
+  }, [imageUrl, formData]);
 
   const getAllRoomNames = () => {
     if (!formData?.rooms) return [];
@@ -95,6 +149,37 @@ const DesignSummary = () => {
     });
     
     return roomNames;
+  };
+
+  const transformRoomsFor3D = (rooms: any[]) => {
+    const transformed: { roomName: string; length: number; breadth: number }[] = [];
+    
+    rooms.forEach((room) => {
+      const count = room.count || 1;
+      for (let i = 0; i < count; i++) {
+        transformed.push({
+          roomName: count > 1 ? `${room.roomName} ${i + 1}` : room.roomName,
+          length: room.height || 12,
+          breadth: room.width || 10,
+        });
+      }
+      
+      if (room.attachedBathroom && room.count > 0) {
+        for (let i = 0; i < count; i++) {
+          transformed.push({
+            roomName: `Bathroom (${count > 1 ? room.roomName + ' ' + (i + 1) : room.roomName})`,
+            length: 7,
+            breadth: 6,
+          });
+        }
+      }
+    });
+    
+    return transformed;
+  };
+
+  const handleCostUpdate = (newData: any) => {
+    setCostEstimationData(newData);
   };
 
   if (!imageUrl || !formData) {
@@ -136,7 +221,7 @@ const DesignSummary = () => {
                 formData={formData}
                 imageUrl={imageUrl}
                 description={description}
-                costEstimationData={costEstimationData}
+                costEstimationData={costEstimationData?.summary}
                 exteriorViews={exteriorViews}
                 interiorViews={interiorViews}
               />
@@ -241,11 +326,11 @@ const DesignSummary = () => {
               </CardTitle>
               <Button 
                 size="sm" 
-                onClick={generateAllViews}
+                onClick={generateAllViewsParallel}
                 disabled={isGenerating}
               >
-                {isGenerating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                Generate All Views
+                {isGenerating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                {isGenerating ? 'Generating...' : 'Regenerate All'}
               </Button>
             </CardHeader>
             <CardContent>
@@ -257,7 +342,7 @@ const DesignSummary = () => {
                         <img src={exteriorViews[view]} alt={`${view} view`} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          {generatingView === view ? (
+                          {generatingViews.has(view) ? (
                             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
                           ) : (
                             <Button 
@@ -296,7 +381,7 @@ const DesignSummary = () => {
                         <img src={interiorViews[roomName]} alt={roomName} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          {generatingView === roomName ? (
+                          {generatingViews.has(roomName) ? (
                             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
                           ) : (
                             <Button 
@@ -318,70 +403,90 @@ const DesignSummary = () => {
             </CardContent>
           </Card>
 
-          {/* Interactive 3D Preview */}
+          {/* Interactive 3D Model Preview */}
           <Card className="glass-card">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Box className="w-5 h-5" />
                 Interactive 3D Model
               </CardTitle>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => setShow3DModel(!show3DModel)}
+              >
+                {show3DModel ? 'Hide 3D Model' : 'Show 3D Model'}
+              </Button>
             </CardHeader>
-            <CardContent className="text-center py-8">
-              <p className="text-muted-foreground mb-4">
-                Explore your home in interactive 3D with VR support
-              </p>
-              <Link to="/interactive-3d" state={{ imageUrl, description, formData }}>
-                <Button variant="hero">
-                  <Box className="w-4 h-4 mr-2" />
-                  Open Interactive 3D
-                </Button>
-              </Link>
+            <CardContent>
+              {show3DModel ? (
+                <div className="h-[400px] rounded-lg overflow-hidden border border-border">
+                  <HouseModel3D
+                    rooms={transformRoomsFor3D(formData.rooms || [])}
+                    style={formData.preferences?.style || 'Modern'}
+                  />
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground mb-4">
+                    Explore your home in interactive 3D with VR support
+                  </p>
+                  <div className="flex gap-4 justify-center">
+                    <Button onClick={() => setShow3DModel(true)}>
+                      <Box className="w-4 h-4 mr-2" />
+                      Show 3D Preview
+                    </Button>
+                    <Link to="/interactive-3d" state={{ imageUrl, description, formData }}>
+                      <Button variant="hero">
+                        <Box className="w-4 h-4 mr-2" />
+                        Open Full 3D View
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Cost Estimation Summary */}
+          {/* Cost Estimation with Upgrade/Downgrade */}
           <Card className="glass-card">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <IndianRupee className="w-5 h-5" />
-                Cost Estimation Summary
+                Cost Estimation
               </CardTitle>
+              {!costEstimationData && (
+                <Button 
+                  size="sm" 
+                  onClick={generateCostEstimation}
+                  disabled={isGeneratingCost}
+                >
+                  {isGeneratingCost ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  Generate Cost Estimation
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
-              {costEstimationData ? (
-                <div className="space-y-4">
-                  <div className="grid sm:grid-cols-3 gap-4">
-                    <div className="p-4 rounded-lg bg-primary/10 text-center">
-                      <p className="text-sm text-muted-foreground">Total Estimated Cost</p>
-                      <p className="text-2xl font-bold text-primary">
-                        ₹{costEstimationData.totalCost?.toLocaleString('en-IN') || 'N/A'}
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-lg bg-muted/30 text-center">
-                      <p className="text-sm text-muted-foreground">Cost per Sq Ft</p>
-                      <p className="text-xl font-semibold">
-                        ₹{costEstimationData.costPerSqFt?.toLocaleString('en-IN') || 'N/A'}
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-lg bg-muted/30 text-center">
-                      <p className="text-sm text-muted-foreground">Build Time</p>
-                      <p className="text-xl font-semibold">
-                        {costEstimationData.buildTime || '9-12 months'}
-                      </p>
-                    </div>
-                  </div>
+              {isGeneratingCost ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
+                  <p className="text-muted-foreground">Generating detailed cost estimation...</p>
                 </div>
+              ) : costEstimationData ? (
+                <CostEstimationEnhanced 
+                  data={costEstimationData}
+                  formData={formData}
+                  onUpdate={handleCostUpdate}
+                />
               ) : (
                 <div className="text-center py-8">
                   <p className="text-muted-foreground mb-4">
                     Cost estimation not generated yet
                   </p>
-                  <Link to="/floor-plan-result" state={{ imageUrl, description, formData }}>
-                    <Button variant="outline">
-                      <IndianRupee className="w-4 h-4 mr-2" />
-                      Generate Cost Estimation
-                    </Button>
-                  </Link>
+                  <Button onClick={generateCostEstimation} disabled={isGeneratingCost}>
+                    <IndianRupee className="w-4 h-4 mr-2" />
+                    Generate Cost Estimation
+                  </Button>
                 </div>
               )}
             </CardContent>
