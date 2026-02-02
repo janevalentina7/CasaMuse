@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { useFloorTexture, useWallTexture, StyleMaterials } from './TexturedMaterials';
 import { RealisticSofa, RealisticBed, RealisticDiningTable, RealisticChair, RealisticCabinet, RealisticDesk, CoffeeTable, TVUnit } from './RealisticFurniture';
 import { FloorLamp, TableLamp, AreaRug, Curtains, IndoorPlant, FloorPlant, WallArt, CeilingFan, Bookshelf, VaseWithFlowers } from './InteriorDecorations';
+import { PendantLight, WallSconce, WallClock, DetailedPictureFrame, ThrowBlanket, SideTableWithLamp, DecorativeBowl, IndoorTree } from './EnhancedInteriorDetails';
+import { getStyleConfig } from './StyleConsistency';
 
 interface Room {
   roomName: string;
@@ -93,88 +95,110 @@ function Door({ position, rotation = [0, 0, 0], isMain = false, styleConfig }: {
   );
 }
 
-// Get furniture and decorations for room based on room type
-function getRoomFurniture(roomName: string, width: number, depth: number, height: number): JSX.Element[] {
+// Get furniture and decorations for room based on room type and style
+function getRoomFurniture(roomName: string, width: number, depth: number, height: number, style?: string): JSX.Element[] {
   const items: JSX.Element[] = [];
   const lowerName = roomName.toLowerCase();
+  const styleConfig = getStyleConfig(style || 'Modern');
   
   if (lowerName.includes('living') || lowerName.includes('drawing')) {
     items.push(
-      <RealisticSofa key="sofa" position={[0, 0, -depth / 2 + 1.2]} rotation={0} />,
-      <CoffeeTable key="coffee" position={[0, 0, -depth / 2 + 2.5]} />,
-      <TVUnit key="tv" position={[0, 0, depth / 2 - 0.5]} rotation={Math.PI} />,
-      // Decorations
-      <AreaRug key="rug" position={[0, 0, 0]} color="#8b4513" pattern="geometric" />,
+      <RealisticSofa key="sofa" position={[0, 0, -depth / 2 + 1.2]} rotation={0} color={styleConfig.furniture.upholstery} />,
+      <CoffeeTable key="coffee" position={[0, 0, -depth / 2 + 2.5]} color={styleConfig.furniture.primaryWood} />,
+      <TVUnit key="tv" position={[0, 0, depth / 2 - 0.5]} rotation={Math.PI} color={styleConfig.furniture.primaryWood} />,
+      // Enhanced decorations
+      <AreaRug key="rug" position={[0, 0, 0]} color={styleConfig.decor.rugColor} pattern="geometric" />,
       <FloorLamp key="lamp1" position={[-width / 2 + 0.5, 0, -depth / 2 + 0.8]} />,
-      <FloorPlant key="plant" position={[width / 2 - 0.6, 0, -depth / 2 + 0.6]} />,
-      <WallArt key="art1" position={[0, height / 2 + 0.5, -depth / 2 + 0.15]} />,
-      <Curtains key="curtain" position={[width / 2 - 0.2, 0, 0]} rotation={Math.PI / 2} color="#4a5568" height={height - 0.3} />,
-      <CeilingFan key="fan" position={[0, height - 0.05, 0]} />
+      <IndoorTree key="tree" position={[width / 2 - 0.6, 0, -depth / 2 + 0.6]} scale={0.9} />,
+      <DetailedPictureFrame key="art1" position={[0, height / 2 + 0.5, -depth / 2 + 0.15]} artType="landscape" size={[0.8, 0.6]} />,
+      <Curtains key="curtain" position={[width / 2 - 0.2, 0, 0]} rotation={Math.PI / 2} color={styleConfig.decor.curtainColor} height={height - 0.3} />,
+      <PendantLight key="pendant" position={[0, height - 0.1, 0]} style={styleConfig.lighting.fixtureStyle} />,
+      <SideTableWithLamp key="sidetable" position={[-width / 2 + 0.5, 0, -depth / 2 + 2]} tableColor={styleConfig.furniture.secondaryWood} />,
+      <ThrowBlanket key="throw" position={[0.3, 0.52, -depth / 2 + 1.2]} color={styleConfig.decor.cushionAccent} />,
+      <DecorativeBowl key="bowl" position={[0, 0.42, -depth / 2 + 2.5]} contents="decorative" />
     );
   } else if (lowerName.includes('bedroom') || lowerName.includes('master')) {
     items.push(
-      <RealisticBed key="bed" position={[0, 0, 0]} rotation={0} />,
-      <RealisticCabinet key="cabinet" position={[-width / 2 + 0.8, 0, -depth / 2 + 0.5]} rotation={0} />,
-      // Decorations
-      <AreaRug key="rug" position={[0, 0, 0.8]} color="#d4c4a8" scale={0.8} />,
-      <TableLamp key="lamp1" position={[-width / 2 + 0.9, 0.75, -depth / 2 + 0.5]} />,
-      <TableLamp key="lamp2" position={[width / 2 - 0.5, 0.5, -0.5]} />,
+      <RealisticBed key="bed" position={[0, 0, 0]} rotation={0} color={styleConfig.furniture.upholstery} />,
+      <RealisticCabinet key="cabinet" position={[-width / 2 + 0.8, 0, -depth / 2 + 0.5]} rotation={0} color={styleConfig.furniture.primaryWood} />,
+      // Enhanced decorations
+      <AreaRug key="rug" position={[0, 0, 0.8]} color={styleConfig.decor.rugColor} scale={0.8} />,
+      <SideTableWithLamp key="nightstand1" position={[-width / 2 + 0.9, 0, -0.3]} tableColor={styleConfig.furniture.secondaryWood} />,
+      <SideTableWithLamp key="nightstand2" position={[width / 2 - 0.5, 0, -0.3]} tableColor={styleConfig.furniture.secondaryWood} />,
       <IndoorPlant key="plant" position={[width / 2 - 0.5, 0, depth / 2 - 0.5]} type="fern" />,
-      <WallArt key="art" position={[0, height / 2 + 0.3, -depth / 2 + 0.15]} scale={0.8} />,
-      <Curtains key="curtain" position={[width / 2 - 0.2, 0, 0]} rotation={Math.PI / 2} color="#6b5b4f" height={height - 0.3} />,
-      <CeilingFan key="fan" position={[0, height - 0.05, 0]} />
+      <DetailedPictureFrame key="art" position={[0, height / 2 + 0.3, -depth / 2 + 0.15]} artType="abstract" size={[0.7, 0.5]} />,
+      <Curtains key="curtain" position={[width / 2 - 0.2, 0, 0]} rotation={Math.PI / 2} color={styleConfig.decor.curtainColor} height={height - 0.3} />,
+      <PendantLight key="pendant" position={[0, height - 0.1, 0]} style={styleConfig.lighting.fixtureStyle} />,
+      <WallSconce key="sconce1" position={[-width / 2 + 0.15, height / 2, -0.3]} rotation={-Math.PI / 2} />,
+      <WallSconce key="sconce2" position={[width / 2 - 0.15, height / 2, -0.3]} rotation={Math.PI / 2} />
     );
   } else if (lowerName.includes('dining')) {
     items.push(
-      <RealisticDiningTable key="table" position={[0, 0, 0]} />,
-      <RealisticChair key="chair1" position={[0, 0, 0.8]} rotation={Math.PI} />,
-      <RealisticChair key="chair2" position={[0, 0, -0.8]} rotation={0} />,
-      <RealisticChair key="chair3" position={[-0.9, 0, 0]} rotation={Math.PI / 2} />,
-      <RealisticChair key="chair4" position={[0.9, 0, 0]} rotation={-Math.PI / 2} />,
-      // Decorations
+      <RealisticDiningTable key="table" position={[0, 0, 0]} color={styleConfig.furniture.primaryWood} />,
+      <RealisticChair key="chair1" position={[0, 0, 0.8]} rotation={Math.PI} color={styleConfig.furniture.primaryWood} />,
+      <RealisticChair key="chair2" position={[0, 0, -0.8]} rotation={0} color={styleConfig.furniture.primaryWood} />,
+      <RealisticChair key="chair3" position={[-0.9, 0, 0]} rotation={Math.PI / 2} color={styleConfig.furniture.primaryWood} />,
+      <RealisticChair key="chair4" position={[0.9, 0, 0]} rotation={-Math.PI / 2} color={styleConfig.furniture.primaryWood} />,
+      // Enhanced decorations
       <VaseWithFlowers key="vase" position={[0, 0.78, 0]} />,
-      <WallArt key="art" position={[-width / 2 + 0.15, height / 2 + 0.3, 0]} rotation={Math.PI / 2} />,
-      <FloorPlant key="plant" position={[width / 2 - 0.5, 0, -depth / 2 + 0.5]} />,
-      <CeilingFan key="fan" position={[0, height - 0.05, 0]} />
+      <DetailedPictureFrame key="art" position={[-width / 2 + 0.15, height / 2 + 0.3, 0]} rotation={Math.PI / 2} artType="portrait" />,
+      <IndoorTree key="plant" position={[width / 2 - 0.5, 0, -depth / 2 + 0.5]} scale={0.85} />,
+      <PendantLight key="pendant" position={[0, height - 0.1, 0]} style={styleConfig.lighting.fixtureStyle} />,
+      <DecorativeBowl key="bowl" position={[0.4, 0.78, 0]} contents="fruit" />
     );
   } else if (lowerName.includes('kitchen')) {
     items.push(
-      // Kitchen counter
+      // Kitchen counter with enhanced materials
       <Box key="counter" args={[width - 1, 0.9, 0.6]} position={[0, 0.45, -depth / 2 + 0.4]}>
-        <meshStandardMaterial color="#e8e8e8" roughness={0.3} />
+        <meshStandardMaterial color="#e8e8e8" roughness={0.2} metalness={0.1} />
       </Box>,
       // Upper cabinets
       <Box key="upper" args={[width - 1.5, 0.6, 0.35]} position={[0, height - 0.6, -depth / 2 + 0.25]}>
-        <meshStandardMaterial color="#8b6914" roughness={0.5} />
+        <meshStandardMaterial color={styleConfig.furniture.primaryWood} roughness={0.5} />
       </Box>,
-      <IndoorPlant key="plant" position={[width / 2 - 0.4, 0.92, -depth / 2 + 0.4]} type="succulent" scale={0.7} />
+      // Stove hood
+      <Box key="hood" args={[0.8, 0.3, 0.5]} position={[0, height - 0.4, -depth / 2 + 0.35]}>
+        <meshStandardMaterial color="#c0c0c0" metalness={0.7} roughness={0.3} />
+      </Box>,
+      <IndoorPlant key="plant" position={[width / 2 - 0.4, 0.92, -depth / 2 + 0.4]} type="succulent" scale={0.7} />,
+      <WallClock key="clock" position={[width / 2 - 0.15, height / 2 + 0.5, 0]} rotation={-Math.PI / 2} />
     );
   } else if (lowerName.includes('study') || lowerName.includes('office')) {
     items.push(
-      <RealisticDesk key="desk" position={[0, 0, -depth / 2 + 1]} rotation={0} />,
-      <RealisticChair key="chair" position={[0, 0, -depth / 2 + 1.8]} rotation={Math.PI} />,
-      // Decorations
+      <RealisticDesk key="desk" position={[0, 0, -depth / 2 + 1]} rotation={0} color={styleConfig.furniture.primaryWood} />,
+      <RealisticChair key="chair" position={[0, 0, -depth / 2 + 1.8]} rotation={Math.PI} color={styleConfig.furniture.secondaryWood} />,
+      // Enhanced decorations
       <Bookshelf key="shelf" position={[-width / 2 + 0.6, 0, 0]} rotation={Math.PI / 2} />,
       <TableLamp key="lamp" position={[0.5, 0.77, -depth / 2 + 1]} />,
       <IndoorPlant key="plant" position={[width / 2 - 0.4, 0, depth / 2 - 0.4]} type="fern" />,
-      <AreaRug key="rug" position={[0, 0, 0]} color="#4a5568" scale={0.7} />,
-      <CeilingFan key="fan" position={[0, height - 0.05, 0]} />
+      <AreaRug key="rug" position={[0, 0, 0]} color={styleConfig.decor.rugColor} scale={0.7} />,
+      <PendantLight key="pendant" position={[0, height - 0.1, 0]} style={styleConfig.lighting.fixtureStyle} />,
+      <WallClock key="clock" position={[width / 2 - 0.15, height / 2 + 0.5, -depth / 2 + 1]} rotation={-Math.PI / 2} />,
+      <DetailedPictureFrame key="art" position={[-width / 2 + 0.15, height / 2 + 0.3, 0]} rotation={Math.PI / 2} artType="abstract" size={[0.5, 0.4]} />
     );
   } else if (lowerName.includes('pooja') || lowerName.includes('prayer')) {
     items.push(
-      <RealisticCabinet key="altar" position={[0, 0, -depth / 2 + 0.5]} scale={0.8} />,
+      <RealisticCabinet key="altar" position={[0, 0, -depth / 2 + 0.5]} scale={0.8} color={styleConfig.furniture.primaryWood} />,
       <FloorLamp key="lamp" position={[-width / 2 + 0.4, 0, -depth / 2 + 0.4]} scale={0.7} />,
-      <IndoorPlant key="plant" position={[width / 2 - 0.3, 0, -depth / 2 + 0.3]} type="succulent" scale={0.6} />
+      <IndoorPlant key="plant" position={[width / 2 - 0.3, 0, -depth / 2 + 0.3]} type="succulent" scale={0.6} />,
+      <VaseWithFlowers key="vase" position={[0, 1.85, -depth / 2 + 0.5]} />
     );
   } else if (lowerName.includes('bathroom')) {
-    // Simple bathroom fixtures
+    // Enhanced bathroom fixtures
     items.push(
       <Box key="sink" args={[0.6, 0.1, 0.45]} position={[0, 0.85, -depth / 2 + 0.35]}>
-        <meshStandardMaterial color="#ffffff" roughness={0.2} />
+        <meshStandardMaterial color="#ffffff" roughness={0.1} metalness={0.1} />
       </Box>,
       <Box key="vanity" args={[0.8, 0.85, 0.5]} position={[0, 0.425, -depth / 2 + 0.35]}>
-        <meshStandardMaterial color="#5a4a3a" roughness={0.6} />
-      </Box>
+        <meshStandardMaterial color={styleConfig.furniture.primaryWood} roughness={0.6} />
+      </Box>,
+      // Mirror
+      <Box key="mirror" args={[0.6, 0.8, 0.02]} position={[0, height / 2 + 0.3, -depth / 2 + 0.15]}>
+        <meshStandardMaterial color="#e8e8e8" metalness={0.95} roughness={0.05} />
+      </Box>,
+      <WallSconce key="sconce1" position={[-0.45, height / 2 + 0.3, -depth / 2 + 0.2]} rotation={0} />,
+      <WallSconce key="sconce2" position={[0.45, height / 2 + 0.3, -depth / 2 + 0.2]} rotation={0} />,
+      <IndoorPlant key="plant" position={[width / 2 - 0.3, 0.9, -depth / 2 + 0.4]} type="succulent" scale={0.5} />
     );
   }
   

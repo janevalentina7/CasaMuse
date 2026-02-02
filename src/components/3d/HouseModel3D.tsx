@@ -7,12 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import ModelExporter from './ModelExporter';
 import { RoomComponent } from './RoomBuilder';
-import Landscaping from './Landscaping';
+import EnhancedLandscaping from './EnhancedLandscaping';
 import ExteriorLighting from './ExteriorLighting';
 import { getStyleMaterials } from './TexturedMaterials';
 import StyleSpecificRoof from './StyleSpecificRoof';
 import { useGrassTexture, useStonePaverTexture, useStuccoWallTexture, useRoofTileTexture } from './PBRMaterials';
 import OutdoorFeatures from './OutdoorFeatures';
+import { getStyleConfig } from './StyleConsistency';
 import { Ruler, Clock, Download } from 'lucide-react';
 
 interface Room {
@@ -383,8 +384,8 @@ function House({ rooms, style, timeOfDay, showMeasurements }: {
       {/* Outdoor Features - Garage, Pool, Deck */}
       <OutdoorFeatures houseWidth={totalWidth} houseDepth={totalDepth} style={style} />
 
-      {/* Landscaping */}
-      <Landscaping houseWidth={totalWidth} houseDepth={totalDepth} style={style} />
+      {/* Enhanced Landscaping */}
+      <EnhancedLandscaping houseWidth={totalWidth} houseDepth={totalDepth} style={style} />
       
       {/* Exterior Lighting */}
       <ExteriorLighting houseWidth={totalWidth} houseDepth={totalDepth} timeOfDay={timeOfDay} />
