@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.generate-cost-estimation]
 verify_jwt = false
+
+[functions.image-to-3d-meshy]
+verify_jwt = false

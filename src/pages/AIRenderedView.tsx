@@ -2,15 +2,19 @@ import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, ArrowLeft, Box, Eye, Loader2, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { Home, ArrowLeft, Box, Eye, Loader2, ChevronDown, ChevronUp, RefreshCw, Cuboid, Download } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useMeshyGeneration } from "@/hooks/useMeshyGeneration";
+import MeshyModelViewer from "@/components/3d/MeshyModelViewer";
+import { Progress } from "@/components/ui/progress";
 
 const AIRenderedView = () => {
   const location = useLocation();
   const { imageUrl, formData, description } = location.state || {};
+  const meshy = useMeshyGeneration();
   const [isGenerating, setIsGenerating] = useState(false);
   const [renderedView, setRenderedView] = useState<string>('360');
   const [exteriorViews, setExteriorViews] = useState<{ [key: string]: { url: string; description: string } }>({});
@@ -271,6 +275,68 @@ const AIRenderedView = () => {
             <Card className="glass-card">
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">{currentView.description}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Meshy AI Image-to-3D Section */}
+          {currentView && !meshy.modelUrl && (
+            <Card className="glass-card border-2 border-primary/30">
+              <CardContent className="p-6 text-center space-y-4">
+                <div className="flex items-center justify-center gap-2">
+                  <Cuboid className="w-6 h-6 text-primary" />
+                  <h3 className="text-lg font-semibold">Convert to Interactive 3D Model</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Use Meshy AI to generate a real 3D mesh (.glb) from this rendered view. Takes 3-7 minutes.
+                </p>
+                {meshy.isGenerating ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                      <span className="text-sm">{meshy.status}</span>
+                    </div>
+                    <Progress value={meshy.progress} className="w-full max-w-xs mx-auto" />
+                  </div>
+                ) : (
+                  <Button
+                    variant="default"
+                    onClick={() => meshy.generateModel(currentView.url)}
+                    disabled={meshy.isGenerating}
+                  >
+                    <Cuboid className="w-4 h-4 mr-2" />
+                    Generate 3D Mesh with Meshy AI
+                  </Button>
+                )}
+                {meshy.error && (
+                  <p className="text-sm text-destructive">{meshy.error}</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Meshy 3D Model Viewer */}
+          {meshy.modelUrl && (
+            <Card className="glass-card border-2 border-primary">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Cuboid className="w-5 h-5" />
+                  Meshy AI 3D Model
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <MeshyModelViewer modelUrl={meshy.modelUrl} />
+                <div className="flex gap-2 justify-center">
+                  <Button variant="outline" asChild>
+                    <a href={meshy.modelUrl} download="house-model.glb">
+                      <Download className="w-4 h-4 mr-2" />
+                      Download .glb
+                    </a>
+                  </Button>
+                  <Button variant="ghost" onClick={meshy.reset}>
+                    Try Another View
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
