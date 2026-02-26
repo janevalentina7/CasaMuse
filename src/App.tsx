@@ -8,7 +8,10 @@ import DesignTool from "./pages/DesignTool";
 import FloorPlanResult from "./pages/FloorPlanResult";
 import AIRenderedView from "./pages/AIRenderedView";
 import Interactive3DView from "./pages/Interactive3DView";
+import VRWalkthroughPage from "./pages/VRWalkthroughPage";
+import CostEstimationPage from "./pages/CostEstimationPage";
 import DesignSummary from "./pages/DesignSummary";
+import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,7 +28,10 @@ const App = () => (
           <Route path="/floor-plan-result" element={<FloorPlanResult />} />
           <Route path="/ai-rendered-view" element={<AIRenderedView />} />
           <Route path="/interactive-3d" element={<Interactive3DView />} />
+          <Route path="/vr-walkthrough" element={<VRWalkthroughPage />} />
+          <Route path="/cost-estimation" element={<CostEstimationPage />} />
           <Route path="/design-summary" element={<DesignSummary />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
