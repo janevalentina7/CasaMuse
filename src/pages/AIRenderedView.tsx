@@ -2,20 +2,16 @@ import { useLocation, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, ArrowLeft, ArrowRight, Box, Eye, Loader2, ChevronDown, ChevronUp, RefreshCw, Cuboid, Download } from "lucide-react";
+import { Home, ArrowLeft, ArrowRight, Box, Eye, Loader2, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useMultiViewMeshy } from "@/hooks/useMultiViewMeshy";
-import MultiModelViewer from "@/components/3d/MultiModelViewer";
-import { Progress } from "@/components/ui/progress";
 
 const AIRenderedView = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { imageUrl, formData, description } = location.state || {};
-  const multiMeshy = useMultiViewMeshy();
   const [isGenerating, setIsGenerating] = useState(false);
   const [renderedView, setRenderedView] = useState<string>('360');
   const [exteriorViews, setExteriorViews] = useState<{ [key: string]: { url: string; description: string } }>({});
@@ -216,7 +212,7 @@ const AIRenderedView = () => {
               <Button
                 variant="hero"
                 size="sm"
-                onClick={() => navigate('/interactive-3d', { state: { imageUrl, description, formData } })}
+                onClick={() => navigate('/interactive-3d', { state: { imageUrl, description, formData, exteriorViews, interiorViews } })}
               >
                 Next: 3D Model<ArrowRight className="w-4 h-4 ml-2" />
               </Button>
@@ -288,137 +284,7 @@ const AIRenderedView = () => {
             </Card>
           )}
 
-          {/* Multi-View Meshy AI 3D Conversion */}
-          {(Object.keys(exteriorViews).length > 0 || Object.keys(interiorViews).length > 0) && (
-            <Card className="glass-card border-2 border-primary/30">
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Cuboid className="w-6 h-6 text-primary" />
-                    <h3 className="text-lg font-semibold">Convert to 3D Models (Meshy AI)</h3>
-                  </div>
-                  {multiMeshy.isConverting && (
-                    <Badge variant="secondary">
-                      {multiMeshy.completedCount}/{multiMeshy.totalCount} complete
-                    </Badge>
-                  )}
-                </div>
-
-                <p className="text-sm text-muted-foreground">
-                  Send exterior and interior views to Meshy AI for image-to-3D mesh conversion. Each view takes 3-7 minutes.
-                </p>
-
-                {multiMeshy.isConverting && (
-                  <div className="space-y-2">
-                    <Progress value={multiMeshy.overallProgress} className="w-full" />
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-                      {Object.values(multiMeshy.tasks).map((task) => (
-                        <div key={task.viewKey} className="flex items-center gap-1.5 p-2 rounded bg-muted/50">
-                          {task.status === "SUCCEEDED" ? (
-                            <span className="w-2 h-2 rounded-full bg-green-500" />
-                          ) : task.status === "FAILED" ? (
-                            <span className="w-2 h-2 rounded-full bg-destructive" />
-                          ) : (
-                            <Loader2 className="w-3 h-3 animate-spin text-primary" />
-                          )}
-                          <span className="truncate">{task.viewKey}</span>
-                          <span className="ml-auto">{task.progress}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {!multiMeshy.isConverting && multiMeshy.getSucceededModels().length === 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {/* Convert All Views (Exterior + Interior) */}
-                    <Button
-                      onClick={() => {
-                        const allViews = [
-                          ...Object.entries(exteriorViews).map(([key, view]) => ({
-                            viewKey: `Exterior: ${key}`,
-                            imageUrl: view.url,
-                          })),
-                          ...Object.entries(interiorViews).map(([key, view]) => ({
-                            viewKey: `Interior: ${key}`,
-                            imageUrl: view.url,
-                          })),
-                        ];
-                        multiMeshy.convertViews(allViews);
-                      }}
-                    >
-                      <Cuboid className="w-4 h-4 mr-2" />
-                      Convert All Views ({Object.keys(exteriorViews).length + Object.keys(interiorViews).length})
-                    </Button>
-                    {/* Exterior Only */}
-                    {Object.keys(exteriorViews).length > 0 && (
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          const views = Object.entries(exteriorViews).map(([key, view]) => ({
-                            viewKey: `Exterior: ${key}`,
-                            imageUrl: view.url,
-                          }));
-                          multiMeshy.convertViews(views);
-                        }}
-                      >
-                        <Cuboid className="w-4 h-4 mr-2" />
-                        Exterior Only ({Object.keys(exteriorViews).length})
-                      </Button>
-                    )}
-                    {/* Interior Only */}
-                    {Object.keys(interiorViews).length > 0 && (
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          const views = Object.entries(interiorViews).map(([key, view]) => ({
-                            viewKey: `Interior: ${key}`,
-                            imageUrl: view.url,
-                          }));
-                          multiMeshy.convertViews(views);
-                        }}
-                      >
-                        <Cuboid className="w-4 h-4 mr-2" />
-                        Interior Only ({Object.keys(interiorViews).length})
-                      </Button>
-                    )}
-                    {/* Current View */}
-                    {currentView && (
-                      <Button
-                        variant="secondary"
-                        onClick={() => {
-                          const prefix = interiorViews[renderedView] ? 'Interior' : 'Exterior';
-                          multiMeshy.convertViews([{ viewKey: `${prefix}: ${renderedView}`, imageUrl: currentView.url }]);
-                        }}
-                      >
-                        <Cuboid className="w-4 h-4 mr-2" />
-                        Convert Current View Only
-                      </Button>
-                    )}
-                  </div>
-                )}
-
-                {multiMeshy.getSucceededModels().length > 0 && (
-                  <div className="space-y-4">
-                    <MultiModelViewer models={multiMeshy.getSucceededModels()} />
-                    <div className="flex flex-wrap gap-2 justify-center">
-                      {multiMeshy.getSucceededModels().map((model) => (
-                        <Button key={model.viewKey} variant="outline" size="sm" asChild>
-                          <a href={model.modelUrl} download={`${model.viewKey.replace(/[: ]/g, '_')}-model.glb`}>
-                            <Download className="w-4 h-4 mr-2" />
-                            {model.viewKey}.glb
-                          </a>
-                        </Button>
-                      ))}
-                      <Button variant="ghost" size="sm" onClick={multiMeshy.reset}>
-                        Reset
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          {/* Meshy 3D conversion moved to Interactive 3D page */}
 
           {/* Exterior Views Section */}
           <Collapsible open={showExterior} onOpenChange={setShowExterior}>
@@ -614,7 +480,7 @@ const AIRenderedView = () => {
                 <ArrowLeft className="w-4 h-4 mr-2" />Previous: Floor Plan
               </Button>
             </Link>
-            <Link to="/interactive-3d" state={{ imageUrl, description, formData }}>
+            <Link to="/interactive-3d" state={{ imageUrl, description, formData, exteriorViews, interiorViews }}>
               <Button variant="hero" size="lg">
                 Next: 3D Model<ArrowRight className="w-4 h-4 ml-2" />
               </Button>
