@@ -2,6 +2,12 @@ import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+const proxyGlbUrl = (originalUrl: string): string => {
+  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+  const encoded = encodeURIComponent(originalUrl);
+  return `https://${projectId}.supabase.co/functions/v1/proxy-glb?url=${encoded}`;
+};
+
 export interface MeshyTask {
   viewKey: string;
   taskId: string;
@@ -48,6 +54,7 @@ export const useMultiViewMeshy = () => {
 
       if (data.status === "SUCCEEDED" && data.modelUrl) {
         stopPolling(viewKey);
+        const proxiedUrl = proxyGlbUrl(data.modelUrl);
         setState((prev) => {
           const newCompleted = prev.completedCount + 1;
           const allDone = newCompleted >= prev.totalCount;
@@ -57,7 +64,7 @@ export const useMultiViewMeshy = () => {
             isConverting: !allDone,
             tasks: {
               ...prev.tasks,
-              [viewKey]: { ...prev.tasks[viewKey], status: "SUCCEEDED", progress: 100, modelUrl: data.modelUrl },
+              [viewKey]: { ...prev.tasks[viewKey], status: "SUCCEEDED", progress: 100, modelUrl: proxiedUrl },
             },
           };
         });

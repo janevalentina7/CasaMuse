@@ -2,6 +2,12 @@ import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+const proxyGlbUrl = (originalUrl: string): string => {
+  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+  const encoded = encodeURIComponent(originalUrl);
+  return `https://${projectId}.supabase.co/functions/v1/proxy-glb?url=${encoded}`;
+};
+
 interface MeshyState {
   isGenerating: boolean;
   progress: number;
@@ -37,12 +43,13 @@ export const useMeshyGeneration = () => {
 
       if (data.status === 'SUCCEEDED' && data.modelUrl) {
         stopPolling();
+        const proxiedUrl = proxyGlbUrl(data.modelUrl);
         setState(prev => ({
           ...prev,
           isGenerating: false,
           progress: 100,
           status: 'Complete!',
-          modelUrl: data.modelUrl,
+          modelUrl: proxiedUrl,
         }));
         toast.success("3D model generated successfully!");
         return;

@@ -3,6 +3,7 @@ import { OrbitControls, useGLTF, Environment, Stage, Html } from "@react-three/d
 import { Suspense, useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import type { MeshyTask } from "@/hooks/useMultiViewMeshy";
+import ModelErrorBoundary from "./ModelErrorBoundary";
 
 interface MultiModelViewerProps {
   models: (MeshyTask & { modelUrl: string })[];
@@ -39,18 +40,20 @@ const MultiModelViewer = ({ models }: MultiModelViewerProps) => {
   if (models.length === 0) return null;
 
   return (
-    <div className="w-full h-[600px] rounded-lg overflow-hidden bg-muted/10 border border-border">
-      <Canvas camera={{ position: [6, 6, 6], fov: 50 }}>
-        <Suspense fallback={<LoadingFallback />}>
-          <Stage environment="city" intensity={0.5} adjustCamera={models.length === 1}>
-            {models.map((model, i) => (
-              <GLBModel key={model.viewKey} url={model.modelUrl} index={i} total={models.length} />
-            ))}
-          </Stage>
-          <OrbitControls enablePan enableZoom enableRotate autoRotate autoRotateSpeed={1.5} />
-        </Suspense>
-      </Canvas>
-    </div>
+    <ModelErrorBoundary>
+      <div className="w-full h-[600px] rounded-lg overflow-hidden bg-muted/10 border border-border">
+        <Canvas camera={{ position: [6, 6, 6], fov: 50 }}>
+          <Suspense fallback={<LoadingFallback />}>
+            <Stage environment="city" intensity={0.5} adjustCamera={models.length === 1}>
+              {models.map((model, i) => (
+                <GLBModel key={model.viewKey} url={model.modelUrl} index={i} total={models.length} />
+              ))}
+            </Stage>
+            <OrbitControls enablePan enableZoom enableRotate autoRotate autoRotateSpeed={1.5} />
+          </Suspense>
+        </Canvas>
+      </div>
+    </ModelErrorBoundary>
   );
 };
 
