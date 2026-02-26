@@ -1,36 +1,272 @@
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Home, ArrowLeft, ArrowRight, Box } from "lucide-react";
-import HouseModel3D from "@/components/3d/HouseModel3D";
+import { Badge } from "@/components/ui/badge";
+import { Home, ArrowLeft, ArrowRight, Box, Loader2, Cuboid, Download, Eye, RotateCcw } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { useState, useEffect, useRef, useCallback, Suspense, useMemo } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, useGLTF, Stage, Html } from "@react-three/drei";
+import ModelErrorBoundary from "@/components/3d/ModelErrorBoundary";
+
+interface ViewImage {
+  url: string;
+  description: string;
+}
+
+interface MeshyTaskInfo {
+  taskId: string;
+  status: "PENDING" | "IN_PROGRESS" | "SUCCEEDED" | "FAILED";
+  progress: number;
+  modelUrl: string | null;
+  label: string;
+  imageUrl: string;
+  category: "exterior" | "interior";
+}
+
+type PipelineStage = "idle" | "exterior" | "interior" | "complete";
+
+const proxyGlbUrl = (originalUrl: string): string => {
+  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+  return `https://${projectId}.supabase.co/functions/v1/proxy-glb?url=${encodeURIComponent(originalUrl)}`;
+};
+
+// 3D model component
+const GLBModel = ({ url, position }: { url: string; position: [number, number, number] }) => {
+  const { scene } = useGLTF(url);
+  return <primitive object={scene.clone()} position={position} />;
+};
+
+const LoadingFallback = () => (
+  <Html center>
+    <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background/90 px-4 py-2 rounded-lg">
+      <Loader2 className="w-4 h-4 animate-spin" />
+      Loading 3D model...
+    </div>
+  </Html>
+);
 
 const Interactive3DView = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { imageUrl, formData, description } = location.state || {};
+  const { imageUrl, formData, description, exteriorViews = {}, interiorViews = {} } = location.state || {};
 
-  const transformRoomsFor3D = (rooms: any[]) => {
-    const transformed: { roomName: string; length: number; breadth: number }[] = [];
-    rooms.forEach((room) => {
-      const count = room.count || 1;
-      for (let i = 0; i < count; i++) {
-        transformed.push({
-          roomName: count > 1 ? `${room.roomName} ${i + 1}` : room.roomName,
-          length: room.height || 12,
-          breadth: room.width || 10,
+  const [tasks, setTasks] = useState<Record<string, MeshyTaskInfo>>({});
+  const [pipelineStage, setPipelineStage] = useState<PipelineStage>("idle");
+  const [selectedView, setSelectedView] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"unified" | "individual">("unified");
+  const pollIntervalsRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const hasStarted = useRef(false);
+
+  const stopPolling = useCallback((key?: string) => {
+    if (key) {
+      if (pollIntervalsRef.current[key]) {
+        clearInterval(pollIntervalsRef.current[key]);
+        delete pollIntervalsRef.current[key];
+      }
+    } else {
+      Object.values(pollIntervalsRef.current).forEach(clearInterval);
+      pollIntervalsRef.current = {};
+    }
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => () => stopPolling(), [stopPolling]);
+
+  const pollTask = useCallback(async (key: string, taskId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("image-to-3d-meshy", {
+        body: { action: "poll", taskId },
+      });
+      if (error) throw error;
+
+      if (data.status === "SUCCEEDED" && data.modelUrl) {
+        stopPolling(key);
+        const proxiedUrl = proxyGlbUrl(data.modelUrl);
+        setTasks(prev => ({
+          ...prev,
+          [key]: { ...prev[key], status: "SUCCEEDED", progress: 100, modelUrl: proxiedUrl },
+        }));
+        return;
+      }
+
+      if (data.status === "FAILED") {
+        stopPolling(key);
+        setTasks(prev => ({
+          ...prev,
+          [key]: { ...prev[key], status: "FAILED", progress: 0 },
+        }));
+        return;
+      }
+
+      setTasks(prev => ({
+        ...prev,
+        [key]: { ...prev[key], status: data.status, progress: data.progress || prev[key]?.progress || 0 },
+      }));
+    } catch (err) {
+      console.error(`Poll error for ${key}:`, err);
+    }
+  }, [stopPolling]);
+
+  const submitToMeshy = useCallback(async (key: string, imageUrl: string, label: string, category: "exterior" | "interior") => {
+    setTasks(prev => ({
+      ...prev,
+      [key]: { taskId: "", status: "PENDING", progress: 0, modelUrl: null, label, imageUrl, category },
+    }));
+
+    try {
+      const { data, error } = await supabase.functions.invoke("image-to-3d-meshy", {
+        body: { action: "create", imageUrl },
+      });
+      if (error) throw error;
+      if (!data?.taskId) throw new Error("No task ID returned");
+
+      setTasks(prev => ({
+        ...prev,
+        [key]: { ...prev[key], taskId: data.taskId },
+      }));
+
+      pollIntervalsRef.current[key] = setInterval(() => pollTask(key, data.taskId), 10000);
+      setTimeout(() => pollTask(key, data.taskId), 3000);
+    } catch (err) {
+      console.error(`Failed to submit ${key}:`, err);
+      setTasks(prev => ({
+        ...prev,
+        [key]: { ...prev[key], status: "FAILED" },
+      }));
+      toast.error(`Failed to submit "${label}" to 3D conversion.`);
+    }
+  }, [pollTask]);
+
+  // Wait for all tasks of a category to complete
+  const waitForCategory = useCallback((category: "exterior" | "interior"): Promise<void> => {
+    return new Promise((resolve) => {
+      const check = () => {
+        setTasks(current => {
+          const categoryTasks = Object.values(current).filter(t => t.category === category);
+          const allDone = categoryTasks.length > 0 && categoryTasks.every(t => t.status === "SUCCEEDED" || t.status === "FAILED");
+          if (allDone) {
+            resolve();
+          } else {
+            setTimeout(check, 2000);
+          }
+          return current;
         });
-      }
-      if (room.attachedBathroom && room.count > 0) {
-        for (let i = 0; i < count; i++) {
-          transformed.push({
-            roomName: `Bathroom (${count > 1 ? room.roomName + ' ' + (i + 1) : room.roomName})`,
-            length: 7, breadth: 6,
-          });
-        }
-      }
+      };
+      setTimeout(check, 5000);
     });
-    return transformed;
-  };
+  }, []);
+
+  // Main pipeline: exterior first, then interior
+  const startPipeline = useCallback(async () => {
+    const extEntries = Object.entries(exteriorViews as Record<string, ViewImage>);
+    const intEntries = Object.entries(interiorViews as Record<string, ViewImage>);
+
+    if (extEntries.length === 0 && intEntries.length === 0) {
+      toast.error("No rendered views available. Go back and generate views first.");
+      return;
+    }
+
+    toast.info("Starting 3D model generation — exterior first, then interior...");
+
+    // Phase 1: Exterior
+    if (extEntries.length > 0) {
+      setPipelineStage("exterior");
+      toast.info(`Submitting ${extEntries.length} exterior view(s) to Meshy AI...`);
+
+      // Submit in batches of 3
+      for (let i = 0; i < extEntries.length; i += 3) {
+        const batch = extEntries.slice(i, i + 3);
+        await Promise.all(batch.map(([key, view]) =>
+          submitToMeshy(`ext_${key}`, view.url, `Exterior: ${key}`, "exterior")
+        ));
+      }
+
+      await waitForCategory("exterior");
+      const extSucceeded = Object.values(tasks).filter(t => t.category === "exterior" && t.status === "SUCCEEDED").length;
+      toast.success(`Exterior done! ${extSucceeded} model(s) ready.`);
+    }
+
+    // Phase 2: Interior
+    if (intEntries.length > 0) {
+      setPipelineStage("interior");
+      toast.info(`Submitting ${intEntries.length} interior view(s) to Meshy AI...`);
+
+      for (let i = 0; i < intEntries.length; i += 3) {
+        const batch = intEntries.slice(i, i + 3);
+        await Promise.all(batch.map(([key, view]) =>
+          submitToMeshy(`int_${key}`, view.url, `Interior: ${key}`, "interior")
+        ));
+      }
+
+      await waitForCategory("interior");
+      const intSucceeded = Object.values(tasks).filter(t => t.category === "interior" && t.status === "SUCCEEDED").length;
+      toast.success(`Interior done! ${intSucceeded} model(s) ready.`);
+    }
+
+    setPipelineStage("complete");
+    toast.success("All 3D models generated! Viewing unified house model.");
+  }, [exteriorViews, interiorViews, submitToMeshy, waitForCategory, tasks]);
+
+  // Auto-start pipeline on mount
+  useEffect(() => {
+    if (hasStarted.current || !imageUrl || !formData) return;
+    const hasViews = Object.keys(exteriorViews).length > 0 || Object.keys(interiorViews).length > 0;
+    if (!hasViews) return;
+    hasStarted.current = true;
+    startPipeline();
+  }, [imageUrl, formData, exteriorViews, interiorViews, startPipeline]);
+
+  // Derived state
+  const allTasks = Object.entries(tasks);
+  const exteriorTasks = allTasks.filter(([, t]) => t.category === "exterior");
+  const interiorTasks = allTasks.filter(([, t]) => t.category === "interior");
+  const succeededModels = allTasks.filter(([, t]) => t.status === "SUCCEEDED" && t.modelUrl);
+  const totalProgress = allTasks.length > 0
+    ? Math.round(allTasks.reduce((sum, [, t]) => sum + t.progress, 0) / allTasks.length)
+    : 0;
+
+  // Compute positions for unified view: arrange interior around exterior using floor plan
+  const modelPositions = useMemo(() => {
+    const positions: Record<string, [number, number, number]> = {};
+    // Place exterior at center
+    exteriorTasks.forEach(([key]) => {
+      positions[key] = [0, 0, 0];
+    });
+
+    // Arrange interior rooms in a ring around the exterior based on room order from floor plan
+    const roomKeys = interiorTasks.map(([key]) => key);
+    const radius = 6;
+    roomKeys.forEach((key, i) => {
+      const angle = (i / roomKeys.length) * Math.PI * 2;
+      positions[key] = [
+        Math.cos(angle) * radius,
+        0,
+        Math.sin(angle) * radius,
+      ];
+    });
+
+    return positions;
+  }, [exteriorTasks, interiorTasks]);
+
+  // Models to show in viewer
+  const modelsToDisplay = useMemo(() => {
+    if (viewMode === "individual" && selectedView) {
+      const task = tasks[selectedView];
+      if (task?.status === "SUCCEEDED" && task.modelUrl) {
+        return [{ key: selectedView, url: task.modelUrl, position: [0, 0, 0] as [number, number, number] }];
+      }
+      return [];
+    }
+    // Unified: show all succeeded
+    return succeededModels.map(([key, t]) => ({
+      key,
+      url: t.modelUrl!,
+      position: modelPositions[key] || [0, 0, 0] as [number, number, number],
+    }));
+  }, [viewMode, selectedView, tasks, succeededModels, modelPositions]);
 
   if (!imageUrl || !formData) {
     return (
@@ -47,6 +283,8 @@ const Interactive3DView = () => {
       </div>
     );
   }
+
+  const hasNoViews = Object.keys(exteriorViews).length === 0 && Object.keys(interiorViews).length === 0;
 
   return (
     <div className="min-h-screen bg-gradient-hero">
@@ -66,7 +304,7 @@ const Interactive3DView = () => {
               <Button
                 variant="hero"
                 size="sm"
-                onClick={() => navigate('/vr-walkthrough', { state: { imageUrl, description, formData } })}
+                onClick={() => navigate('/vr-walkthrough', { state: { imageUrl, description, formData, exteriorViews, interiorViews } })}
               >
                 Next: VR Walkthrough<ArrowRight className="w-4 h-4 ml-2" />
               </Button>
@@ -79,22 +317,147 @@ const Interactive3DView = () => {
         <div className="max-w-6xl mx-auto space-y-6">
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold">
-              Interactive <span className="bg-gradient-primary bg-clip-text text-transparent">3D Model</span>
+              3D <span className="bg-gradient-primary bg-clip-text text-transparent">House Model</span>
             </h1>
-            <p className="text-muted-foreground">Explore your home design in full 3D with VR support</p>
+            <p className="text-muted-foreground">
+              {pipelineStage === "exterior" && "Generating exterior 3D model..."}
+              {pipelineStage === "interior" && "Generating interior 3D models..."}
+              {pipelineStage === "complete" && "All models generated — viewing unified house"}
+              {pipelineStage === "idle" && (hasNoViews ? "No rendered views found" : "Starting 3D conversion pipeline...")}
+            </p>
           </div>
 
-          <Card className="glass-card border-2">
-            <CardContent className="p-4">
-              {formData?.rooms && (
-                <HouseModel3D
-                  rooms={transformRoomsFor3D(formData.rooms)}
-                  style={formData.preferences?.style || "Modern"}
-                />
-              )}
-            </CardContent>
-          </Card>
+          {/* No views warning */}
+          {hasNoViews && pipelineStage === "idle" && (
+            <Card className="glass-card">
+              <CardContent className="p-8 text-center">
+                <Box className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Rendered Views Available</h3>
+                <p className="text-muted-foreground mb-4">Go back to AI Rendered Views and generate exterior/interior images first.</p>
+                <Link to="/ai-rendered-view" state={{ imageUrl, description, formData }}>
+                  <Button variant="hero"><ArrowLeft className="w-4 h-4 mr-2" />Back to AI Views</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
 
+          {/* Pipeline Progress */}
+          {allTasks.length > 0 && pipelineStage !== "complete" && (
+            <Card className="glass-card border-2 border-primary/30">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Cuboid className="w-6 h-6 text-primary" />
+                    <h3 className="text-lg font-semibold">
+                      {pipelineStage === "exterior" ? "Phase 1: Exterior" : "Phase 2: Interior"}
+                    </h3>
+                  </div>
+                  <Badge variant="secondary">
+                    {succeededModels.length}/{allTasks.length} complete
+                  </Badge>
+                </div>
+
+                <Progress value={totalProgress} className="w-full" />
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                  {allTasks.map(([key, task]) => (
+                    <div key={key} className="flex items-center gap-1.5 p-2 rounded bg-muted/50">
+                      {task.status === "SUCCEEDED" ? (
+                        <span className="w-2 h-2 rounded-full bg-primary" />
+                      ) : task.status === "FAILED" ? (
+                        <span className="w-2 h-2 rounded-full bg-destructive" />
+                      ) : (
+                        <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                      )}
+                      <span className="truncate">{task.label}</span>
+                      <span className="ml-auto">{task.progress}%</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 3D Viewer */}
+          {modelsToDisplay.length > 0 && (
+            <Card className="glass-card border-2">
+              <CardContent className="p-4 space-y-4">
+                {/* View mode toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="flex gap-2">
+                    <Button
+                      variant={viewMode === "unified" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => { setViewMode("unified"); setSelectedView(null); }}
+                    >
+                      <Box className="w-4 h-4 mr-2" />Unified House
+                    </Button>
+                    <Button
+                      variant={viewMode === "individual" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setViewMode("individual")}
+                    >
+                      <Eye className="w-4 h-4 mr-2" />Individual View
+                    </Button>
+                  </div>
+                  {viewMode === "individual" && selectedView && (
+                    <Badge>{tasks[selectedView]?.label}</Badge>
+                  )}
+                </div>
+
+                {/* Individual model selector */}
+                {viewMode === "individual" && (
+                  <div className="flex flex-wrap gap-2">
+                    {succeededModels.map(([key, task]) => (
+                      <Button
+                        key={key}
+                        variant={selectedView === key ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setSelectedView(key)}
+                      >
+                        {task.label}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Canvas */}
+                <ModelErrorBoundary>
+                  <div className="w-full h-[600px] rounded-lg overflow-hidden bg-muted/10 border border-border">
+                    <Canvas camera={{ position: [8, 8, 8], fov: 50 }}>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <Stage environment="city" intensity={0.5} adjustCamera={modelsToDisplay.length === 1}>
+                          {modelsToDisplay.map(m => (
+                            <GLBModel key={m.key} url={m.url} position={m.position} />
+                          ))}
+                        </Stage>
+                        <OrbitControls enablePan enableZoom enableRotate autoRotate={false} />
+                      </Suspense>
+                    </Canvas>
+                  </div>
+                </ModelErrorBoundary>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Download section */}
+          {succeededModels.length > 0 && (
+            <Card className="glass-card">
+              <CardContent className="p-4">
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {succeededModels.map(([key, task]) => (
+                    <Button key={key} variant="outline" size="sm" asChild>
+                      <a href={task.modelUrl!} download={`${task.label.replace(/[: ]/g, '_')}.glb`}>
+                        <Download className="w-4 h-4 mr-2" />{task.label}.glb
+                      </a>
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Tips */}
           <div className="grid sm:grid-cols-3 gap-4">
             <Card className="glass-card">
               <CardContent className="p-4 text-center">
@@ -105,16 +468,16 @@ const Interactive3DView = () => {
             </Card>
             <Card className="glass-card">
               <CardContent className="p-4 text-center">
-                <Home className="w-8 h-8 mx-auto mb-2 text-primary" />
-                <h3 className="font-semibold mb-1">Navigate</h3>
-                <p className="text-xs text-muted-foreground">Use WASD or arrow keys to walk around</p>
+                <Eye className="w-8 h-8 mx-auto mb-2 text-primary" />
+                <h3 className="font-semibold mb-1">View Modes</h3>
+                <p className="text-xs text-muted-foreground">Switch between unified house and individual room views</p>
               </CardContent>
             </Card>
             <Card className="glass-card">
               <CardContent className="p-4 text-center">
-                <Box className="w-8 h-8 mx-auto mb-2 text-primary" />
-                <h3 className="font-semibold mb-1">VR Ready</h3>
-                <p className="text-xs text-muted-foreground">Connect VR headset for immersive experience</p>
+                <Download className="w-8 h-8 mx-auto mb-2 text-primary" />
+                <h3 className="font-semibold mb-1">Download</h3>
+                <p className="text-xs text-muted-foreground">Download .glb models for use in other 3D tools</p>
               </CardContent>
             </Card>
           </div>
@@ -126,7 +489,7 @@ const Interactive3DView = () => {
                 <ArrowLeft className="w-4 h-4 mr-2" />Previous: AI Rendered Views
               </Button>
             </Link>
-            <Link to="/vr-walkthrough" state={{ imageUrl, description, formData }}>
+            <Link to="/vr-walkthrough" state={{ imageUrl, description, formData, exteriorViews, interiorViews }}>
               <Button variant="hero" size="lg">
                 Next: VR Walkthrough<ArrowRight className="w-4 h-4 ml-2" />
               </Button>
