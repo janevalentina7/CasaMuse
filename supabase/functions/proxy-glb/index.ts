@@ -35,16 +35,18 @@ serve(async (req) => {
       throw new Error(`Upstream fetch failed: ${response.status}`);
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const uint8 = new Uint8Array(arrayBuffer);
+    // Stream the response body directly instead of buffering into memory
+    const headers: Record<string, string> = {
+      ...corsHeaders,
+      'Content-Type': 'model/gltf-binary',
+    };
 
-    return new Response(uint8, {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'model/gltf-binary',
-        'Content-Length': uint8.length.toString(),
-      },
-    });
+    const contentLength = response.headers.get('Content-Length');
+    if (contentLength) {
+      headers['Content-Length'] = contentLength;
+    }
+
+    return new Response(response.body, { headers });
   } catch (error) {
     console.error('Proxy error:', error);
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
