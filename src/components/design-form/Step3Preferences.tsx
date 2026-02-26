@@ -3,9 +3,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ArrowRight, ArrowLeft, Palette, Layers } from "lucide-react";
+import { ArrowRight, ArrowLeft, Palette, Layers, Car, TreePine } from "lucide-react";
 import { ARCHITECTURAL_STYLES, OUTDOOR_FEATURES } from "@/data/roomSizes";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export interface DesignPreferences {
   style: string;
@@ -13,6 +20,8 @@ export interface DesignPreferences {
   vastuCompliant: boolean;
   dynamicScaling: boolean;
   outdoorFeatures: string[];
+  garagePlacement: string;
+  gardenPlacement: string;
 }
 
 interface Step3Props {
@@ -21,6 +30,14 @@ interface Step3Props {
   onNext: () => void;
   onPrev: () => void;
 }
+
+const GARAGE_PLACEMENTS = [
+  "Front", "Back", "Left Side", "Right Side", "Basement", "Detached", "AI Recommended"
+];
+
+const GARDEN_PLACEMENTS = [
+  "Front Garden", "Backyard", "Left Side", "Right Side", "All Around", "Terrace Garden", "AI Optimized"
+];
 
 export const Step3Preferences = ({
   preferences,
@@ -43,6 +60,9 @@ export const Step3Preferences = ({
     }
   };
 
+  const hasGarage = preferences.outdoorFeatures?.includes("car_parking");
+  const hasGarden = preferences.outdoorFeatures?.includes("garden");
+
   return (
     <div className="space-y-6 animate-fade-in">
       <Card className="glass-card border-2">
@@ -55,159 +75,207 @@ export const Step3Preferences = ({
               Design Preferences
             </h2>
             <p className="text-muted-foreground max-w-md mx-auto">
-              Customize your house style and features
+              Customize your house style, features & outdoor placement
             </p>
           </div>
 
           <div className="space-y-6">
             {/* Architectural Style */}
             <Card className="border-border/50 glass-card">
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Palette className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold text-lg">Architectural Style</h3>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-              {ARCHITECTURAL_STYLES.map((style) => (
-            <Button
-              key={style}
-              type="button"
-              variant={preferences.style === style ? "default" : "outline"}
-              className={cn(
-                "h-auto py-3 hover:scale-105 transition-all",
-                preferences.style === style && "ring-4 ring-primary/30 shadow-glow"
-              )}
-              onClick={() => setPreferences({ ...preferences, style })}
-            >
-              {style}
-            </Button>
-              ))}
-            </div>
-          </CardContent>
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Palette className="w-5 h-5 text-primary" />
+                  <h3 className="font-semibold text-lg">Architectural Style</h3>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                  {ARCHITECTURAL_STYLES.map((style) => (
+                    <Button
+                      key={style}
+                      type="button"
+                      variant={preferences.style === style ? "default" : "outline"}
+                      className={cn(
+                        "h-auto py-3 hover:scale-105 transition-all",
+                        preferences.style === style && "ring-4 ring-primary/30 shadow-glow"
+                      )}
+                      onClick={() => setPreferences({ ...preferences, style })}
+                    >
+                      {style}
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
             </Card>
 
             {/* Number of Floors */}
             <Card className="border-border/50 glass-card">
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Layers className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold text-lg">Number of Floors</h3>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {[1, 2, 3, 4].map((floor) => (
-                <Button
-                  key={floor}
-                  type="button"
-                  variant={preferences.floors === floor ? "default" : "outline"}
-                  className={cn(
-                    "h-16 text-lg font-semibold hover:scale-105 transition-all",
-                    preferences.floors === floor && "ring-4 ring-primary/30 shadow-glow"
-                  )}
-                  onClick={() => setPreferences({ ...preferences, floors: floor })}
-                >
-                  {floor}
-                  <span className="text-xs block">
-                    {floor === 1 ? "Floor" : "Floors"}
-                  </span>
-                </Button>
-              ))}
-            </div>
-          </CardContent>
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Layers className="w-5 h-5 text-primary" />
+                  <h3 className="font-semibold text-lg">Number of Floors</h3>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {[1, 2, 3, 4].map((floor) => (
+                    <Button
+                      key={floor}
+                      type="button"
+                      variant={preferences.floors === floor ? "default" : "outline"}
+                      className={cn(
+                        "h-16 text-lg font-semibold hover:scale-105 transition-all",
+                        preferences.floors === floor && "ring-4 ring-primary/30 shadow-glow"
+                      )}
+                      onClick={() => setPreferences({ ...preferences, floors: floor })}
+                    >
+                      {floor}
+                      <span className="text-xs block">
+                        {floor === 1 ? "Floor" : "Floors"}
+                      </span>
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
             </Card>
 
             {/* Outdoor Features */}
             <Card className="border-border/50 glass-card">
-          <CardContent className="p-6 space-y-4">
-            <h3 className="font-semibold text-lg mb-3">Outdoor Features</h3>
-            <div className="grid sm:grid-cols-2 gap-3">
-              {Object.entries(OUTDOOR_FEATURES).map(([id, data]) => {
-                const isSelected = preferences.outdoorFeatures?.includes(id);
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => toggleOutdoorFeature(id)}
-                    className={cn(
-                      "p-4 rounded-lg border-2 text-left transition-all hover:scale-105",
-                      isSelected
-                        ? "border-primary bg-primary/10 ring-4 ring-primary/20 shadow-glow"
-                        : "border-border/50 hover:border-primary/50 glass-card"
-                    )}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-semibold">{data.name}</span>
-                      {isSelected && (
-                        <Badge variant="default" className="ml-2">
-                          Selected
-                        </Badge>
-                      )}
-                    </div>
-                     {"description" in data && data.description && (
-                       <p className="text-xs text-muted-foreground">
-                         {data.description}
-                       </p>
-                     )}
-                  </button>
-                );
-              })}
-            </div>
-          </CardContent>
+              <CardContent className="p-6 space-y-4">
+                <h3 className="font-semibold text-lg mb-3">Outdoor Features</h3>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {Object.entries(OUTDOOR_FEATURES).map(([id, data]) => {
+                    const isSelected = preferences.outdoorFeatures?.includes(id);
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => toggleOutdoorFeature(id)}
+                        className={cn(
+                          "p-4 rounded-lg border-2 text-left transition-all hover:scale-105",
+                          isSelected
+                            ? "border-primary bg-primary/10 ring-4 ring-primary/20 shadow-glow"
+                            : "border-border/50 hover:border-primary/50 glass-card"
+                        )}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold">{data.name}</span>
+                          {isSelected && (
+                            <Badge variant="default" className="ml-2">Selected</Badge>
+                          )}
+                        </div>
+                        {"description" in data && data.description && (
+                          <p className="text-xs text-muted-foreground">{data.description}</p>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </CardContent>
             </Card>
+
+            {/* Garage Placement */}
+            {hasGarage && (
+              <Card className="border-border/50 glass-card border-primary/30">
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Car className="w-5 h-5 text-primary" />
+                    <h3 className="font-semibold text-lg">Garage / Parking Placement</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">Where should the garage be located?</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {GARAGE_PLACEMENTS.map((placement) => (
+                      <Button
+                        key={placement}
+                        type="button"
+                        variant={preferences.garagePlacement === placement ? "default" : "outline"}
+                        size="sm"
+                        className={cn(
+                          "text-xs hover:scale-105 transition-all",
+                          preferences.garagePlacement === placement && "ring-4 ring-primary/30"
+                        )}
+                        onClick={() => setPreferences({ ...preferences, garagePlacement: placement })}
+                      >
+                        {placement}
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Garden Placement */}
+            {hasGarden && (
+              <Card className="border-border/50 glass-card border-primary/30">
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TreePine className="w-5 h-5 text-primary" />
+                    <h3 className="font-semibold text-lg">Garden / Landscape Placement</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">Where should the garden be placed?</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {GARDEN_PLACEMENTS.map((placement) => (
+                      <Button
+                        key={placement}
+                        type="button"
+                        variant={preferences.gardenPlacement === placement ? "default" : "outline"}
+                        size="sm"
+                        className={cn(
+                          "text-xs hover:scale-105 transition-all",
+                          preferences.gardenPlacement === placement && "ring-4 ring-primary/30"
+                        )}
+                        onClick={() => setPreferences({ ...preferences, gardenPlacement: placement })}
+                      >
+                        {placement}
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Toggle Options */}
             <Card className="border-border/50 glass-card">
-          <CardContent className="p-6 space-y-4">
-            <h3 className="font-semibold text-lg mb-3">Additional Options</h3>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
-                <div className="flex-1">
-                  <Label htmlFor="vastu" className="font-semibold cursor-pointer">
-                    Vastu Compliant Design
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Follow traditional Vastu Shastra principles for room placement
-                  </p>
+              <CardContent className="p-6 space-y-4">
+                <h3 className="font-semibold text-lg mb-3">Additional Options</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
+                    <div className="flex-1">
+                      <Label htmlFor="vastu" className="font-semibold cursor-pointer">
+                        Vastu Compliant Design
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Follow traditional Vastu Shastra principles for room placement
+                      </p>
+                    </div>
+                    <Switch
+                      id="vastu"
+                      checked={preferences.vastuCompliant}
+                      onCheckedChange={(checked) =>
+                        setPreferences({ ...preferences, vastuCompliant: checked })
+                      }
+                    />
+                  </div>
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
+                    <div className="flex-1">
+                      <Label htmlFor="scaling" className="font-semibold cursor-pointer">
+                        Enable Dynamic Scaling
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Automatically adjust room sizes if they exceed land area
+                      </p>
+                    </div>
+                    <Switch
+                      id="scaling"
+                      checked={preferences.dynamicScaling}
+                      onCheckedChange={(checked) =>
+                        setPreferences({ ...preferences, dynamicScaling: checked })
+                      }
+                    />
+                  </div>
                 </div>
-                <Switch
-                  id="vastu"
-                  checked={preferences.vastuCompliant}
-                  onCheckedChange={(checked) =>
-                    setPreferences({ ...preferences, vastuCompliant: checked })
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
-                <div className="flex-1">
-                  <Label htmlFor="scaling" className="font-semibold cursor-pointer">
-                    Enable Dynamic Scaling
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Automatically adjust room sizes if they exceed land area
-                  </p>
-                </div>
-                <Switch
-                  id="scaling"
-                  checked={preferences.dynamicScaling}
-                  onCheckedChange={(checked) =>
-                    setPreferences({ ...preferences, dynamicScaling: checked })
-                  }
-                />
-              </div>
-            </div>
-          </CardContent>
+              </CardContent>
             </Card>
           </div>
 
           <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              onClick={onPrev}
-              className="flex-1"
-            >
+            <Button type="button" variant="outline" size="lg" onClick={onPrev} className="flex-1">
               <ArrowLeft className="w-5 h-5 mr-2" />
               Back
             </Button>
