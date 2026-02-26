@@ -1,17 +1,16 @@
-import { useLocation, Link } from "react-router-dom";
+import { useLocation, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Home, ArrowLeft, Box } from "lucide-react";
+import { Home, ArrowLeft, ArrowRight, Box } from "lucide-react";
 import HouseModel3D from "@/components/3d/HouseModel3D";
 
 const Interactive3DView = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { imageUrl, formData, description } = location.state || {};
 
-  // Transform form room data to HouseModel3D format
   const transformRoomsFor3D = (rooms: any[]) => {
     const transformed: { roomName: string; length: number; breadth: number }[] = [];
-    
     rooms.forEach((room) => {
       const count = room.count || 1;
       for (let i = 0; i < count; i++) {
@@ -21,18 +20,15 @@ const Interactive3DView = () => {
           breadth: room.width || 10,
         });
       }
-      
       if (room.attachedBathroom && room.count > 0) {
         for (let i = 0; i < count; i++) {
           transformed.push({
             roomName: `Bathroom (${count > 1 ? room.roomName + ' ' + (i + 1) : room.roomName})`,
-            length: 7,
-            breadth: 6,
+            length: 7, breadth: 6,
           });
         }
       }
     });
-    
     return transformed;
   };
 
@@ -44,10 +40,7 @@ const Interactive3DView = () => {
             <h2 className="text-2xl font-bold mb-4">No Floor Plan Available</h2>
             <p className="text-muted-foreground mb-6">Please generate a floor plan first.</p>
             <Link to="/design">
-              <Button variant="hero" className="glass-button">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Design Tool
-              </Button>
+              <Button variant="hero"><ArrowLeft className="w-4 h-4 mr-2" />Back to Design Tool</Button>
             </Link>
           </CardContent>
         </Card>
@@ -57,7 +50,6 @@ const Interactive3DView = () => {
 
   return (
     <div className="min-h-screen bg-gradient-hero">
-      {/* Header */}
       <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
@@ -67,18 +59,22 @@ const Interactive3DView = () => {
               </div>
               <span className="text-xl font-bold">CasaMuse</span>
             </Link>
-            
-            <Link to="/floor-plan-result" state={{ imageUrl, description, formData }}>
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Results
+            <div className="flex gap-2">
+              <Link to="/floor-plan-result" state={{ imageUrl, description, formData }}>
+                <Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-2" />Back</Button>
+              </Link>
+              <Button
+                variant="hero"
+                size="sm"
+                onClick={() => navigate('/vr-walkthrough', { state: { imageUrl, description, formData } })}
+              >
+                Next: VR Walkthrough<ArrowRight className="w-4 h-4 ml-2" />
               </Button>
-            </Link>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-6xl mx-auto space-y-6">
           <div className="text-center space-y-2">
@@ -88,19 +84,17 @@ const Interactive3DView = () => {
             <p className="text-muted-foreground">Explore your home design in full 3D with VR support</p>
           </div>
 
-          {/* 3D Model Viewer */}
           <Card className="glass-card border-2">
             <CardContent className="p-4">
               {formData?.rooms && (
-                <HouseModel3D 
-                  rooms={transformRoomsFor3D(formData.rooms)} 
+                <HouseModel3D
+                  rooms={transformRoomsFor3D(formData.rooms)}
                   style={formData.preferences?.style || "Modern"}
                 />
               )}
             </CardContent>
           </Card>
 
-          {/* Info */}
           <div className="grid sm:grid-cols-3 gap-4">
             <Card className="glass-card">
               <CardContent className="p-4 text-center">
@@ -123,6 +117,20 @@ const Interactive3DView = () => {
                 <p className="text-xs text-muted-foreground">Connect VR headset for immersive experience</p>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Sequential Navigation */}
+          <div className="flex justify-between pt-8 border-t border-border/50">
+            <Link to="/floor-plan-result" state={{ imageUrl, description, formData }}>
+              <Button variant="outline" size="lg">
+                <ArrowLeft className="w-4 h-4 mr-2" />Previous: Floor Plan
+              </Button>
+            </Link>
+            <Link to="/vr-walkthrough" state={{ imageUrl, description, formData }}>
+              <Button variant="hero" size="lg">
+                Next: VR Walkthrough<ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
           </div>
         </div>
       </main>
