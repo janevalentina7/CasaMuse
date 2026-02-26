@@ -119,10 +119,10 @@ const AIRenderedView = () => {
       setGenerationProgress({ current: completed, total: totalViews });
     };
     
-    // Generate exterior views in parallel (batch of 3)
+    // Generate exterior views in parallel (batch of 5 for speed)
     const exteriorBatches = [];
-    for (let i = 0; i < exteriorTypes.length; i += 3) {
-      exteriorBatches.push(exteriorTypes.slice(i, i + 3));
+    for (let i = 0; i < exteriorTypes.length; i += 5) {
+      exteriorBatches.push(exteriorTypes.slice(i, i + 5));
     }
     
     for (const batch of exteriorBatches) {
@@ -132,10 +132,10 @@ const AIRenderedView = () => {
       }));
     }
     
-    // Generate interior views in parallel (batch of 3)
+    // Generate interior views in parallel (batch of 5 for speed)
     const interiorBatches = [];
-    for (let i = 0; i < allRooms.length; i += 3) {
-      interiorBatches.push(allRooms.slice(i, i + 3));
+    for (let i = 0; i < allRooms.length; i += 5) {
+      interiorBatches.push(allRooms.slice(i, i + 5));
     }
     
     for (const batch of interiorBatches) {

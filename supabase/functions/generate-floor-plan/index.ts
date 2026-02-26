@@ -20,7 +20,6 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    // Build detailed room list
     const roomDetails = rooms.map((room: any) => {
       let info = `${room.count}x ${room.roomName} (${room.size}: ${room.width}'×${room.height}')`;
       if (room.attachedBathroom) info += " with attached bathroom (5'×8')";
@@ -28,161 +27,109 @@ serve(async (req) => {
     }).join("\n   - ");
 
     const outdoorFeatures = preferences.outdoorFeatures?.join(", ") || "None";
-    const plotDimensions = plotLength && plotBreadth ? `${plotLength}' × ${plotBreadth}'` : `${landArea} sq ft (rectangular)`;
+    const plotDimensions = plotLength && plotBreadth ? `${plotLength}' × ${plotBreadth}'` : `${landArea} sq ft`;
     const garagePlacement = preferences.garagePlacement || "Front";
     const gardenPlacement = preferences.gardenPlacement || "Front Garden";
 
-    const prompt = `You are an Advanced Architectural Planning AI. Generate a PROFESSIONAL, CONSTRUCTION-READY 2D floor plan equivalent to AutoCAD/Revit/ArchiCAD drawings, following INDIAN RESIDENTIAL CONSTRUCTION STANDARDS.
+    const prompt = `Generate a PROFESSIONAL 2D architectural floor plan image that looks EXACTLY like a real architect's CAD drawing. Follow this EXACT visual style:
 
-═══════════════════════════════════════════
-PROPERTY SPECIFICATIONS
-═══════════════════════════════════════════
-• Total Land Area: ${landArea} sq ft
-• Plot Dimensions: ${plotDimensions}
-• Number of Floors: ${preferences.floors}
-• North Direction: ${northDirection || "North"}
-• Architectural Style: ${preferences.style}
-• Vastu Compliant: ${preferences.vastuCompliant ? "YES — strictly follow Vastu room placement" : "No — optimize for functionality"}
-• Dynamic Scaling: ${preferences.dynamicScaling ? "Enabled — adjust proportionally if rooms exceed plot" : "Disabled"}
+PLOT: ${plotDimensions} plot, ${landArea} sq ft total area, ${preferences.floors} floor(s), ${preferences.style} style.
+North Direction: ${northDirection || "North"}
+${preferences.vastuCompliant ? "VASTU COMPLIANT: Yes — place rooms per Vastu directions." : ""}
 
-═══════════════════════════════════════════
-ROOMS REQUIRED (with Indian standard sizes)
-═══════════════════════════════════════════
+ROOMS:
    - ${roomDetails}
 
-═══════════════════════════════════════════
-OUTDOOR FEATURES & PLACEMENT
-═══════════════════════════════════════════
-• Selected Features: ${outdoorFeatures}
-• Garage/Parking Placement: ${garagePlacement}
-  - Min size: 9'×18' (small car), 10'×20' (SUV)
-  - Must have driveway access from road side
-• Garden Placement: ${gardenPlacement}
-  - Ensure sunlight exposure, walking pathways
-  - Don't block ventilation windows
+OUTDOOR: ${outdoorFeatures}
+Garage: ${garagePlacement} | Garden: ${gardenPlacement}
 
-═══════════════════════════════════════════
-MANDATORY DRAWING REQUIREMENTS
-═══════════════════════════════════════════
+═══ MANDATORY VISUAL STYLE (follow EXACTLY) ═══
 
-1. WALL DRAWING:
-   - Wall thickness: 4.5"–9" (shown accurately)
-   - Load-bearing walls clearly marked
-   - Pillar/column positions shown
+1. PLOT BOUNDARY: Draw a thick dark border showing the full plot boundary. Label "PLOT BOUNDARY" at top-right and bottom-right corners. Show overall dimensions (e.g., "40'-0\"") along all four sides outside the boundary.
 
-2. DOORS (with swing arcs):
-   - Main Door: 3.5'–4' × 7' (show swing arc)
-   - Room Doors: 3' × 7' (show swing arc)
-   - Bathroom Doors: 2.5' × 7' (show swing arc)
-   - Label each: D1, D2, D3...
+2. COLORED ROOM FILLS (CRITICAL — each room type gets a DISTINCT pastel color):
+   - Living Room: Light Blue fill
+   - Master Bedroom: Light Peach/Salmon fill
+   - Bedrooms: Light Lavender/Purple fill
+   - Kitchen: Light Yellow/Cream fill
+   - Dining Area: Light Blue (slightly different shade from living)
+   - Bathrooms: Light Cyan/Aqua fill
+   - Hallway/Corridor: Light Yellow dotted pattern
+   - Utility/Laundry: Light Yellow fill
+   - Pooja Room: Light Yellow fill
+   - Balcony/Sit-out: White fill with border
+   - Garden areas: GREEN fill with small tree/shrub symbols
+   - Parking: Light Grey fill with car symbol drawn inside
 
-3. WINDOWS (with symbols):
-   - Living: 5' × 4'
-   - Bedroom: 4' × 4'
-   - Bathroom: 2' × 1.5'
-   - Kitchen: must have exterior ventilation window
-   - Label each: W1, W2, W3...
+3. WALLS: Dark grey/black thick lines (9" outer walls, 4.5" inner walls). Clearly visible wall thickness.
 
-4. ROOM LABELS (EVERY room MUST have):
-   - Room name in LARGE BOLD text centered in room
-   - Dimensions below: "12' × 14'" format
-   - Use contrasting color for readability
+4. ROOM LABELS (EVERY room MUST have centered inside):
+   - Room name in BOLD CAPS (e.g., "MASTER BEDROOM")
+   - "Area: XXX sq.ft" below the name
+   - Dimensions: "12'-0\" x 13'-0\"" below area
+   - Use clear readable font
 
-5. DIMENSION LINES & ARROWS:
-   - Internal dimensions for EVERY room wall
-   - External dimensions for overall plot
-   - Measurement arrows with feet/inches
+5. DOORS: Show door swing arcs (quarter-circle arcs). Main door clearly labeled "ENTRANCE DOOR".
 
-6. FURNITURE LAYOUT (MANDATORY — no empty rooms):
-   Living Room: Sofa set, coffee table, TV unit, seating circulation
-   Master Bedroom: King/Queen bed, wardrobe, side tables, dressing area
-   Bedrooms: Bed, study table, wardrobe
-   Kitchen: L/Parallel countertops, sink, stove, refrigerator, storage cabinets
-   Dining: Dining table (4-6 seating), movement clearance
-   Bathroom: WC, shower, wash basin (all drawn)
-   Utility: Washing machine space, sink provision
-   Balcony: Railing, access door
+6. WINDOWS: Blue rectangular symbols on exterior walls. Larger for living/bedrooms, smaller for bathrooms.
 
-7. STRUCTURAL ELEMENTS:
-   - Staircase: 3'–4' width, riser 6"–7", tread 10"–11", show step direction
-   - Minimum staircase area: 6' × 10'
-   - Pillars and beams marked
+7. FURNITURE (drawn inside every room — NO empty rooms):
+   - Living: Sofa, coffee table, TV unit
+   - Bedrooms: Bed (rectangle), wardrobe, side tables
+   - Kitchen: L-shaped or parallel countertop, sink circle, stove, refrigerator rectangle
+   - Dining: Dining table with chairs
+   - Bathrooms: WC, shower, wash basin
+   - Utility: Washing machine circle
+   - Draw furniture as simple grey outlines/fills
 
-8. UTILITIES LAYOUT:
-   - Electrical points & switchboard locations
-   - Plumbing lines (kitchen, bathroom share walls)
-   - AC unit locations
-   - Washing machine & geyser points
-   - Drainage direction
+8. DIMENSION LINES: Show dimensions for EVERY room wall with arrow lines and measurements in feet-inches format (e.g., "12'-0\"", "9'-0\""). Also show external plot dimensions.
 
-═══════════════════════════════════════════
-ROOM PLACEMENT RULES
-═══════════════════════════════════════════
-• Entrance → Foyer → Living Room (near entrance, natural light)
-• Kitchen adjacent to dining + exterior wall for ventilation
-• Bedrooms in private rear zone, NOT directly visible from entrance
-• Bathrooms share plumbing walls for efficiency
-• Balcony connected to living room or bedrooms
-• Hallway/corridor width: 3.5'–5' (connects bedrooms privately)
-• Utility area behind kitchen
-${preferences.vastuCompliant ? `
-VASTU PLACEMENT (MANDATORY):
-• Living Room: North-East / East / North
-• Master Bedroom: South-West
-• Kitchen: South-East (Agni corner)
-• Dining: West / East
-• Bathrooms: North-West / West (avoid North-East)
-• Pooja Room: North-East
-• Study: North / North-East
-• Entrance: North / East facing preferred
-• Staircase: South / South-West
-` : ''}
+9. STAIRCASE: If multi-floor, show staircase with step lines and direction arrow.
 
-═══════════════════════════════════════════
-VISUAL STYLE & COLOR CODING
-═══════════════════════════════════════════
-• Walls: Dark Grey (#333)
-• Room fills: Soft distinct pastel colors (each room type different)
-• Furniture: Light Grey (#AAA) with outlines
-• Doors/Windows: Blue (#2563EB)
-• Measurements/Labels: Black, crisp, readable
-• Background: White/very light grey
-• Style: Professional CAD drafting — clean lines, precise, realistic
+10. NORTH ARROW: Large "N" with arrow in top-left corner.
 
-═══════════════════════════════════════════
-LEGEND BOX (bottom-right corner)
-═══════════════════════════════════════════
-• Scale indicator: 1:50 or 1:100
-• North direction arrow (pointing to ${northDirection || "North"})
-• Total built-up area calculation
-• Door schedule (D1, D2... with sizes)
-• Window schedule (W1, W2... with sizes)
-• Room color legend
-• Carpet area vs built-up area
+11. GARDEN/LANDSCAPE: Green colored areas with small circular tree symbols. Label "GARDEN".
 
-═══════════════════════════════════════════
-CIVIL ENGINEERING RULES
-═══════════════════════════════════════════
-• Ceiling height ≥ 10 ft
-• Ventilation ≥ 10% of floor area per habitable room
-• Every habitable room MUST have a window
-• Kitchen MUST have exterior ventilation
-• Bathroom plumbing walls shared for efficiency
+12. PARKING: Show car outline drawn inside parking area. Label with dimensions.
 
-═══════════════════════════════════════════
-VALIDATION CHECKLIST (confirm before output)
-═══════════════════════════════════════════
-✔ All rooms fit inside ${plotDimensions} plot boundary
-✔ All rooms labeled with name + dimensions
-✔ Furniture drawn in every room (NO empty rooms)
-✔ Doors with swing arcs, windows with symbols
-✔ Dimension arrows on all walls
-✔ Logical circulation flow
-✔ Legend box with scale, north arrow, schedules
-✔ Professional CAD-quality drafting
-✔ Construction-ready accuracy
+13. LEGEND BOX (bottom-right corner, bordered):
+    Left section:
+    - Wall: solid dark line sample
+    - Door: arc symbol sample  
+    - Window: blue rectangle sample
+    - Furniture: grey rectangle sample
+    - Circulation: dotted sample
+    Right section - Wall Colors:
+    - Living (blue square)
+    - Bedrooms (peach/purple squares)
+    - Garden (green square)
+    - Utility (yellow square)
+    Far right - Project info:
+    - "PROJECT: CasaMuse - AI Generated Floor Plan"
+    - "STYLE: ${preferences.style}"
+    - "SCALE: 1:50"
+    - "UNITS: Feet"
+    - "DATE: Auto-generated"
 
-Generate a HIGH-RESOLUTION, fully labeled, accurately dimensioned, construction-ready 2D floor plan image. Make it look PROFESSIONAL and REALISTIC like an architect's CAD drawing with proper colors, textures, and clean drafting.`;
+14. ROOM PLACEMENT:
+    - Entrance → Living Room near front with natural light
+    - Kitchen adjacent to dining + exterior wall for ventilation
+    - Bedrooms in private rear zone
+    - Bathrooms share plumbing walls
+    - Hallway connects bedrooms (3.5'-5' wide)
+    ${preferences.vastuCompliant ? `
+    VASTU: Living=NE/E/N, Master Bedroom=SW, Kitchen=SE, Pooja=NE, Bathrooms=NW/W, Entrance=N/E` : ''}
+
+15. BACKGROUND: Light grey/off-white grid paper look.
+
+CRITICAL RULES:
+- Every single room MUST be filled with its designated pastel color
+- Every room MUST have furniture drawn inside
+- Every room MUST be labeled with name + area + dimensions
+- All walls must show proper thickness
+- The plan must look like a REAL architect's colored CAD floor plan
+- Include the full plot boundary with gardens and parking OUTSIDE the house structure
+- Make it HIGH RESOLUTION and PROFESSIONAL`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -204,10 +151,8 @@ Generate a HIGH-RESOLUTION, fully labeled, accurately dimensioned, construction-
     }
 
     const data = await response.json();
-    console.log("AI Response received");
-
     const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    const description = data.choices?.[0]?.message?.content || "Professional 2D floor plan generated based on your specifications.";
+    const description = data.choices?.[0]?.message?.content || "Professional 2D floor plan generated.";
 
     if (!imageUrl) {
       throw new Error('No image generated');
