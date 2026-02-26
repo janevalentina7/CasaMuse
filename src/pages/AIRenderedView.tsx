@@ -7,14 +7,14 @@ import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useMeshyGeneration } from "@/hooks/useMeshyGeneration";
-import MeshyModelViewer from "@/components/3d/MeshyModelViewer";
+import { useMultiViewMeshy } from "@/hooks/useMultiViewMeshy";
+import MultiModelViewer from "@/components/3d/MultiModelViewer";
 import { Progress } from "@/components/ui/progress";
 
 const AIRenderedView = () => {
   const location = useLocation();
   const { imageUrl, formData, description } = location.state || {};
-  const meshy = useMeshyGeneration();
+  const multiMeshy = useMultiViewMeshy();
   const [isGenerating, setIsGenerating] = useState(false);
   const [renderedView, setRenderedView] = useState<string>('360');
   const [exteriorViews, setExteriorViews] = useState<{ [key: string]: { url: string; description: string } }>({});
@@ -279,64 +279,93 @@ const AIRenderedView = () => {
             </Card>
           )}
 
-          {/* Meshy AI Image-to-3D Section */}
-          {currentView && !meshy.modelUrl && (
+          {/* Multi-View Meshy AI 3D Conversion */}
+          {Object.keys(exteriorViews).length > 0 && (
             <Card className="glass-card border-2 border-primary/30">
-              <CardContent className="p-6 text-center space-y-4">
-                <div className="flex items-center justify-center gap-2">
-                  <Cuboid className="w-6 h-6 text-primary" />
-                  <h3 className="text-lg font-semibold">Convert to Interactive 3D Model</h3>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Use Meshy AI to generate a real 3D mesh (.glb) from this rendered view. Takes 3-7 minutes.
-                </p>
-                {meshy.isGenerating ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                      <span className="text-sm">{meshy.status}</span>
-                    </div>
-                    <Progress value={meshy.progress} className="w-full max-w-xs mx-auto" />
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Cuboid className="w-6 h-6 text-primary" />
+                    <h3 className="text-lg font-semibold">Convert to 3D Models (Meshy AI)</h3>
                   </div>
-                ) : (
-                  <Button
-                    variant="default"
-                    onClick={() => meshy.generateModel(currentView.url)}
-                    disabled={meshy.isGenerating}
-                  >
-                    <Cuboid className="w-4 h-4 mr-2" />
-                    Generate 3D Mesh with Meshy AI
-                  </Button>
-                )}
-                {meshy.error && (
-                  <p className="text-sm text-destructive">{meshy.error}</p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Meshy 3D Model Viewer */}
-          {meshy.modelUrl && (
-            <Card className="glass-card border-2 border-primary">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Cuboid className="w-5 h-5" />
-                  Meshy AI 3D Model
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <MeshyModelViewer modelUrl={meshy.modelUrl} />
-                <div className="flex gap-2 justify-center">
-                  <Button variant="outline" asChild>
-                    <a href={meshy.modelUrl} download="house-model.glb">
-                      <Download className="w-4 h-4 mr-2" />
-                      Download .glb
-                    </a>
-                  </Button>
-                  <Button variant="ghost" onClick={meshy.reset}>
-                    Try Another View
-                  </Button>
+                  {multiMeshy.isConverting && (
+                    <Badge variant="secondary">
+                      {multiMeshy.completedCount}/{multiMeshy.totalCount} complete
+                    </Badge>
+                  )}
                 </div>
+
+                <p className="text-sm text-muted-foreground">
+                  Send all generated views to Meshy AI for image-to-3D mesh conversion. Each view takes 3-7 minutes.
+                </p>
+
+                {multiMeshy.isConverting && (
+                  <div className="space-y-2">
+                    <Progress value={multiMeshy.overallProgress} className="w-full" />
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                      {Object.values(multiMeshy.tasks).map((task) => (
+                        <div key={task.viewKey} className="flex items-center gap-1.5 p-2 rounded bg-muted/50">
+                          {task.status === "SUCCEEDED" ? (
+                            <span className="w-2 h-2 rounded-full bg-green-500" />
+                          ) : task.status === "FAILED" ? (
+                            <span className="w-2 h-2 rounded-full bg-destructive" />
+                          ) : (
+                            <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                          )}
+                          <span className="truncate">{task.viewKey}</span>
+                          <span className="ml-auto">{task.progress}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {!multiMeshy.isConverting && multiMeshy.getSucceededModels().length === 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      onClick={() => {
+                        const views = Object.entries(exteriorViews).map(([key, view]) => ({
+                          viewKey: key,
+                          imageUrl: view.url,
+                        }));
+                        multiMeshy.convertViews(views);
+                      }}
+                    >
+                      <Cuboid className="w-4 h-4 mr-2" />
+                      Convert All Exterior Views ({Object.keys(exteriorViews).length})
+                    </Button>
+                    {currentView && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          multiMeshy.convertViews([{ viewKey: renderedView, imageUrl: currentView.url }]);
+                        }}
+                      >
+                        <Cuboid className="w-4 h-4 mr-2" />
+                        Convert Current View Only
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {multiMeshy.getSucceededModels().length > 0 && (
+                  <div className="space-y-4">
+                    <MultiModelViewer models={multiMeshy.getSucceededModels()} />
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {multiMeshy.getSucceededModels().map((model) => (
+                        <Button key={model.viewKey} variant="outline" size="sm" asChild>
+                          <a href={model.modelUrl} download={`${model.viewKey}-model.glb`}>
+                            <Download className="w-4 h-4 mr-2" />
+                            {model.viewKey}.glb
+                          </a>
+                        </Button>
+                      ))}
+                      <Button variant="ghost" size="sm" onClick={multiMeshy.reset}>
+                        Reset
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
