@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import FloorPlanComparison from "@/components/FloorPlanComparison";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { saveProjectProgress } from "@/lib/projectStorage";
 
 const FloorPlanResult = () => {
   const location = useLocation();
@@ -21,22 +22,15 @@ const FloorPlanResult = () => {
     }
   }, []);
 
-  // Save project to dashboard
+  // Auto-save progress
   useEffect(() => {
     if (!imageUrl || !formData) return;
-    const stored = localStorage.getItem('casaMuseProjects');
-    const projects = stored ? JSON.parse(stored) : [];
-    // Check if already saved (by imageUrl)
-    if (!projects.some((p: any) => p.imageUrl === imageUrl)) {
-      projects.push({
-        id: Date.now().toString(),
-        imageUrl,
-        formData,
-        description,
-        createdAt: new Date().toISOString(),
-      });
-      localStorage.setItem('casaMuseProjects', JSON.stringify(projects));
-    }
+    saveProjectProgress({
+      imageUrl,
+      formData,
+      description,
+      stage: 'floor-plan',
+    });
   }, [imageUrl, formData]);
 
   const handleDownload = () => {
@@ -113,9 +107,9 @@ const FloorPlanResult = () => {
               <Button
                 variant="hero"
                 size="sm"
-                onClick={() => navigate('/interactive-3d', { state: { imageUrl, description, formData } })}
+                onClick={() => navigate('/ai-rendered-view', { state: { imageUrl, description, formData } })}
               >
-                Next: 3D Model<ArrowRight className="w-4 h-4 ml-2" />
+                Next: AI Rendered Views<ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </div>
           </div>
@@ -172,9 +166,9 @@ const FloorPlanResult = () => {
                 <ArrowLeft className="w-4 h-4 mr-2" />Previous: Design Form
               </Button>
             </Link>
-            <Link to="/interactive-3d" state={{ imageUrl, description, formData }}>
+            <Link to="/ai-rendered-view" state={{ imageUrl, description, formData }}>
               <Button variant="hero" size="lg">
-                Next: 3D Model Viewer<ArrowRight className="w-4 h-4 ml-2" />
+                Next: AI Rendered Views<ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>
           </div>

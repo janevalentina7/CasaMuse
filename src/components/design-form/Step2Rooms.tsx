@@ -28,14 +28,14 @@ interface Step2Props {
 }
 
 export const Step2Rooms = ({ rooms, setRooms, onNext, onPrev }: Step2Props) => {
-  const essentialRooms = Object.entries(ROOM_DATA).filter(
-    ([_, room]) => room.category === "essential"
+  const coreRooms = Object.entries(ROOM_DATA).filter(
+    ([_, room]) => room.category === "core"
   );
-  const optionalRooms = Object.entries(ROOM_DATA).filter(
-    ([_, room]) => room.category === "optional"
+  const additionalRooms = Object.entries(ROOM_DATA).filter(
+    ([_, room]) => room.category === "additional"
   );
-  const luxuryRooms = Object.entries(ROOM_DATA).filter(
-    ([_, room]) => room.category === "luxury"
+  const specialtyRooms = Object.entries(ROOM_DATA).filter(
+    ([_, room]) => room.category === "specialty"
   );
 
   const getRoomSelection = (roomId: string) => {
@@ -83,11 +83,7 @@ export const Step2Rooms = ({ rooms, setRooms, onNext, onPrev }: Step2Props) => {
     roomId === "master_bedroom" || roomId === "bedroom" || roomId === "guest_room";
 
   const hasMinimumRooms = () => {
-    const hasLiving = rooms.some(r => r.roomId === "living_room" && r.count > 0);
-    const hasBedroom = rooms.some(r => ["master_bedroom", "bedroom"].includes(r.roomId) && r.count > 0);
-    const hasKitchen = rooms.some(r => r.roomId === "kitchen" && r.count > 0);
-    const hasBathroom = rooms.some(r => r.roomId.includes("bathroom") && r.count > 0);
-    return hasLiving && hasBedroom && hasKitchen && hasBathroom;
+    return rooms.some(r => r.count > 0);
   };
 
   const RoomCard = ({ roomId, roomData }: { roomId: string; roomData: any }) => {
@@ -114,7 +110,7 @@ export const Step2Rooms = ({ rooms, setRooms, onNext, onPrev }: Step2Props) => {
               </p>
             </div>
             <Badge
-              variant={roomData.category === "essential" ? "default" : "secondary"}
+              variant="secondary"
               className="ml-2 flex-shrink-0"
             >
               {roomData.category}
@@ -206,49 +202,49 @@ export const Step2Rooms = ({ rooms, setRooms, onNext, onPrev }: Step2Props) => {
           </div>
 
           <div className="space-y-6">
-            {/* Essential Rooms */}
+            {/* Core Rooms */}
             <div>
-          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-primary" />
-            Essential Rooms
-          </h3>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {essentialRooms.map(([id, data]) => (
-              <RoomCard key={id} roomId={id} roomData={data} />
-            ))}
-          </div>
-        </div>
+              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-primary" />
+                Core Rooms
+              </h3>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {coreRooms.map(([id, data]) => (
+                  <RoomCard key={id} roomId={id} roomData={data} />
+                ))}
+              </div>
+            </div>
 
-        {/* Optional Rooms */}
-        <div>
-          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-secondary" />
-            Optional Rooms
-          </h3>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {optionalRooms.map(([id, data]) => (
-              <RoomCard key={id} roomId={id} roomData={data} />
-            ))}
-          </div>
-        </div>
+            {/* Additional Rooms */}
+            <div>
+              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-secondary" />
+                Additional Rooms
+              </h3>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {additionalRooms.map(([id, data]) => (
+                  <RoomCard key={id} roomId={id} roomData={data} />
+                ))}
+              </div>
+            </div>
 
-        {/* Luxury Rooms */}
-        <div>
-          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-accent" />
-            Luxury Add-ons
-          </h3>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {luxuryRooms.map(([id, data]) => (
-              <RoomCard key={id} roomId={id} roomData={data} />
-            ))}
-          </div>
+            {/* Specialty Rooms */}
+            <div>
+              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-accent" />
+                Specialty Rooms
+              </h3>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {specialtyRooms.map(([id, data]) => (
+                  <RoomCard key={id} roomId={id} roomData={data} />
+                ))}
+              </div>
             </div>
           </div>
 
           {!hasMinimumRooms() && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-sm text-destructive">
-              ⚠️ Please select at least: Living Room, 1 Bedroom, Kitchen, and 1 Bathroom
+              ⚠️ Please select at least one room to continue
             </div>
           )}
 

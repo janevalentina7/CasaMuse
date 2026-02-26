@@ -1,6 +1,6 @@
 export interface RoomSize {
   name: string;
-  category: 'essential' | 'optional' | 'luxury';
+  category: string;
   sizes: {
     small?: { width: number; height: number; label: string };
     medium: { width: number; height: number; label: string };
@@ -15,7 +15,7 @@ export interface RoomSize {
 export const ROOM_DATA: Record<string, RoomSize> = {
   living_room: {
     name: "Living Room",
-    category: "essential",
+    category: "core",
     sizes: {
       small: { width: 10, height: 12, label: "Small (10' × 12')" },
       medium: { width: 12, height: 16, label: "Medium (12' × 16')" },
@@ -27,7 +27,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   master_bedroom: {
     name: "Master Bedroom",
-    category: "essential",
+    category: "core",
     sizes: {
       medium: { width: 12, height: 14, label: "Standard (12' × 14')" },
       large: { width: 14, height: 16, label: "Premium (14' × 16')" },
@@ -38,7 +38,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   bedroom: {
     name: "Bedroom",
-    category: "essential",
+    category: "core",
     sizes: {
       small: { width: 10, height: 12, label: "Compact (10' × 12')" },
       medium: { width: 11, height: 13, label: "Standard (11' × 13')" },
@@ -49,7 +49,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   kitchen: {
     name: "Kitchen",
-    category: "essential",
+    category: "core",
     sizes: {
       small: { width: 8, height: 10, label: "Compact (8' × 10')" },
       medium: { width: 10, height: 12, label: "Standard (10' × 12')" },
@@ -60,7 +60,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   dining_room: {
     name: "Dining Room",
-    category: "essential",
+    category: "core",
     sizes: {
       small: { width: 10, height: 12, label: "Compact (10' × 12')" },
       medium: { width: 12, height: 14, label: "Standard (12' × 14')" },
@@ -71,7 +71,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   bathroom_common: {
     name: "Common Bathroom",
-    category: "essential",
+    category: "core",
     sizes: {
       small: { width: 4, height: 7, label: "Compact (4' × 7')" },
       medium: { width: 5, height: 8, label: "Standard (5' × 8')" },
@@ -82,7 +82,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   bathroom_attached: {
     name: "Attached Bathroom",
-    category: "optional",
+    category: "additional",
     sizes: {
       medium: { width: 5, height: 8, label: "Standard (5' × 8')" },
       large: { width: 6, height: 8, label: "Large (6' × 8')" },
@@ -93,7 +93,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   entrance_foyer: {
     name: "Entrance Foyer",
-    category: "essential",
+    category: "additional",
     sizes: {
       small: { width: 5, height: 6, label: "Compact (5' × 6')" },
       medium: { width: 6, height: 8, label: "Standard (6' × 8')" },
@@ -104,7 +104,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   utility_area: {
     name: "Utility Area",
-    category: "essential",
+    category: "additional",
     sizes: {
       small: { width: 4, height: 6, label: "Small (4' × 6')" },
       medium: { width: 5, height: 8, label: "Standard (5' × 8')" },
@@ -115,7 +115,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   guest_room: {
     name: "Guest Bedroom",
-    category: "optional",
+    category: "additional",
     sizes: {
       medium: { width: 10, height: 12, label: "Standard (10' × 12')" },
     },
@@ -125,7 +125,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   study_room: {
     name: "Study / Home Office",
-    category: "optional",
+    category: "additional",
     sizes: {
       small: { width: 8, height: 10, label: "Compact (8' × 10')" },
       medium: { width: 10, height: 12, label: "Standard (10' × 12')" },
@@ -136,7 +136,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   pooja_room: {
     name: "Pooja Room",
-    category: "optional",
+    category: "additional",
     sizes: {
       small: { width: 4, height: 6, label: "Small (4' × 6')" },
       medium: { width: 5, height: 7, label: "Standard (5' × 7')" },
@@ -147,7 +147,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   store_room: {
     name: "Store Room",
-    category: "optional",
+    category: "additional",
     sizes: {
       small: { width: 5, height: 7, label: "Small (5' × 7')" },
       medium: { width: 6, height: 8, label: "Standard (6' × 8')" },
@@ -158,7 +158,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   balcony: {
     name: "Balcony",
-    category: "optional",
+    category: "additional",
     sizes: {
       small: { width: 4, height: 8, label: "Compact (4' wide)" },
       medium: { width: 6, height: 10, label: "Comfortable (6' wide)" },
@@ -169,7 +169,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   powder_room: {
     name: "Powder Room / WC",
-    category: "optional",
+    category: "additional",
     sizes: {
       small: { width: 4, height: 4, label: "Compact (4' × 4')" },
       medium: { width: 4, height: 5, label: "Standard (4' × 5')" },
@@ -180,7 +180,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   // Luxury
   home_theatre: {
     name: "Home Theatre",
-    category: "luxury",
+    category: "specialty",
     sizes: {
       medium: { width: 12, height: 16, label: "Standard (12' × 16')" },
     },
@@ -190,7 +190,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   walk_in_closet: {
     name: "Walk-in Closet",
-    category: "luxury",
+    category: "specialty",
     sizes: {
       medium: { width: 6, height: 8, label: "Standard (6' × 8')" },
     },
@@ -200,7 +200,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   home_office: {
     name: "Home Office",
-    category: "luxury",
+    category: "specialty",
     sizes: {
       medium: { width: 10, height: 12, label: "Standard (10' × 12')" },
     },
@@ -210,7 +210,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   gym: {
     name: "Gym Room",
-    category: "luxury",
+    category: "specialty",
     sizes: {
       medium: { width: 10, height: 14, label: "Standard (10' × 14')" },
     },
@@ -220,7 +220,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   laundry_room: {
     name: "Laundry Room",
-    category: "luxury",
+    category: "specialty",
     sizes: {
       medium: { width: 6, height: 7, label: "Standard (6' × 7')" },
     },
@@ -230,7 +230,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   library: {
     name: "Library / Reading Nook",
-    category: "luxury",
+    category: "specialty",
     sizes: {
       small: { width: 8, height: 10, label: "Compact (8' × 10')" },
       medium: { width: 10, height: 12, label: "Standard (10' × 12')" },
@@ -241,7 +241,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   game_room: {
     name: "Game / Entertainment Room",
-    category: "luxury",
+    category: "specialty",
     sizes: {
       medium: { width: 12, height: 14, label: "Standard (12' × 14')" },
     },
@@ -250,7 +250,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   meditation_room: {
     name: "Meditation Room",
-    category: "luxury",
+    category: "specialty",
     sizes: {
       small: { width: 6, height: 8, label: "Compact (6' × 8')" },
       medium: { width: 8, height: 10, label: "Standard (8' × 10')" },
@@ -261,7 +261,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   bar_counter: {
     name: "Bar Counter Area",
-    category: "luxury",
+    category: "specialty",
     sizes: {
       medium: { width: 6, height: 8, label: "Standard (6' × 8')" },
     },
@@ -270,7 +270,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   walk_in_pantry: {
     name: "Walk-in Pantry",
-    category: "luxury",
+    category: "specialty",
     sizes: {
       medium: { width: 5, height: 7, label: "Standard (5' × 7')" },
     },
@@ -280,7 +280,7 @@ export const ROOM_DATA: Record<string, RoomSize> = {
   },
   courtyard: {
     name: "Courtyard",
-    category: "luxury",
+    category: "specialty",
     sizes: {
       small: { width: 8, height: 8, label: "Compact (8' × 8')" },
       medium: { width: 10, height: 12, label: "Standard (10' × 12')" },

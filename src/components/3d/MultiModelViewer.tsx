@@ -49,7 +49,7 @@ const MultiModelViewer = ({ models }: MultiModelViewerProps) => {
                 <GLBModel key={model.viewKey} url={model.modelUrl} index={i} total={models.length} />
               ))}
             </Stage>
-            <OrbitControls enablePan enableZoom enableRotate autoRotate autoRotateSpeed={1.5} />
+            <OrbitControls enablePan enableZoom enableRotate autoRotate={false} />
           </Suspense>
         </Canvas>
       </div>
