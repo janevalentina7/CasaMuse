@@ -11,104 +11,179 @@ serve(async (req) => {
   }
 
   try {
-    const { landArea, rooms, preferences } = await req.json();
-    
-    console.log("Generating floor plan with data:", { landArea, rooms, preferences });
+    const { landArea, plotLength, plotBreadth, northDirection, rooms, preferences } = await req.json();
+
+    console.log("Generating floor plan with data:", { landArea, plotLength, plotBreadth, northDirection, rooms, preferences });
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    // Build detailed room list for prompt
+    // Build detailed room list
     const roomDetails = rooms.map((room: any) => {
-      const roomInfo = `${room.count}x ${room.roomName} (${room.size} size: ${room.width}'×${room.height}')`;
-      if (room.attachedBathroom) {
-        return `${roomInfo} with attached bathroom`;
-      }
-      return roomInfo;
-    }).join(", ");
+      let info = `${room.count}x ${room.roomName} (${room.size}: ${room.width}'×${room.height}')`;
+      if (room.attachedBathroom) info += " with attached bathroom (5'×8')";
+      return info;
+    }).join("\n   - ");
 
     const outdoorFeatures = preferences.outdoorFeatures?.join(", ") || "None";
+    const plotDimensions = plotLength && plotBreadth ? `${plotLength}' × ${plotBreadth}'` : `${landArea} sq ft (rectangular)`;
+    const garagePlacement = preferences.garagePlacement || "Front";
+    const gardenPlacement = preferences.gardenPlacement || "Front Garden";
 
-    // Create comprehensive architectural prompt
-    const prompt = `Create a professional, architect-grade 2D floor plan image with the following specifications:
+    const prompt = `You are an Advanced Architectural Planning AI. Generate a PROFESSIONAL, CONSTRUCTION-READY 2D floor plan equivalent to AutoCAD/Revit/ArchiCAD drawings, following INDIAN RESIDENTIAL CONSTRUCTION STANDARDS.
 
-MANDATORY LABELING - EVERY ELEMENT MUST BE LABELED:
-1. ROOM LABELS (Required for ALL rooms):
-   - Each room MUST have its name in LARGE, BOLD text centered in the room
-   - Room names: "LIVING ROOM", "MASTER BEDROOM", "BEDROOM 2", "KITCHEN", "BATHROOM 1", etc.
-   - Dimensions MUST be shown below each room name: "16' × 20'" format
-   - Use contrasting color for text visibility
+═══════════════════════════════════════════
+PROPERTY SPECIFICATIONS
+═══════════════════════════════════════════
+• Total Land Area: ${landArea} sq ft
+• Plot Dimensions: ${plotDimensions}
+• Number of Floors: ${preferences.floors}
+• North Direction: ${northDirection || "North"}
+• Architectural Style: ${preferences.style}
+• Vastu Compliant: ${preferences.vastuCompliant ? "YES — strictly follow Vastu room placement" : "No — optimize for functionality"}
+• Dynamic Scaling: ${preferences.dynamicScaling ? "Enabled — adjust proportionally if rooms exceed plot" : "Disabled"}
 
-2. DIMENSION ARROWS (Required on ALL walls):
-   - Show dimension lines with arrows on EVERY wall
-   - Display measurements in feet and inches
-   - External dimensions for overall plot size
-   - Internal dimensions for each room
+═══════════════════════════════════════════
+ROOMS REQUIRED (with Indian standard sizes)
+═══════════════════════════════════════════
+   - ${roomDetails}
 
-3. DOOR & WINDOW LABELS:
-   - Mark all doors with "D1", "D2", "D3" etc.
-   - Mark all windows with "W1", "W2", "W3" etc.
-   - Show door swing direction with arcs
-   - Include door/window sizes in legend
+═══════════════════════════════════════════
+OUTDOOR FEATURES & PLACEMENT
+═══════════════════════════════════════════
+• Selected Features: ${outdoorFeatures}
+• Garage/Parking Placement: ${garagePlacement}
+  - Min size: 9'×18' (small car), 10'×20' (SUV)
+  - Must have driveway access from road side
+• Garden Placement: ${gardenPlacement}
+  - Ensure sunlight exposure, walking pathways
+  - Don't block ventilation windows
 
-4. LEGEND BOX (Required):
-   - Place in corner of floor plan
-   - List all room abbreviations
-   - Door and window schedule
-   - Scale indicator (1:50 or 1:100)
-   - North direction arrow
-   - Total built-up area calculation
+═══════════════════════════════════════════
+MANDATORY DRAWING REQUIREMENTS
+═══════════════════════════════════════════
 
-5. ROOM-SPECIFIC LABELS:
-   - Kitchen: Label counter, sink, cooking area, storage
-   - Bathroom: Label WC, wash basin, shower
-   - Bedroom: Label wardrobe area, bed placement
-   - Living: Label seating area, TV unit placement
+1. WALL DRAWING:
+   - Wall thickness: 4.5"–9" (shown accurately)
+   - Load-bearing walls clearly marked
+   - Pillar/column positions shown
 
-FLOOR PLAN SPECIFICATIONS:
+2. DOORS (with swing arcs):
+   - Main Door: 3.5'–4' × 7' (show swing arc)
+   - Room Doors: 3' × 7' (show swing arc)
+   - Bathroom Doors: 2.5' × 7' (show swing arc)
+   - Label each: D1, D2, D3...
 
-PLOT DETAILS:
-- Total Land Area: ${landArea} sq ft
-- Number of Floors: ${preferences.floors}
-- Architectural Style: ${preferences.style}
-- Vastu Compliant: ${preferences.vastuCompliant ? "Yes" : "No"}
-- Dynamic Scaling: ${preferences.dynamicScaling ? "Enabled" : "Disabled"}
+3. WINDOWS (with symbols):
+   - Living: 5' × 4'
+   - Bedroom: 4' × 4'
+   - Bathroom: 2' × 1.5'
+   - Kitchen: must have exterior ventilation window
+   - Label each: W1, W2, W3...
 
-ROOMS REQUIRED (Label each with name and dimensions):
-${roomDetails}
+4. ROOM LABELS (EVERY room MUST have):
+   - Room name in LARGE BOLD text centered in room
+   - Dimensions below: "12' × 14'" format
+   - Use contrasting color for readability
 
-OUTDOOR FEATURES:
-${outdoorFeatures}
+5. DIMENSION LINES & ARROWS:
+   - Internal dimensions for EVERY room wall
+   - External dimensions for overall plot
+   - Measurement arrows with feet/inches
 
-DESIGN REQUIREMENTS:
-1. Create a clean, professional 2D floor plan similar to AutoCAD/Revit output
-2. Show all walls with proper thickness (4-6 inches)
-3. Include doors with opening arcs showing swing direction
-4. Add windows with proper symbols
-5. LABEL EVERY ROOM with name and dimensions (length × width in feet)
-6. Show furniture layout for each room with labels
-7. Include a north direction arrow in top-right corner
-8. Add scale indicator (1:50 or 1:100) in legend
-9. Use professional color coding: walls in dark grey, rooms in soft pastels, furniture in light grey
-10. Show circulation paths and ensure logical room flow
-11. ${preferences.vastuCompliant ? "Follow Vastu directions: Living room (North-East/East), Kitchen (South-East), Master bedroom (South-West), etc." : "Optimize for functionality and natural light"}
-12. Include ALL dimensions for ALL rooms and walls
-13. Add electrical points, plumbing lines if visible
-14. Ensure proper ventilation with window placements
+6. FURNITURE LAYOUT (MANDATORY — no empty rooms):
+   Living Room: Sofa set, coffee table, TV unit, seating circulation
+   Master Bedroom: King/Queen bed, wardrobe, side tables, dressing area
+   Bedrooms: Bed, study table, wardrobe
+   Kitchen: L/Parallel countertops, sink, stove, refrigerator, storage cabinets
+   Dining: Dining table (4-6 seating), movement clearance
+   Bathroom: WC, shower, wash basin (all drawn)
+   Utility: Washing machine space, sink provision
+   Balcony: Railing, access door
 
-ROOM LAYOUT RULES:
-- Living room near entrance with good ventilation
-- Kitchen near dining area with utility access
-- Bedrooms in private zones away from living areas
-- Bathrooms should share plumbing walls
-- Balconies attached to living room or bedrooms
-- Proper hallway widths (3-4 feet minimum)
+7. STRUCTURAL ELEMENTS:
+   - Staircase: 3'–4' width, riser 6"–7", tread 10"–11", show step direction
+   - Minimum staircase area: 6' × 10'
+   - Pillars and beams marked
 
-CRITICAL: The floor plan MUST have visible, readable labels for EVERY room showing the room name and dimensions. Do not generate a floor plan without labels.`;
+8. UTILITIES LAYOUT:
+   - Electrical points & switchboard locations
+   - Plumbing lines (kitchen, bathroom share walls)
+   - AC unit locations
+   - Washing machine & geyser points
+   - Drainage direction
 
-    // Generate image using Lovable AI (image generation model)
+═══════════════════════════════════════════
+ROOM PLACEMENT RULES
+═══════════════════════════════════════════
+• Entrance → Foyer → Living Room (near entrance, natural light)
+• Kitchen adjacent to dining + exterior wall for ventilation
+• Bedrooms in private rear zone, NOT directly visible from entrance
+• Bathrooms share plumbing walls for efficiency
+• Balcony connected to living room or bedrooms
+• Hallway/corridor width: 3.5'–5' (connects bedrooms privately)
+• Utility area behind kitchen
+${preferences.vastuCompliant ? `
+VASTU PLACEMENT (MANDATORY):
+• Living Room: North-East / East / North
+• Master Bedroom: South-West
+• Kitchen: South-East (Agni corner)
+• Dining: West / East
+• Bathrooms: North-West / West (avoid North-East)
+• Pooja Room: North-East
+• Study: North / North-East
+• Entrance: North / East facing preferred
+• Staircase: South / South-West
+` : ''}
+
+═══════════════════════════════════════════
+VISUAL STYLE & COLOR CODING
+═══════════════════════════════════════════
+• Walls: Dark Grey (#333)
+• Room fills: Soft distinct pastel colors (each room type different)
+• Furniture: Light Grey (#AAA) with outlines
+• Doors/Windows: Blue (#2563EB)
+• Measurements/Labels: Black, crisp, readable
+• Background: White/very light grey
+• Style: Professional CAD drafting — clean lines, precise, realistic
+
+═══════════════════════════════════════════
+LEGEND BOX (bottom-right corner)
+═══════════════════════════════════════════
+• Scale indicator: 1:50 or 1:100
+• North direction arrow (pointing to ${northDirection || "North"})
+• Total built-up area calculation
+• Door schedule (D1, D2... with sizes)
+• Window schedule (W1, W2... with sizes)
+• Room color legend
+• Carpet area vs built-up area
+
+═══════════════════════════════════════════
+CIVIL ENGINEERING RULES
+═══════════════════════════════════════════
+• Ceiling height ≥ 10 ft
+• Ventilation ≥ 10% of floor area per habitable room
+• Every habitable room MUST have a window
+• Kitchen MUST have exterior ventilation
+• Bathroom plumbing walls shared for efficiency
+
+═══════════════════════════════════════════
+VALIDATION CHECKLIST (confirm before output)
+═══════════════════════════════════════════
+✔ All rooms fit inside ${plotDimensions} plot boundary
+✔ All rooms labeled with name + dimensions
+✔ Furniture drawn in every room (NO empty rooms)
+✔ Doors with swing arcs, windows with symbols
+✔ Dimension arrows on all walls
+✔ Logical circulation flow
+✔ Legend box with scale, north arrow, schedules
+✔ Professional CAD-quality drafting
+✔ Construction-ready accuracy
+
+Generate a HIGH-RESOLUTION, fully labeled, accurately dimensioned, construction-ready 2D floor plan image. Make it look PROFESSIONAL and REALISTIC like an architect's CAD drawing with proper colors, textures, and clean drafting.`;
+
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -117,12 +192,7 @@ CRITICAL: The floor plan MUST have visible, readable labels for EVERY room showi
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash-image',
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
+        messages: [{ role: 'user', content: prompt }],
         modalities: ['image', 'text']
       }),
     });
@@ -136,7 +206,6 @@ CRITICAL: The floor plan MUST have visible, readable labels for EVERY room showi
     const data = await response.json();
     console.log("AI Response received");
 
-    // Extract the generated image
     const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
     const description = data.choices?.[0]?.message?.content || "Professional 2D floor plan generated based on your specifications.";
 
@@ -145,27 +214,15 @@ CRITICAL: The floor plan MUST have visible, readable labels for EVERY room showi
     }
 
     return new Response(
-      JSON.stringify({ 
-        imageUrl, 
-        description,
-        success: true 
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      JSON.stringify({ imageUrl, description, success: true }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Error in generate-floor-plan function:', error);
     return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        success: false 
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error', success: false }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

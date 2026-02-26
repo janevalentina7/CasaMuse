@@ -15,6 +15,9 @@ export const DesignForm = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [landArea, setLandArea] = useState("");
+  const [plotLength, setPlotLength] = useState("");
+  const [plotBreadth, setPlotBreadth] = useState("");
+  const [northDirection, setNorthDirection] = useState("North");
   const [rooms, setRooms] = useState<RoomSelection[]>([]);
   const [preferences, setPreferences] = useState<DesignPreferences>({
     style: "Modern",
@@ -22,6 +25,8 @@ export const DesignForm = () => {
     vastuCompliant: false,
     dynamicScaling: true,
     outdoorFeatures: [],
+    garagePlacement: "Front",
+    gardenPlacement: "Front Garden",
   });
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -32,7 +37,7 @@ export const DesignForm = () => {
       return;
     }
     setCurrentStep(2);
-    toast.success("Land area saved!");
+    toast.success("Property details saved!");
   };
 
   const handleStep2Next = () => {
@@ -61,7 +66,6 @@ export const DesignForm = () => {
     });
 
     try {
-      // Prepare room data with full details
       const roomsWithDetails = rooms.map((room) => {
         const roomData = ROOM_DATA[room.roomId];
         const sizeData = roomData.sizes[room.size];
@@ -76,36 +80,36 @@ export const DesignForm = () => {
         };
       });
 
-      // Call the edge function to generate floor plan
       const { data, error } = await supabase.functions.invoke('generate-floor-plan', {
         body: {
           landArea,
+          plotLength,
+          plotBreadth,
+          northDirection,
           rooms: roomsWithDetails,
           preferences,
         },
       });
 
       if (error) throw error;
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to generate floor plan');
-      }
+      if (!data.success) throw new Error(data.error || 'Failed to generate floor plan');
 
       toast.success("Floor plan generated successfully!");
 
-      // Navigate to results page with the generated image
       navigate('/floor-plan-result', {
         state: {
           imageUrl: data.imageUrl,
           description: data.description,
           formData: {
             landArea,
+            plotLength,
+            plotBreadth,
+            northDirection,
             rooms: roomsWithDetails,
             preferences,
           },
         },
       });
-
     } catch (error) {
       console.error('Error generating floor plan:', error);
       toast.error("Failed to generate floor plan", {
@@ -118,42 +122,33 @@ export const DesignForm = () => {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <FormProgress
-        currentStep={currentStep}
-        totalSteps={STEPS.length}
-        steps={STEPS}
-      />
-
+      <FormProgress currentStep={currentStep} totalSteps={STEPS.length} steps={STEPS} />
       <div className="mt-8">
         {currentStep === 1 && (
           <Step1LandArea
             landArea={landArea}
             setLandArea={setLandArea}
+            plotLength={plotLength}
+            setPlotLength={setPlotLength}
+            plotBreadth={plotBreadth}
+            setPlotBreadth={setPlotBreadth}
+            northDirection={northDirection}
+            setNorthDirection={setNorthDirection}
             onNext={handleStep1Next}
           />
         )}
-
         {currentStep === 2 && (
-          <Step2Rooms
-            rooms={rooms}
-            setRooms={setRooms}
-            onNext={handleStep2Next}
-            onPrev={() => setCurrentStep(1)}
-          />
+          <Step2Rooms rooms={rooms} setRooms={setRooms} onNext={handleStep2Next} onPrev={() => setCurrentStep(1)} />
         )}
-
         {currentStep === 3 && (
-          <Step3Preferences
-            preferences={preferences}
-            setPreferences={setPreferences}
-            onNext={handleStep3Next}
-            onPrev={() => setCurrentStep(2)}
-          />
+          <Step3Preferences preferences={preferences} setPreferences={setPreferences} onNext={handleStep3Next} onPrev={() => setCurrentStep(2)} />
         )}
-
         {currentStep === 4 && (
           <Step4Review
             landArea={landArea}
+            plotLength={plotLength}
+            plotBreadth={plotBreadth}
+            northDirection={northDirection}
             rooms={rooms}
             preferences={preferences}
             onPrev={() => setCurrentStep(3)}
