@@ -280,7 +280,7 @@ const AIRenderedView = () => {
           )}
 
           {/* Multi-View Meshy AI 3D Conversion */}
-          {Object.keys(exteriorViews).length > 0 && (
+          {(Object.keys(exteriorViews).length > 0 || Object.keys(interiorViews).length > 0) && (
             <Card className="glass-card border-2 border-primary/30">
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-center justify-between">
@@ -296,7 +296,7 @@ const AIRenderedView = () => {
                 </div>
 
                 <p className="text-sm text-muted-foreground">
-                  Send all generated views to Meshy AI for image-to-3D mesh conversion. Each view takes 3-7 minutes.
+                  Send exterior and interior views to Meshy AI for image-to-3D mesh conversion. Each view takes 3-7 minutes.
                 </p>
 
                 {multiMeshy.isConverting && (
@@ -322,23 +322,64 @@ const AIRenderedView = () => {
 
                 {!multiMeshy.isConverting && multiMeshy.getSucceededModels().length === 0 && (
                   <div className="flex flex-wrap gap-2">
+                    {/* Convert All Views (Exterior + Interior) */}
                     <Button
                       onClick={() => {
-                        const views = Object.entries(exteriorViews).map(([key, view]) => ({
-                          viewKey: key,
-                          imageUrl: view.url,
-                        }));
-                        multiMeshy.convertViews(views);
+                        const allViews = [
+                          ...Object.entries(exteriorViews).map(([key, view]) => ({
+                            viewKey: `Exterior: ${key}`,
+                            imageUrl: view.url,
+                          })),
+                          ...Object.entries(interiorViews).map(([key, view]) => ({
+                            viewKey: `Interior: ${key}`,
+                            imageUrl: view.url,
+                          })),
+                        ];
+                        multiMeshy.convertViews(allViews);
                       }}
                     >
                       <Cuboid className="w-4 h-4 mr-2" />
-                      Convert All Exterior Views ({Object.keys(exteriorViews).length})
+                      Convert All Views ({Object.keys(exteriorViews).length + Object.keys(interiorViews).length})
                     </Button>
-                    {currentView && (
+                    {/* Exterior Only */}
+                    {Object.keys(exteriorViews).length > 0 && (
                       <Button
                         variant="outline"
                         onClick={() => {
-                          multiMeshy.convertViews([{ viewKey: renderedView, imageUrl: currentView.url }]);
+                          const views = Object.entries(exteriorViews).map(([key, view]) => ({
+                            viewKey: `Exterior: ${key}`,
+                            imageUrl: view.url,
+                          }));
+                          multiMeshy.convertViews(views);
+                        }}
+                      >
+                        <Cuboid className="w-4 h-4 mr-2" />
+                        Exterior Only ({Object.keys(exteriorViews).length})
+                      </Button>
+                    )}
+                    {/* Interior Only */}
+                    {Object.keys(interiorViews).length > 0 && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          const views = Object.entries(interiorViews).map(([key, view]) => ({
+                            viewKey: `Interior: ${key}`,
+                            imageUrl: view.url,
+                          }));
+                          multiMeshy.convertViews(views);
+                        }}
+                      >
+                        <Cuboid className="w-4 h-4 mr-2" />
+                        Interior Only ({Object.keys(interiorViews).length})
+                      </Button>
+                    )}
+                    {/* Current View */}
+                    {currentView && (
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          const prefix = interiorViews[renderedView] ? 'Interior' : 'Exterior';
+                          multiMeshy.convertViews([{ viewKey: `${prefix}: ${renderedView}`, imageUrl: currentView.url }]);
                         }}
                       >
                         <Cuboid className="w-4 h-4 mr-2" />
@@ -354,7 +395,7 @@ const AIRenderedView = () => {
                     <div className="flex flex-wrap gap-2 justify-center">
                       {multiMeshy.getSucceededModels().map((model) => (
                         <Button key={model.viewKey} variant="outline" size="sm" asChild>
-                          <a href={model.modelUrl} download={`${model.viewKey}-model.glb`}>
+                          <a href={model.modelUrl} download={`${model.viewKey.replace(/[: ]/g, '_')}-model.glb`}>
                             <Download className="w-4 h-4 mr-2" />
                             {model.viewKey}.glb
                           </a>
