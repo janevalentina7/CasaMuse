@@ -1,8 +1,8 @@
-import { useLocation, Link } from "react-router-dom";
+import { useLocation, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, ArrowLeft, Box, Eye, Loader2, ChevronDown, ChevronUp, RefreshCw, Cuboid, Download } from "lucide-react";
+import { Home, ArrowLeft, ArrowRight, Box, Eye, Loader2, ChevronDown, ChevronUp, RefreshCw, Cuboid, Download } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 
 const AIRenderedView = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { imageUrl, formData, description } = location.state || {};
   const multiMeshy = useMultiViewMeshy();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -205,13 +206,21 @@ const AIRenderedView = () => {
               </div>
               <span className="text-xl font-bold">CasaMuse</span>
             </Link>
-            
-            <Link to="/floor-plan-result" state={{ imageUrl, description, formData }}>
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Results
+            <div className="flex gap-2">
+              <Link to="/floor-plan-result" state={{ imageUrl, description, formData }}>
+                <Button variant="ghost" size="sm">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Floor Plan
+                </Button>
+              </Link>
+              <Button
+                variant="hero"
+                size="sm"
+                onClick={() => navigate('/interactive-3d', { state: { imageUrl, description, formData } })}
+              >
+                Next: 3D Model<ArrowRight className="w-4 h-4 ml-2" />
               </Button>
-            </Link>
+            </div>
           </div>
         </div>
       </header>
@@ -597,6 +606,20 @@ const AIRenderedView = () => {
               </CardContent>
             </Card>
           )}
+
+          {/* Sequential Navigation */}
+          <div className="flex justify-between pt-8 border-t border-border/50">
+            <Link to="/floor-plan-result" state={{ imageUrl, description, formData }}>
+              <Button variant="outline" size="lg">
+                <ArrowLeft className="w-4 h-4 mr-2" />Previous: Floor Plan
+              </Button>
+            </Link>
+            <Link to="/interactive-3d" state={{ imageUrl, description, formData }}>
+              <Button variant="hero" size="lg">
+                Next: 3D Model<ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </main>
     </div>

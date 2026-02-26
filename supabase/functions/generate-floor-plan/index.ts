@@ -31,105 +31,76 @@ serve(async (req) => {
     const garagePlacement = preferences.garagePlacement || "Front";
     const gardenPlacement = preferences.gardenPlacement || "Front Garden";
 
-    const prompt = `Generate a PROFESSIONAL 2D architectural floor plan image that looks EXACTLY like a real architect's CAD drawing. Follow this EXACT visual style:
+    const prompt = `You are a professional architect. Generate a PRECISE, HIGH-QUALITY 2D architectural floor plan image following strict CAD drafting standards.
 
-PLOT: ${plotDimensions} plot, ${landArea} sq ft total area, ${preferences.floors} floor(s), ${preferences.style} style.
-North Direction: ${northDirection || "North"}
-${preferences.vastuCompliant ? "VASTU COMPLIANT: Yes — place rooms per Vastu directions." : ""}
+SPECIFICATIONS:
+- Plot: ${plotDimensions}, Total: ${landArea} sq ft, ${preferences.floors} floor(s), ${preferences.style} style
+- North: ${northDirection || "Up"}
+${preferences.vastuCompliant ? "- VASTU COMPLIANT: Follow traditional Vastu Shastra directional rules strictly." : ""}
 
-ROOMS:
+ROOMS (use EXACT dimensions provided — do NOT change sizes):
    - ${roomDetails}
 
-OUTDOOR: ${outdoorFeatures}
-Garage: ${garagePlacement} | Garden: ${gardenPlacement}
+OUTDOOR FEATURES: ${outdoorFeatures}
+Garage Placement: ${garagePlacement} | Garden Placement: ${gardenPlacement}
 
-═══ MANDATORY VISUAL STYLE (follow EXACTLY) ═══
+═══ DRAWING STANDARDS (follow precisely) ═══
 
-1. PLOT BOUNDARY: Draw a thick dark border showing the full plot boundary. Label "PLOT BOUNDARY" at top-right and bottom-right corners. Show overall dimensions (e.g., "40'-0\"") along all four sides outside the boundary.
+LAYOUT RULES:
+• Plot boundary: thick dark border with dimensions labeled on all 4 sides (e.g., "40'-0\"")
+• Outer walls: 9" thick dark lines | Inner walls: 4.5" thick
+• Each room MUST use the EXACT width × height dimensions specified above
+• Room positions: Living near entrance with natural light, Kitchen adjacent to dining on exterior wall, Bedrooms in private zone at rear, Bathrooms share plumbing walls
+• Hallway/corridor: 3.5'–5' wide connecting rooms
+${preferences.vastuCompliant ? "• VASTU: Living=NE/E/N, Master Bedroom=SW, Kitchen=SE, Pooja=NE, Bathrooms=NW/W, Entrance=N/E" : ""}
 
-2. COLORED ROOM FILLS (CRITICAL — each room type gets a DISTINCT pastel color):
-   - Living Room: Light Blue fill
-   - Master Bedroom: Light Peach/Salmon fill
-   - Bedrooms: Light Lavender/Purple fill
-   - Kitchen: Light Yellow/Cream fill
-   - Dining Area: Light Blue (slightly different shade from living)
-   - Bathrooms: Light Cyan/Aqua fill
-   - Hallway/Corridor: Light Yellow dotted pattern
-   - Utility/Laundry: Light Yellow fill
-   - Pooja Room: Light Yellow fill
-   - Balcony/Sit-out: White fill with border
-   - Garden areas: GREEN fill with small tree/shrub symbols
-   - Parking: Light Grey fill with car symbol drawn inside
+COLOR-CODED ROOM FILLS (each room type gets a DISTINCT pastel color):
+• Living Room → Light Blue (#D4E8FC)
+• Master Bedroom → Light Peach (#FDDCBA)
+• Bedroom → Light Lavender (#E8D4F0)
+• Kitchen → Light Yellow (#FFF3CD)
+• Dining → Soft Cyan (#D4F1F4)
+• Bathroom → Light Aqua (#C8F0F0)
+• Hallway/Corridor → Dotted Light Yellow
+• Utility/Laundry → Pale Yellow (#FFF8DC)
+• Pooja Room → Light Gold (#FFEEBA)
+• Balcony/Sit-out → White with thin border
+• Garden → Green (#D4EDDA) with tree/shrub symbols
+• Parking → Light Grey (#E9ECEF) with car outline
 
-3. WALLS: Dark grey/black thick lines (9" outer walls, 4.5" inner walls). Clearly visible wall thickness.
+ROOM LABELS (centered inside EVERY room, ALL three lines mandatory):
+1. Room name in BOLD UPPERCASE (e.g., "MASTER BEDROOM")
+2. "Area: XXX sq.ft" (calculated from width × height)
+3. Dimensions: "12'-0\" × 14'-0\""
+Font must be clearly legible — black text on colored background.
 
-4. ROOM LABELS (EVERY room MUST have centered inside):
-   - Room name in BOLD CAPS (e.g., "MASTER BEDROOM")
-   - "Area: XXX sq.ft" below the name
-   - Dimensions: "12'-0\" x 13'-0\"" below area
-   - Use clear readable font
+MANDATORY ELEMENTS:
+• Doors: quarter-circle swing arcs, main door labeled "ENTRANCE"
+• Windows: blue rectangles on exterior walls (larger for living/bedrooms)
+• Furniture in EVERY room (simple grey outlines):
+  - Living: sofa, coffee table, TV unit
+  - Bedroom: bed rectangle, wardrobe, side tables
+  - Kitchen: L-shaped counter, sink, stove, fridge
+  - Dining: table with chairs
+  - Bathroom: WC, shower, basin
+  - Utility: washing machine circle
+• Dimension lines with arrows on EVERY wall (feet-inches: "12'-0\"")
+• North arrow: large "N" with arrow in top-left
+• Staircase (if multi-floor): step lines with direction arrow
+• Scale bar at bottom
 
-5. DOORS: Show door swing arcs (quarter-circle arcs). Main door clearly labeled "ENTRANCE DOOR".
+LEGEND BOX (bordered, bottom-right corner):
+Left: Wall/Door/Window/Furniture/Circulation symbol samples
+Center: Color key squares for each room type
+Right: "PROJECT: CasaMuse | STYLE: ${preferences.style} | SCALE: 1:50 | UNITS: Feet"
 
-6. WINDOWS: Blue rectangular symbols on exterior walls. Larger for living/bedrooms, smaller for bathrooms.
+BACKGROUND: Light grey grid paper texture
 
-7. FURNITURE (drawn inside every room — NO empty rooms):
-   - Living: Sofa, coffee table, TV unit
-   - Bedrooms: Bed (rectangle), wardrobe, side tables
-   - Kitchen: L-shaped or parallel countertop, sink circle, stove, refrigerator rectangle
-   - Dining: Dining table with chairs
-   - Bathrooms: WC, shower, wash basin
-   - Utility: Washing machine circle
-   - Draw furniture as simple grey outlines/fills
-
-8. DIMENSION LINES: Show dimensions for EVERY room wall with arrow lines and measurements in feet-inches format (e.g., "12'-0\"", "9'-0\""). Also show external plot dimensions.
-
-9. STAIRCASE: If multi-floor, show staircase with step lines and direction arrow.
-
-10. NORTH ARROW: Large "N" with arrow in top-left corner.
-
-11. GARDEN/LANDSCAPE: Green colored areas with small circular tree symbols. Label "GARDEN".
-
-12. PARKING: Show car outline drawn inside parking area. Label with dimensions.
-
-13. LEGEND BOX (bottom-right corner, bordered):
-    Left section:
-    - Wall: solid dark line sample
-    - Door: arc symbol sample  
-    - Window: blue rectangle sample
-    - Furniture: grey rectangle sample
-    - Circulation: dotted sample
-    Right section - Wall Colors:
-    - Living (blue square)
-    - Bedrooms (peach/purple squares)
-    - Garden (green square)
-    - Utility (yellow square)
-    Far right - Project info:
-    - "PROJECT: CasaMuse - AI Generated Floor Plan"
-    - "STYLE: ${preferences.style}"
-    - "SCALE: 1:50"
-    - "UNITS: Feet"
-    - "DATE: Auto-generated"
-
-14. ROOM PLACEMENT:
-    - Entrance → Living Room near front with natural light
-    - Kitchen adjacent to dining + exterior wall for ventilation
-    - Bedrooms in private rear zone
-    - Bathrooms share plumbing walls
-    - Hallway connects bedrooms (3.5'-5' wide)
-    ${preferences.vastuCompliant ? `
-    VASTU: Living=NE/E/N, Master Bedroom=SW, Kitchen=SE, Pooja=NE, Bathrooms=NW/W, Entrance=N/E` : ''}
-
-15. BACKGROUND: Light grey/off-white grid paper look.
-
-CRITICAL RULES:
-- Every single room MUST be filled with its designated pastel color
-- Every room MUST have furniture drawn inside
-- Every room MUST be labeled with name + area + dimensions
-- All walls must show proper thickness
-- The plan must look like a REAL architect's colored CAD floor plan
-- Include the full plot boundary with gardens and parking OUTSIDE the house structure
-- Make it HIGH RESOLUTION and PROFESSIONAL`;
+CRITICAL:
+- Every room MUST have its pastel color fill, furniture, AND complete label (name + area + dimensions)
+- Proportions MUST match the specified dimensions exactly
+- This must look like a REAL professional architect's colored floor plan
+- HIGH RESOLUTION, clean lines, professional quality`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',

@@ -26,8 +26,7 @@ const MeshyModelViewer = ({ modelUrl }: MeshyModelViewerProps) => {
               enablePan
               enableZoom
               enableRotate
-              autoRotate
-              autoRotateSpeed={2}
+              autoRotate={false}
             />
           </Suspense>
         </Canvas>

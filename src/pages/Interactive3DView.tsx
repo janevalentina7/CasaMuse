@@ -60,7 +60,7 @@ const Interactive3DView = () => {
               <span className="text-xl font-bold">CasaMuse</span>
             </Link>
             <div className="flex gap-2">
-              <Link to="/floor-plan-result" state={{ imageUrl, description, formData }}>
+              <Link to="/ai-rendered-view" state={{ imageUrl, description, formData }}>
                 <Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-2" />Back</Button>
               </Link>
               <Button
@@ -121,9 +121,9 @@ const Interactive3DView = () => {
 
           {/* Sequential Navigation */}
           <div className="flex justify-between pt-8 border-t border-border/50">
-            <Link to="/floor-plan-result" state={{ imageUrl, description, formData }}>
+            <Link to="/ai-rendered-view" state={{ imageUrl, description, formData }}>
               <Button variant="outline" size="lg">
-                <ArrowLeft className="w-4 h-4 mr-2" />Previous: Floor Plan
+                <ArrowLeft className="w-4 h-4 mr-2" />Previous: AI Rendered Views
               </Button>
             </Link>
             <Link to="/vr-walkthrough" state={{ imageUrl, description, formData }}>
