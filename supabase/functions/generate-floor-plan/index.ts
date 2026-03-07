@@ -20,87 +20,148 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
+    // Build unique room list — prevent duplicates unless user explicitly requested multiple
+    const roomCounts: Record<string, number> = {};
+    rooms.forEach((room: any) => {
+      roomCounts[room.roomName] = (roomCounts[room.roomName] || 0) + room.count;
+    });
+
     const roomDetails = rooms.map((room: any) => {
-      let info = `${room.count}x ${room.roomName} (${room.size}: ${room.width}'×${room.height}')`;
-      if (room.attachedBathroom) info += " with attached bathroom (5'×8')";
+      const area = room.width * room.height;
+      let info = `${room.count}x ${room.roomName} (${room.width}'-0" × ${room.height}'-0", Area: ${area} sq.ft)`;
+      if (room.attachedBathroom) info += " with attached bathroom (5'-0\" × 8'-0\", Area: 40 sq.ft)";
       return info;
     }).join("\n   - ");
 
+    const totalRoomArea = rooms.reduce((sum: number, r: any) => sum + (r.width * r.height * r.count) + (r.attachedBathroom ? 40 * r.count : 0), 0);
+    const circulationArea = Math.round(parseFloat(landArea) - totalRoomArea);
+
     const outdoorFeatures = preferences.outdoorFeatures?.join(", ") || "None";
-    const plotDimensions = plotLength && plotBreadth ? `${plotLength}' × ${plotBreadth}'` : `${landArea} sq ft`;
+    const plotDimensions = plotLength && plotBreadth ? `${plotLength}'-0" × ${plotBreadth}'-0"` : `Approx. ${Math.round(Math.sqrt(parseFloat(landArea)))}'-0" × ${Math.round(parseFloat(landArea) / Math.sqrt(parseFloat(landArea)))}'-0"`;
     const garagePlacement = preferences.garagePlacement || "Front";
     const gardenPlacement = preferences.gardenPlacement || "Front Garden";
 
-    const prompt = `You are a professional architect. Generate a PRECISE, HIGH-QUALITY 2D architectural floor plan image following strict CAD drafting standards.
+    const prompt = `Generate a single, precise, HIGH-QUALITY 2D architectural floor plan image. You are acting as a licensed architect producing construction-ready drawings.
 
-SPECIFICATIONS:
-- Plot: ${plotDimensions}, Total: ${landArea} sq ft, ${preferences.floors} floor(s), ${preferences.style} style
-- North: ${northDirection || "Up"}
-${preferences.vastuCompliant ? "- VASTU COMPLIANT: Follow traditional Vastu Shastra directional rules strictly." : ""}
+══════════════════════════════════════════
+PROJECT BRIEF
+══════════════════════════════════════════
+• Plot Size: ${plotDimensions} (Total: ${landArea} sq ft)
+• Floors: ${preferences.floors}
+• Style: ${preferences.style}
+• North Direction: ${northDirection || "Up"}
+${preferences.vastuCompliant ? "• VASTU SHASTRA COMPLIANT — strictly follow directional placement rules." : ""}
 
-ROOMS (use EXACT dimensions provided — do NOT change sizes):
+══════════════════════════════════════════
+ROOM SCHEDULE (DO NOT ADD OR DUPLICATE ROOMS)
+══════════════════════════════════════════
+Only draw these rooms — no extras, no duplicates:
    - ${roomDetails}
+• Remaining ~${circulationArea > 0 ? circulationArea : 30} sq.ft allocated to corridors/circulation.
 
-OUTDOOR FEATURES: ${outdoorFeatures}
-Garage Placement: ${garagePlacement} | Garden Placement: ${gardenPlacement}
+OUTDOOR: ${outdoorFeatures}
+Garage: ${garagePlacement} side | Garden: ${gardenPlacement}
 
-═══ DRAWING STANDARDS (follow precisely) ═══
+══════════════════════════════════════════
+ARCHITECTURAL LAYOUT RULES
+══════════════════════════════════════════
+1. PLOT BOUNDARY: Draw a thick black rectangular border. Label ALL four sides with exact dimensions using dimension lines with arrows/ticks (e.g., "30'-0\"").
+2. WALL THICKNESS: Outer walls = 9" (draw as thick dark parallel lines). Inner partition walls = 4.5".
+3. ROOM SIZING: Each room MUST match the EXACT width × height specified above. Do not resize or reshape.
+4. PLACEMENT LOGIC:
+   - Living Room: Near main entrance, receives natural light from exterior wall.
+   - Kitchen: Adjacent to Dining Room, on an exterior wall for ventilation.
+   - Bedrooms: In the private rear zone, away from entrance.
+   - Bathrooms: Share plumbing walls where possible. Attached baths adjoin their bedroom.
+   - Corridors: 3.5'–5' wide, connecting all rooms logically.
+${preferences.vastuCompliant ? `5. VASTU PLACEMENT:
+   - Living Room → North-East / East / North
+   - Master Bedroom → South-West
+   - Kitchen → South-East (cooking facing East)
+   - Pooja Room → North-East
+   - Bathrooms → North-West / West
+   - Main Entrance → North or East` : ""}
 
-LAYOUT RULES:
-• Plot boundary: thick dark border with dimensions labeled on all 4 sides (e.g., "40'-0\"")
-• Outer walls: 9" thick dark lines | Inner walls: 4.5" thick
-• Each room MUST use the EXACT width × height dimensions specified above
-• Room positions: Living near entrance with natural light, Kitchen adjacent to dining on exterior wall, Bedrooms in private zone at rear, Bathrooms share plumbing walls
-• Hallway/corridor: 3.5'–5' wide connecting rooms
-${preferences.vastuCompliant ? "• VASTU: Living=NE/E/N, Master Bedroom=SW, Kitchen=SE, Pooja=NE, Bathrooms=NW/W, Entrance=N/E" : ""}
+══════════════════════════════════════════
+VISUAL STANDARDS — COLOR-CODED ROOMS
+══════════════════════════════════════════
+Fill each room with its designated pastel color:
+• Living Room      → #D4E8FC (Light Blue)
+• Master Bedroom   → #FDDCBA (Light Peach)
+• Bedroom          → #E8D4F0 (Light Lavender)
+• Kitchen          → #FFF3CD (Light Yellow)
+• Dining Room      → #D4F1F4 (Soft Cyan)
+• Bathroom         → #C8F0F0 (Light Aqua)
+• Corridor/Hallway → #F5F5DC (Beige, light dotted)
+• Utility/Laundry  → #FFF8DC (Pale Cream)
+• Pooja Room       → #FFEEBA (Light Gold)
+• Study/Office     → #E8EAF6 (Soft Indigo)
+• Balcony/Sit-out  → #FFFFFF with thin border
+• Garden           → #D4EDDA (Soft Green) with tree symbols
+• Parking/Garage   → #E9ECEF (Light Grey) with car outline
 
-COLOR-CODED ROOM FILLS (each room type gets a DISTINCT pastel color):
-• Living Room → Light Blue (#D4E8FC)
-• Master Bedroom → Light Peach (#FDDCBA)
-• Bedroom → Light Lavender (#E8D4F0)
-• Kitchen → Light Yellow (#FFF3CD)
-• Dining → Soft Cyan (#D4F1F4)
-• Bathroom → Light Aqua (#C8F0F0)
-• Hallway/Corridor → Dotted Light Yellow
-• Utility/Laundry → Pale Yellow (#FFF8DC)
-• Pooja Room → Light Gold (#FFEEBA)
-• Balcony/Sit-out → White with thin border
-• Garden → Green (#D4EDDA) with tree/shrub symbols
-• Parking → Light Grey (#E9ECEF) with car outline
+══════════════════════════════════════════
+MANDATORY ROOM LABELS (centered inside each room)
+══════════════════════════════════════════
+Every room MUST display exactly 3 lines of text, horizontally centered:
+  Line 1: ROOM NAME in BOLD UPPERCASE (e.g., "MASTER BEDROOM")
+  Line 2: Area: [width × height] sq.ft (e.g., "Area: 168 sq.ft")
+  Line 3: Dimensions (e.g., "12'-0\" × 14'-0\"")
+• Text: Black, clearly legible on the pastel background.
+• Spelling must be correct — no abbreviations, no typos.
 
-ROOM LABELS (centered inside EVERY room, ALL three lines mandatory):
-1. Room name in BOLD UPPERCASE (e.g., "MASTER BEDROOM")
-2. "Area: XXX sq.ft" (calculated from width × height)
-3. Dimensions: "12'-0\" × 14'-0\""
-Font must be clearly legible — black text on colored background.
+══════════════════════════════════════════
+ARCHITECTURAL SYMBOLS (mandatory in every room)
+══════════════════════════════════════════
+DOORS:
+  • Quarter-circle swing arcs showing door direction.
+  • Main entrance door labeled "ENTRANCE" with a thicker arc.
+  • Interior doors between every room and corridor.
 
-MANDATORY ELEMENTS:
-• Doors: quarter-circle swing arcs, main door labeled "ENTRANCE"
-• Windows: blue rectangles on exterior walls (larger for living/bedrooms)
-• Furniture in EVERY room (simple grey outlines):
-  - Living: sofa, coffee table, TV unit
-  - Bedroom: bed rectangle, wardrobe, side tables
-  - Kitchen: L-shaped counter, sink, stove, fridge
-  - Dining: table with chairs
-  - Bathroom: WC, shower, basin
-  - Utility: washing machine circle
-• Dimension lines with arrows on EVERY wall (feet-inches: "12'-0\"")
-• North arrow: large "N" with arrow in top-left
-• Staircase (if multi-floor): step lines with direction arrow
-• Scale bar at bottom
+WINDOWS:
+  • Drawn as parallel blue lines on exterior walls.
+  • Larger windows for Living Room and Bedrooms.
+  • Smaller windows for Kitchen and Bathrooms.
 
-LEGEND BOX (bordered, bottom-right corner):
-Left: Wall/Door/Window/Furniture/Circulation symbol samples
-Center: Color key squares for each room type
-Right: "PROJECT: CasaMuse | STYLE: ${preferences.style} | SCALE: 1:50 | UNITS: Feet"
+FURNITURE (draw simple grey outlines inside rooms):
+  • Living Room: Sofa (L-shape or straight), coffee table, TV unit
+  • Bedroom: Bed rectangle with pillow marks, wardrobe rectangle, side tables
+  • Master Bedroom: King bed, walk-in wardrobe, dressing table, side tables
+  • Kitchen: L-shaped or parallel counter, sink circle, stove squares, fridge rectangle
+  • Dining Room: Rectangular table with chair circles/squares
+  • Bathroom: WC rectangle, shower/tub, wash basin circle
+  • Study: Desk rectangle, chair, bookshelf
+  • Utility: Washing machine circle, drying rack
 
-BACKGROUND: Light grey grid paper texture
+DIMENSIONS:
+  • Dimension lines with arrows/ticks on EVERY wall segment (interior and exterior).
+  • Format: feet-inches (e.g., "12'-0\"").
+  • Place outside the plot boundary for exterior walls, inside for partitions.
 
-CRITICAL:
-- Every room MUST have its pastel color fill, furniture, AND complete label (name + area + dimensions)
-- Proportions MUST match the specified dimensions exactly
-- This must look like a REAL professional architect's colored floor plan
-- HIGH RESOLUTION, clean lines, professional quality`;
+══════════════════════════════════════════
+ADDITIONAL ELEMENTS
+══════════════════════════════════════════
+• NORTH ARROW: Large, bold "N" with directional arrow in top-left corner.
+• SCALE BAR: At bottom center — "Scale: 1:50" with graduated bar.
+${preferences.floors > 1 ? "• STAIRCASE: Show step lines with UP arrow direction, labeled 'UP'." : ""}
+• TITLE BLOCK (bottom-right, bordered box):
+  Row 1: "CasaMuse — ${preferences.style} Residence"
+  Row 2: "Plot: ${plotDimensions} | Total: ${landArea} sq.ft | ${preferences.floors} Floor(s)"
+  Row 3: "Scale: 1:50 | Units: Feet-Inches | North: ${northDirection || 'Up'}"
+• COLOR LEGEND: Small bordered box showing color swatches with room type names.
+
+══════════════════════════════════════════
+CRITICAL RULES — READ CAREFULLY
+══════════════════════════════════════════
+✗ DO NOT add rooms that are not in the Room Schedule above.
+✗ DO NOT duplicate any room unless the count explicitly says 2x or more.
+✗ DO NOT leave any room without its 3-line label, color fill, AND furniture.
+✗ DO NOT misspell room names.
+✗ DO NOT make rooms larger or smaller than specified dimensions.
+✓ Every wall must have dimension markings.
+✓ The plan must look like a real architect's professional colored floor plan.
+✓ Clean lines, high resolution, no visual artifacts.
+✓ White or very light grey background (no heavy grid).`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
