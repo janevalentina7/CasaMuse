@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF, Stage, Html } from "@react-three/drei";
 import ModelErrorBoundary from "@/components/3d/ModelErrorBoundary";
+import HouseConnectors from "@/components/3d/HouseConnectors";
 
 interface ViewImage {
   url: string;
