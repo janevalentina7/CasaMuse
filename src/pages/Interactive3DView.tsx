@@ -237,87 +237,66 @@ const Interactive3DView = () => {
 
   // Compute positions for unified view: arrange interior around exterior using floor plan
   // Build floor-plan-based positions using actual room dimensions from formData
-  const modelPositions = useMemo(() => {
+  // Build floor-plan-based positions and room rectangles for connectors
+  const { modelPositions, roomRects } = useMemo(() => {
     const positions: Record<string, [number, number, number]> = {};
-    const SCALE = 0.3; // feet to 3D units scale factor
+    const rects: Array<{ key: string; x: number; z: number; width: number; depth: number }> = [];
+    const SCALE = 0.3;
 
-    // Place exterior models at center
     exteriorTasks.forEach(([key]) => {
       positions[key] = [0, 0, 0];
     });
 
-    // Get room selections from formData to derive dimensions & layout
     const roomSelections: Array<{ roomId: string; size: string; count: number }> =
       formData?.rooms || [];
 
-    // Build a list of rooms with their actual dimensions
     const roomLayouts: Array<{ key: string; width: number; depth: number }> = [];
     interiorTasks.forEach(([key]) => {
-      // key format: "int_roomId" or "int_roomId_2" etc.
       const roomId = key.replace(/^int_/, "").replace(/_\d+$/, "");
       const selection = roomSelections.find((r: any) => r.roomId === roomId);
       const roomData = ROOM_DATA[roomId];
 
-      let width = 12, depth = 12; // fallback
+      let width = 12, depth = 12;
       if (roomData && selection) {
         const sizeKey = selection.size || "medium";
         const sizeData = roomData.sizes[sizeKey as keyof typeof roomData.sizes] || roomData.sizes.medium;
-        if (sizeData) {
-          width = sizeData.width;
-          depth = sizeData.height;
-        }
+        if (sizeData) { width = sizeData.width; depth = sizeData.height; }
       } else if (roomData) {
         const sizeData = roomData.sizes.medium;
-        width = sizeData.width;
-        depth = sizeData.height;
+        width = sizeData.width; depth = sizeData.height;
       }
 
       roomLayouts.push({ key, width: width * SCALE, depth: depth * SCALE });
     });
 
-    // Pack rooms in a grid layout following architectural convention:
-    // Row-by-row placement, left-to-right, advancing in Z
-    let curX = 0;
-    let curZ = 0;
-    let rowMaxDepth = 0;
-    const maxRowWidth = roomLayouts.length <= 4 ? 20 : 30; // max row width in 3D units
+    let curX = 0, curZ = 0, rowMaxDepth = 0;
+    const maxRowWidth = roomLayouts.length <= 4 ? 20 : 30;
 
     roomLayouts.forEach((room) => {
-      // Start new row if current room exceeds row width
       if (curX + room.width > maxRowWidth && curX > 0) {
         curX = 0;
-        curZ += rowMaxDepth + 0.3; // 0.3 unit gap (wall thickness)
+        curZ += rowMaxDepth + 0.3;
         rowMaxDepth = 0;
       }
-
       positions[room.key] = [curX + room.width / 2, 0, curZ + room.depth / 2];
+      rects.push({ key: room.key, x: curX + room.width / 2, z: curZ + room.depth / 2, width: room.width, depth: room.depth });
       curX += room.width + 0.3;
       rowMaxDepth = Math.max(rowMaxDepth, room.depth);
     });
 
-    // Center all interior positions around origin so unified view is balanced
-    const interiorKeys = roomLayouts.map((r) => r.key);
-    if (interiorKeys.length > 0) {
+    // Center around origin
+    if (rects.length > 0) {
       let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-      interiorKeys.forEach((k) => {
-        const [x, , z] = positions[k];
-        minX = Math.min(minX, x);
-        maxX = Math.max(maxX, x);
-        minZ = Math.min(minZ, z);
-        maxZ = Math.max(maxZ, z);
+      rects.forEach((r) => {
+        minX = Math.min(minX, r.x); maxX = Math.max(maxX, r.x);
+        minZ = Math.min(minZ, r.z); maxZ = Math.max(maxZ, r.z);
       });
-      const offsetX = (minX + maxX) / 2;
-      const offsetZ = (minZ + maxZ) / 2;
-      interiorKeys.forEach((k) => {
-        positions[k] = [
-          positions[k][0] - offsetX,
-          0,
-          positions[k][2] - offsetZ,
-        ];
-      });
+      const offsetX = (minX + maxX) / 2, offsetZ = (minZ + maxZ) / 2;
+      rects.forEach((r) => { r.x -= offsetX; r.z -= offsetZ; });
+      rects.forEach((r) => { positions[r.key] = [r.x, 0, r.z]; });
     }
 
-    return positions;
+    return { modelPositions: positions, roomRects: rects };
   }, [exteriorTasks, interiorTasks, formData]);
 
   // Models to show in viewer
