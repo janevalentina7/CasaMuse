@@ -112,7 +112,7 @@ const Interactive3DView = () => {
         stopPolling(key);
         const proxiedUrl = proxyGlbUrl(data.modelUrl);
         setTasks(prev => {
-          const updated = { ...prev, [key]: { ...prev[key], status: "SUCCEEDED", progress: 100, modelUrl: proxiedUrl } };
+          const updated: Record<string, MeshyTaskInfo> = { ...prev, [key]: { ...prev[key], status: "SUCCEEDED" as const, progress: 100, modelUrl: proxiedUrl } };
           viewCache.saveMeshyTasks(updated);
           return updated;
         });
