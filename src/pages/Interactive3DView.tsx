@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import PipelineProgress from "@/components/3d/PipelineProgress";
 import { useState, useEffect, useRef, useCallback, Suspense, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { ROOM_DATA } from "@/data/roomSizes";
 import { toast } from "sonner";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF, Stage, Html } from "@react-three/drei";
