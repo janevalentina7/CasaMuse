@@ -485,6 +485,9 @@ const Interactive3DView = () => {
                           {modelsToDisplay.map(m => (
                             <GLBModel key={m.key} url={m.url} position={m.position} />
                           ))}
+                          {viewMode === "unified" && roomRects.length > 0 && (
+                            <HouseConnectors rooms={roomRects} />
+                          )}
                         </Stage>
                         <OrbitControls enablePan enableZoom enableRotate autoRotate={false} />
                       </Suspense>
