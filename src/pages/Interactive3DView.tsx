@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Home, ArrowLeft, ArrowRight, Box, Loader2, Cuboid, Download, Eye, RotateCcw } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import PipelineProgress from "@/components/3d/PipelineProgress";
 import { useState, useEffect, useRef, useCallback, Suspense, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -26,7 +27,7 @@ interface MeshyTaskInfo {
   category: "exterior" | "interior";
 }
 
-type PipelineStage = "idle" | "exterior" | "interior" | "complete";
+type PipelineStage = "idle" | "exterior" | "interior" | "assembly" | "complete";
 
 const proxyGlbUrl = (originalUrl: string): string => {
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -206,6 +207,11 @@ const Interactive3DView = () => {
       toast.success(`Interior done! ${intSucceeded} model(s) ready.`);
     }
 
+    // Phase 3: Assembly
+    setPipelineStage("assembly");
+    toast.info("Assembling unified house model...");
+    await new Promise(r => setTimeout(r, 2000));
+
     setPipelineStage("complete");
     toast.success("All 3D models generated! Viewing unified house model.");
   }, [exteriorViews, interiorViews, submitToMeshy, waitForCategory, tasks]);
@@ -322,10 +328,16 @@ const Interactive3DView = () => {
             <p className="text-muted-foreground">
               {pipelineStage === "exterior" && "Generating exterior 3D model..."}
               {pipelineStage === "interior" && "Generating interior 3D models..."}
+              {pipelineStage === "assembly" && "Assembling unified house model..."}
               {pipelineStage === "complete" && "All models generated — viewing unified house"}
               {pipelineStage === "idle" && (hasNoViews ? "No rendered views found" : "Starting 3D conversion pipeline...")}
             </p>
           </div>
+
+          {/* Step Progress Indicator */}
+          {pipelineStage !== "idle" && (
+            <PipelineProgress currentStage={pipelineStage} />
+          )}
 
           {/* No views warning */}
           {hasNoViews && pipelineStage === "idle" && (
