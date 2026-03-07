@@ -9,6 +9,7 @@ import { useState, useEffect, useRef, useCallback, Suspense, useMemo } from "rea
 import { supabase } from "@/integrations/supabase/client";
 import { ROOM_DATA } from "@/data/roomSizes";
 import { toast } from "sonner";
+import { viewCache } from "@/lib/viewCache";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF, Stage, Html } from "@react-three/drei";
 import ModelErrorBoundary from "@/components/3d/ModelErrorBoundary";
@@ -54,14 +55,36 @@ const LoadingFallback = () => (
 const Interactive3DView = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { imageUrl, formData, description, exteriorViews = {}, interiorViews = {} } = location.state || {};
+  
+  // Restore from cache if location.state is missing
+  const cached = viewCache.getFloorPlan();
+  const cachedExt = viewCache.getExteriorViews();
+  const cachedInt = viewCache.getInteriorViews();
+  const cachedMeshy = viewCache.getMeshyTasks();
 
-  const [tasks, setTasks] = useState<Record<string, MeshyTaskInfo>>({});
-  const [pipelineStage, setPipelineStage] = useState<PipelineStage>("idle");
+  const imageUrl = location.state?.imageUrl || cached?.imageUrl;
+  const formData = location.state?.formData || cached?.formData;
+  const description = location.state?.description || cached?.description;
+  const exteriorViews = location.state?.exteriorViews || (Object.keys(cachedExt).length > 0 ? cachedExt : {});
+  const interiorViews = location.state?.interiorViews || (Object.keys(cachedInt).length > 0 ? cachedInt : {});
+
+  // Restore completed meshy tasks from cache
+  const initialTasks: Record<string, MeshyTaskInfo> = {};
+  const hasCachedMeshy = Object.keys(cachedMeshy).length > 0;
+  if (hasCachedMeshy) {
+    Object.entries(cachedMeshy).forEach(([key, task]: [string, any]) => {
+      if (task.status === "SUCCEEDED" && task.modelUrl) {
+        initialTasks[key] = task;
+      }
+    });
+  }
+
+  const [tasks, setTasks] = useState<Record<string, MeshyTaskInfo>>(initialTasks);
+  const [pipelineStage, setPipelineStage] = useState<PipelineStage>(hasCachedMeshy ? "complete" : "idle");
   const [selectedView, setSelectedView] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"unified" | "individual">("unified");
   const pollIntervalsRef = useRef<Record<string, NodeJS.Timeout>>({});
-  const hasStarted = useRef(false);
+  const hasStarted = useRef(hasCachedMeshy);
 
   const stopPolling = useCallback((key?: string) => {
     if (key) {
@@ -88,10 +111,11 @@ const Interactive3DView = () => {
       if (data.status === "SUCCEEDED" && data.modelUrl) {
         stopPolling(key);
         const proxiedUrl = proxyGlbUrl(data.modelUrl);
-        setTasks(prev => ({
-          ...prev,
-          [key]: { ...prev[key], status: "SUCCEEDED", progress: 100, modelUrl: proxiedUrl },
-        }));
+        setTasks(prev => {
+          const updated: Record<string, MeshyTaskInfo> = { ...prev, [key]: { ...prev[key], status: "SUCCEEDED" as const, progress: 100, modelUrl: proxiedUrl } };
+          viewCache.saveMeshyTasks(updated);
+          return updated;
+        });
         return;
       }
 

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { viewCache } from "@/lib/viewCache";
 
 const AIRenderedView = () => {
   const location = useLocation();
@@ -14,13 +15,23 @@ const AIRenderedView = () => {
   const { imageUrl, formData, description } = location.state || {};
   const [isGenerating, setIsGenerating] = useState(false);
   const [renderedView, setRenderedView] = useState<string>('360');
-  const [exteriorViews, setExteriorViews] = useState<{ [key: string]: { url: string; description: string } }>({});
-  const [interiorViews, setInteriorViews] = useState<{ [key: string]: { url: string; description: string } }>({});
+  // Restore cached views on mount
+  const cachedExterior = viewCache.getExteriorViews();
+  const cachedInterior = viewCache.getInteriorViews();
+  const [exteriorViews, setExteriorViews] = useState<{ [key: string]: { url: string; description: string } }>(cachedExterior);
+  const [interiorViews, setInteriorViews] = useState<{ [key: string]: { url: string; description: string } }>(cachedInterior);
   const [showExterior, setShowExterior] = useState(true);
   const [showInterior, setShowInterior] = useState(true);
   const [generatingViews, setGeneratingViews] = useState<Set<string>>(new Set());
   const [generationProgress, setGenerationProgress] = useState({ current: 0, total: 0 });
   const hasStartedGeneration = useRef(false);
+
+  // Also cache floor plan data for other pages to read
+  useEffect(() => {
+    if (imageUrl && formData) {
+      viewCache.saveFloorPlan({ imageUrl, description, formData });
+    }
+  }, [imageUrl, formData, description]);
 
   // Get all room names from form data
   const getAllRoomNames = () => {
@@ -74,15 +85,17 @@ const AIRenderedView = () => {
 
       if (data?.success && data?.imageUrl) {
         if (roomName) {
-          setInteriorViews(prev => ({ 
-            ...prev, 
-            [roomName]: { url: data.imageUrl, description: data.description || '' } 
-          }));
+          setInteriorViews(prev => {
+            const updated = { ...prev, [roomName]: { url: data.imageUrl, description: data.description || '' } };
+            viewCache.saveInteriorViews(updated);
+            return updated;
+          });
         } else {
-          setExteriorViews(prev => ({ 
-            ...prev, 
-            [viewType]: { url: data.imageUrl, description: data.description || '' } 
-          }));
+          setExteriorViews(prev => {
+            const updated = { ...prev, [viewType]: { url: data.imageUrl, description: data.description || '' } };
+            viewCache.saveExteriorViews(updated);
+            return updated;
+          });
         }
         return true;
       } else {
@@ -148,9 +161,16 @@ const AIRenderedView = () => {
     setRenderedView('360');
   };
 
-  // Auto-generate all views on page load
+  // Auto-generate only if no cached views exist
   useEffect(() => {
     if (!imageUrl || !formData || hasStartedGeneration.current) return;
+    
+    // Skip generation if we already have cached views
+    const hasCachedViews = Object.keys(cachedExterior).length > 0 || Object.keys(cachedInterior).length > 0;
+    if (hasCachedViews) {
+      hasStartedGeneration.current = true;
+      return;
+    }
     
     hasStartedGeneration.current = true;
     generateAllViewsParallel();
