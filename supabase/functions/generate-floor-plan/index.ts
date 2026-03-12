@@ -48,16 +48,27 @@ serve(async (req) => {
     const garagePlacement = preferences.garagePlacement || "Front";
     const gardenPlacement = preferences.gardenPlacement || "Front Garden";
 
-    const prompt = `You are a licensed architect. Generate ONE precise, HIGH-QUALITY 2D architectural floor plan image.
+    const prompt = `You are a professional architectural planning AI. Generate ONE clean, accurate, construction-style 2D floor plan image.
 
 ═══════════════════════════════════════════
- ABSOLUTE RULE — READ FIRST
+ STEP 1 — INPUT VALIDATION (MANDATORY)
 ═══════════════════════════════════════════
-You MUST draw EXACTLY and ONLY the ${roomManifest.length} room(s) listed below.
-• Adding ANY room not listed = FAILURE.
-• Omitting ANY listed room = FAILURE.
-• Duplicating ANY room beyond its count = FAILURE.
-• Every room MUST have correct spelling, label, color, and furniture.
+Allowed Room List (ONLY these rooms exist — nothing else):
+${roomManifest.join("\n")}
+
+Total allowed rooms: ${roomManifest.length}
+⚠️ ONLY rooms in this list may appear. Zero exceptions.
+
+═══════════════════════════════════════════
+ STEP 2 — ROOM GENERATION RULES
+═══════════════════════════════════════════
+• Generate EXACTLY the number of rooms specified above.
+• If 3 bedrooms requested → draw exactly 3. If 1 kitchen → draw exactly 1.
+❌ Do NOT add extra rooms.
+❌ Do NOT create duplicate rooms beyond the specified count.
+❌ Do NOT add these unless explicitly listed above:
+   Storage room, Closet, Corridor label, Hallway label, Utility room, Pantry, Study room, Wash area, Lobby, Foyer, Passage
+• Circulation space (corridors) connects rooms but is NOT labeled as a separate room.
 
 ═══════════════════════════════════════════
  PROJECT BRIEF
@@ -67,41 +78,22 @@ You MUST draw EXACTLY and ONLY the ${roomManifest.length} room(s) listed below.
 • Style: ${preferences.style}
 • North Direction: ${northDirection || "Up"}
 ${preferences.vastuCompliant ? "• VASTU SHASTRA COMPLIANT — follow directional placement rules." : ""}
+• Corridors/Circulation: ~${circulationArea > 0 ? circulationArea : 30} sq.ft (unlabeled connecting space)
+• Outdoor: ${outdoorFeatures}
+• Garage: ${garagePlacement} side | Garden: ${gardenPlacement}
 
 ═══════════════════════════════════════════
- EXACT ROOM MANIFEST (${roomManifest.length} rooms total)
+ STEP 3 — LAYOUT PLANNING
 ═══════════════════════════════════════════
-${roomManifest.join("\n")}
-• Corridors/Circulation: ~${circulationArea > 0 ? circulationArea : 30} sq.ft (connect rooms logically)
-
-OUTDOOR: ${outdoorFeatures}
-Garage: ${garagePlacement} side | Garden: ${gardenPlacement}
-
-═══════════════════════════════════════════
- ROOM DIMENSIONS — MANDATORY SIZES
-═══════════════════════════════════════════
-Each room MUST match its EXACT width × height from the manifest above.
-Standard reference sizes (use only if user didn't specify):
-• Living Room: Small 10×12, Medium 12×16, Large 14×18 ft
-• Master Bedroom: Small 10×12, Medium 12×14, Large 14×16 ft
-• Bedroom: Small 9×10, Medium 10×12, Large 11×13 ft
-• Kitchen: Small 7×8, Medium 8×10, Large 10×12 ft
-• Dining Area: Small 8×10, Medium 10×12, Large 12×14 ft
-• Bathroom: Small 5×7, Medium 6×8, Large 7×10 ft
-• Toilet: Small 4×4, Medium 4×5, Large 5×6 ft
-
-═══════════════════════════════════════════
- LAYOUT RULES
-═══════════════════════════════════════════
-1. PLOT BOUNDARY: Thick black rectangle. Label ALL four sides with dimension lines + arrows.
-2. WALLS: Outer = 9" thick dark lines. Inner partitions = 4.5".
-3. PLACEMENT:
-   - Living Room → near main entrance, exterior wall for light
-   - Kitchen → adjacent to Dining, exterior wall for ventilation
-   - Bedrooms → private rear zone, away from entrance
-   - Bathrooms → share plumbing walls; attached baths adjoin their bedroom
-   - Corridors → 3.5'–5' wide
-${preferences.vastuCompliant ? `4. VASTU:
+Arrange rooms logically within the plot:
+• Entrance → Living Room → Dining → Kitchen
+• Bedrooms → private rear zone, away from entrance
+• Bathrooms → share plumbing walls; attached baths adjoin their bedroom
+• Walking corridors → 3.5'–5' wide (NOT labeled as rooms)
+• All rooms → rectangular shapes, no overlapping
+• PLOT BOUNDARY: Thick black rectangle with dimension lines on all 4 sides.
+• WALLS: Outer = 9" thick dark lines. Inner partitions = 4.5".
+${preferences.vastuCompliant ? `VASTU PLACEMENT:
    - Living Room → NE / E / N
    - Master Bedroom → SW
    - Kitchen → SE (cooking facing East)
@@ -110,8 +102,30 @@ ${preferences.vastuCompliant ? `4. VASTU:
    - Entrance → N or E` : ""}
 
 ═══════════════════════════════════════════
- COLOR-CODED ROOMS
+ STEP 4 — DUPLICATE ROOM PREVENTION
 ═══════════════════════════════════════════
+Before rendering, COUNT every room drawn:
+${roomChecklist.join("\n")}
+If any room count exceeds the allowed list → REMOVE the extra immediately.
+The final output MUST exactly match the input counts.
+
+═══════════════════════════════════════════
+ STEP 5 — CORRECT LABELING
+═══════════════════════════════════════════
+Every room MUST show exactly 3 centered lines:
+  Line 1: ROOM NAME — BOLD UPPERCASE (e.g., "MASTER BEDROOM")
+  Line 2: Area: [w × h] sq.ft
+  Line 3: Dimensions (e.g., 12'-0" × 14'-0")
+• Black text, legible on pastel background.
+• Standard architectural names ONLY. Correct spelling required.
+✔ Living Room  ✔ Master Bedroom  ✔ Bedroom  ✔ Kitchen
+✔ Dining Area  ✔ Bathroom  ✔ Balcony  ✔ Toilet
+❌ No spelling mistakes. ❌ No incomplete words. ❌ No made-up names.
+
+═══════════════════════════════════════════
+ STEP 6 — ARCHITECTURAL DRAWING QUALITY
+═══════════════════════════════════════════
+COLOR-CODED ROOMS:
 • Living Room → #D4E8FC    • Master Bedroom → #FDDCBA
 • Bedroom → #E8D4F0        • Kitchen → #FFF3CD
 • Dining → #D4F1F4         • Bathroom/Toilet → #C8F0F0
@@ -120,20 +134,9 @@ ${preferences.vastuCompliant ? `4. VASTU:
 • Balcony → #FFFFFF border  • Garden → #D4EDDA
 • Parking/Garage → #E9ECEF
 
-═══════════════════════════════════════════
- ROOM LABELS (centered inside each room)
-═══════════════════════════════════════════
-Every room MUST show exactly 3 centered lines:
-  Line 1: ROOM NAME — BOLD UPPERCASE (e.g., "MASTER BEDROOM")
-  Line 2: Area: [w × h] sq.ft
-  Line 3: Dimensions (e.g., 12'-0" × 14'-0")
-• Black text, legible on pastel background. Correct spelling only.
-
-═══════════════════════════════════════════
- ARCHITECTURAL SYMBOLS
-═══════════════════════════════════════════
+ARCHITECTURAL SYMBOLS:
 DOORS: Quarter-circle swing arcs. Main entrance = thicker arc labeled "ENTRANCE".
-WINDOWS: Parallel blue lines on exterior walls. Larger for Living/Bedrooms.
+WINDOWS: Parallel blue lines on exterior walls.
 FURNITURE (grey outlines):
   Living → sofa, coffee table, TV unit
   Bedroom → bed + pillow marks, wardrobe, side tables
@@ -141,33 +144,28 @@ FURNITURE (grey outlines):
   Kitchen → L-counter, sink ○, stove □□, fridge □
   Dining → table + chair ○/□
   Bathroom → WC □, shower, basin ○
-  Study → desk, chair, bookshelf
 DIMENSIONS: Lines with ticks on every wall. Format: feet-inches (12'-0").
 ${preferences.floors > 1 ? "STAIRCASE: Step lines with UP arrow, labeled 'UP'." : ""}
 
-═══════════════════════════════════════════
- TITLE BLOCK & LEGEND
-═══════════════════════════════════════════
+TITLE BLOCK & LEGEND:
 • NORTH ARROW: Bold "N" + arrow, top-left corner.
-• SCALE BAR: Bottom center — "Scale: 1:50" with graduated bar.
-• TITLE BLOCK (bottom-right bordered box):
-  "CasaMuse — ${preferences.style} Residence"
-  "Plot: ${plotDimensions} | ${landArea} sq.ft | ${preferences.floors} Floor(s)"
-  "Scale: 1:50 | Units: Feet-Inches | North: ${northDirection || 'Up'}"
-• COLOR LEGEND: Small box with color swatches + room type names.
+• SCALE BAR: Bottom center — "Scale: 1:50".
+• TITLE BLOCK (bottom-right): "CasaMuse — ${preferences.style} Residence" | Plot: ${plotDimensions} | ${landArea} sq.ft
+• COLOR LEGEND: Small swatches with room type names.
 
 ═══════════════════════════════════════════
- PRE-RENDER VALIDATION CHECKLIST
+ STEP 7 — FINAL VALIDATION CHECK
 ═══════════════════════════════════════════
-Before generating the image, verify EACH item:
-${roomChecklist.join("\n")}
-☐ No extra rooms added beyond the ${roomManifest.length} listed?
-☐ All labels spelled correctly?
+Before output, verify ALL of these:
+☐ Generated room count matches input: ${roomManifest.length} rooms exactly?
+☐ No extra rooms added (no storage, closet, hallway, utility, etc.)?
+☐ No duplicate rooms beyond specified count?
+☐ All labels spelled correctly with 3-line format?
 ☐ All dimensions match the manifest?
 ☐ Plot boundary with 4-side dimensions drawn?
-☐ Professional quality — clean lines, no artifacts?
+☐ Professional blueprint quality — clean lines, no artifacts?
 
-ONLY generate the image after ALL checks pass.`;
+ONLY generate the image after ALL 7 steps are validated.`;
 
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {

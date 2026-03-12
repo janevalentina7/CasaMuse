@@ -83,7 +83,7 @@ const Interactive3DView = () => {
   const [pipelineStage, setPipelineStage] = useState<PipelineStage>(hasCachedMeshy ? "complete" : "idle");
   const [selectedView, setSelectedView] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"unified" | "individual">("unified");
-  const pollIntervalsRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const pollIntervalsRef = useRef<Record<string, ReturnType<typeof setInterval>>>({});
   const hasStarted = useRef(hasCachedMeshy);
 
   const stopPolling = useCallback((key?: string) => {
