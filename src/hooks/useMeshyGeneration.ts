@@ -24,7 +24,7 @@ export const useMeshyGeneration = () => {
     modelUrl: null,
     error: null,
   });
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopPolling = useCallback(() => {
     if (pollIntervalRef.current) {

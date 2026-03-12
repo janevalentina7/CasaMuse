@@ -31,7 +31,7 @@ export const useMultiViewMeshy = () => {
     completedCount: 0,
     totalCount: 0,
   });
-  const pollIntervalsRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const pollIntervalsRef = useRef<Record<string, ReturnType<typeof setInterval>>>({});
 
   const stopPolling = useCallback((viewKey?: string) => {
     if (viewKey) {
