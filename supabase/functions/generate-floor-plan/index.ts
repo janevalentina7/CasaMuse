@@ -134,8 +134,9 @@ COLOR-CODED ROOMS:
 • Dining → #D4F1F4         • Bathroom/Toilet → #C8F0F0
 • Corridor → #F5F5DC       • Utility → #FFF8DC
 • Pooja Room → #FFEEBA     • Study/Office → #E8EAF6
-• Balcony → #FFFFFF border  • Garden → #D4EDDA
-• Parking/Garage → #E9ECEF
+• Balcony → #FFFFFF border
+${hasGarden ? "• Garden → #D4EDDA" : ""}
+${hasGarage ? "• Parking/Garage → #E9ECEF" : ""}
 
 ARCHITECTURAL SYMBOLS:
 DOORS: Quarter-circle swing arcs. Main entrance = thicker arc labeled "ENTRANCE".
