@@ -231,7 +231,8 @@ function packInZone(
   rooms: PlannedRoom[],
   zone: Rect,
   gap = 1.2,
-  minScale = 0.5
+  minScale = 0.5,
+  globalScale = 1
 ): { placed: Array<PlannedRoom & { rect: Rect }>; overflow: PlannedRoom[] } {
   const placed: Array<PlannedRoom & { rect: Rect }> = [];
   const overflow: PlannedRoom[] = [];
@@ -241,17 +242,20 @@ function packInZone(
   let rowHeight = 0;
 
   rooms.forEach((room) => {
+    const baseWidth = room.width * globalScale;
+    const baseHeight = room.height * globalScale;
+
     const maxWidth = Math.max(1, zone.width - gap * 2);
     const maxHeight = Math.max(1, zone.height - gap * 2);
 
-    const scaleToFit = Math.min(maxWidth / room.width, maxHeight / room.height, 1);
+    const scaleToFit = Math.min(maxWidth / baseWidth, maxHeight / baseHeight, 1);
     if (scaleToFit < minScale) {
       overflow.push(room);
       return;
     }
 
-    const drawWidth = room.width * scaleToFit;
-    const drawHeight = room.height * scaleToFit;
+    const drawWidth = baseWidth * scaleToFit;
+    const drawHeight = baseHeight * scaleToFit;
 
     if (cursorX + drawWidth > zone.x + zone.width - gap) {
       cursorX = zone.x + gap;
