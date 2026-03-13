@@ -381,13 +381,21 @@ serve(async (req) => {
 
     if (overflowRooms.length > 0) {
       const fallbackOrder = [...bedrooms, ...bathrooms, ...others, ...frontPrimary].sort((a, b) => b.area - a.area);
-      const fallbackPack = packInZone(fallbackOrder, indoorRect, 1, 0.45);
 
-      if (fallbackPack.overflow.length > 0) {
+      let fallbackPlaced: Array<PlannedRoom & { rect: Rect }> | null = null;
+      for (let scaleTry = 1; scaleTry >= 0.55; scaleTry -= 0.05) {
+        const fallbackPack = packInZone(fallbackOrder, indoorRect, 1, 0.35, Number(scaleTry.toFixed(2)));
+        if (fallbackPack.overflow.length === 0) {
+          fallbackPlaced = fallbackPack.placed;
+          break;
+        }
+      }
+
+      if (!fallbackPlaced) {
         throw new Error("Unable to place all rooms within the plot. Reduce room count or increase land area.");
       }
 
-      placedRooms = fallbackPack.placed;
+      placedRooms = fallbackPlaced;
       overflowRooms = [];
     }
 
