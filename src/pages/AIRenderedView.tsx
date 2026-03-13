@@ -135,10 +135,10 @@ const AIRenderedView = () => {
       setGenerationProgress({ current: completed, total: totalViews });
     };
     
-    // Generate exterior views in parallel (batch of 5 for speed)
+    // Generate exterior views in small batches with delays to avoid rate limits
     const exteriorBatches = [];
-    for (let i = 0; i < exteriorTypes.length; i += 5) {
-      exteriorBatches.push(exteriorTypes.slice(i, i + 5));
+    for (let i = 0; i < exteriorTypes.length; i += 2) {
+      exteriorBatches.push(exteriorTypes.slice(i, i + 2));
     }
     
     for (const batch of exteriorBatches) {
@@ -146,12 +146,13 @@ const AIRenderedView = () => {
         await handleGenerateView(view);
         updateProgress();
       }));
+      await new Promise(r => setTimeout(r, 1500)); // delay between batches
     }
     
-    // Generate interior views in parallel (batch of 5 for speed)
+    // Generate interior views in small batches with delays
     const interiorBatches = [];
-    for (let i = 0; i < allRooms.length; i += 5) {
-      interiorBatches.push(allRooms.slice(i, i + 5));
+    for (let i = 0; i < allRooms.length; i += 2) {
+      interiorBatches.push(allRooms.slice(i, i + 2));
     }
     
     for (const batch of interiorBatches) {
@@ -159,6 +160,7 @@ const AIRenderedView = () => {
         await handleGenerateView('interior', roomName);
         updateProgress();
       }));
+      await new Promise(r => setTimeout(r, 1500)); // delay between batches
     }
     
     setIsGenerating(false);
