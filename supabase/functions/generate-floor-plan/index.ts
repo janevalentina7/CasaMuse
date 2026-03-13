@@ -510,7 +510,7 @@ serve(async (req) => {
       </svg>
     `;
 
-    const imageUrl = `data:image/svg+xml;base64,${btoa(svg)}`;
+    const imageUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 
     const validationSummary = [
       "No duplicate rooms",
