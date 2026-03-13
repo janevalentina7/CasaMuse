@@ -316,17 +316,17 @@ serve(async (req) => {
     const midZone: Rect = { x: indoor.x, y: backZone.y + backZone.height, width: indoor.width, height: indoor.height * 0.22 };
     const frontZone: Rect = { x: indoor.x, y: midZone.y + midZone.height, width: indoor.width, height: indoor.height - backZone.height - midZone.height };
 
-    let bp = pack(bedrooms, backZone, 1.2, 0.55);
-    let mp = pack([...bathrooms, ...others], midZone, 1.2, 0.55);
-    let fp = pack(front, frontZone, 1.2, 0.55);
+    let bp = pack(bedrooms, backZone, 0.8, 0.4);
+    let mp = pack([...bathrooms, ...others], midZone, 0.8, 0.4);
+    let fp = pack(front, frontZone, 0.8, 0.4);
     let placed = [...bp.placed, ...mp.placed, ...fp.placed];
     let overflow = [...bp.overflow, ...mp.overflow, ...fp.overflow];
 
     if (overflow.length > 0) {
       const all = [...bedrooms, ...bathrooms, ...others, ...front].sort((a, b) => b.area - a.area);
       let fallback: PlacedRoom[] | null = null;
-      for (let s = 1; s >= 0.5; s -= 0.05) {
-        const r = pack(all, indoor, 1, 0.3, Number(s.toFixed(2)));
+      for (let s = 1; s >= 0.3; s -= 0.05) {
+        const r = pack(all, indoor, 0.6, 0.2, Number(s.toFixed(2)));
         if (r.overflow.length === 0) { fallback = r.placed; break; }
       }
       if (!fallback) throw new Error("Unable to fit all rooms. Reduce count or increase area.");
