@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-function buildRoomTable(rooms: any[]): { table: string; totalCount: number; checklist: string; totalArea: number } {
+function buildRoomManifest(rooms: any[]): { manifest: string; totalCount: number; checklist: string; totalArea: number } {
   const lines: string[] = [];
   const checkLines: string[] = [];
   let totalArea = 0;
@@ -19,16 +19,16 @@ function buildRoomTable(rooms: any[]): { table: string; totalCount: number; chec
 
     for (let i = 0; i < count; i++) {
       const label = count > 1 ? `${room.roomName} ${i + 1}` : room.roomName;
-      lines.push(`| ${label} | ${room.width}' × ${room.height}' | ${area} sq.ft |${room.attachedBathroom ? ' + Attached Bath 5\'×8\'' : ''}`);
+      lines.push(`- ${label}: ${room.width}' × ${room.height}' = ${area} sq.ft${room.attachedBathroom ? ' (+ Attached Bathroom 5\'×8\' = 40 sq.ft)' : ''}`);
       checkLines.push(label);
       if (room.attachedBathroom) {
-        checkLines.push(`${label} Bath`);
+        checkLines.push(`${label} - Attached Bath`);
       }
     }
   });
 
   return {
-    table: lines.join("\n"),
+    manifest: lines.join("\n"),
     totalCount,
     checklist: checkLines.join(", "),
     totalArea,
@@ -42,7 +42,7 @@ serve(async (req) => {
 
   try {
     const { landArea, plotLength, plotBreadth, northDirection, rooms, preferences } = await req.json();
-    console.log("Generating floor plan with data:", JSON.stringify({ landArea, rooms: rooms?.length, preferences: preferences?.style }));
+    console.log("Generating floor plan:", JSON.stringify({ landArea, rooms: rooms?.length, style: preferences?.style }));
 
     const parsedLandArea = Number.parseFloat(String(landArea || "0"));
     if (!Number.isFinite(parsedLandArea) || parsedLandArea <= 0) {
@@ -62,51 +62,109 @@ serve(async (req) => {
     const garagePlacement = hasGarage ? (preferences?.garagePlacement || "Front") : null;
     const gardenPlacement = hasGarden ? (preferences?.gardenPlacement || "Front Garden") : null;
 
-    const { table: roomTable, totalCount, checklist, totalArea } = buildRoomTable(rooms);
+    const { manifest, totalCount, checklist, totalArea } = buildRoomManifest(rooms);
 
     const plotDims = plotLength && plotBreadth
       ? `${plotLength}' × ${plotBreadth}'`
       : `${Math.round(Math.sqrt(parsedLandArea))}' × ${Math.round(parsedLandArea / Math.sqrt(parsedLandArea))}'`;
 
-    // Simplified, highly focused prompt
-    const prompt = `Generate a professional 2D architectural floor plan drawing. The output must look like a real architect's blueprint — clean vector-like lines on white background, NOT a 3D render, NOT a sketch, NOT a photograph.
+    const prompt = `You are an AI architectural floor plan generator. Generate a clean, accurate, and realistic 2D house floor plan based STRICTLY on the inputs below. The plan must follow architectural standards and maintain logical room placement.
 
-PLOT: ${plotDims} = ${landArea} sq.ft total | ${preferences.style} style | ${preferences.floors} floor(s) | North: ${northDirection || "Up"}
-${preferences.vastuCompliant ? "VASTU COMPLIANT: Living→NE, Master Bed→SW, Kitchen→SE, Pooja→NE, Bath→NW, Entry→N/E" : ""}
+=== PLOT SPECIFICATIONS ===
+- Plot Size: ${plotDims} = ${landArea} sq.ft total
+- Architectural Style: ${preferences.style}
+- Floors: ${preferences.floors}
+- North Direction: ${northDirection || "Up"}
+${preferences.vastuCompliant ? "- VASTU COMPLIANT: Living Room → NE, Master Bedroom → SW, Kitchen → SE, Pooja → NE, Bathroom → NW, Main Entry → N/E" : ""}
 
-EXACT ROOMS (draw ONLY these ${totalCount} spaces, nothing else):
-${roomTable}
+=== EXACT ROOM LIST (generate ONLY these ${totalCount} spaces) ===
+${manifest}
 
-${hasGarage ? `PARKING: ${garagePlacement} side` : "NO parking/garage/driveway — do not draw any."}
-${hasGarden ? `GARDEN: ${gardenPlacement}` : "NO garden/lawn/landscape — do not draw any."}
+Total built-up area: ~${totalArea} sq.ft (must fit within ${landArea} sq.ft plot with 10-15% for walls & circulation)
 
-DRAWING RULES:
-1. TOP-DOWN 2D VIEW ONLY — like an AutoCAD floor plan printout
-2. White background, black walls (outer walls thick 9", inner 4.5")
-3. Thick black rectangle for plot boundary with dimension labels on all 4 sides
-4. Each room is a colored rectangle:
-   - Living=#D4E8FC, Master Bed=#FDDCBA, Bedroom=#E8D4F0, Kitchen=#FFF3CD
-   - Dining=#D4F1F4, Bathroom=#C8F0F0, Corridor=#F5F5DC (unlabeled)
-   ${hasGarage ? "- Parking=#E9ECEF" : ""}${hasGarden ? "- Garden=#D4EDDA" : ""}
-5. LABELING — Every room must have CLEAR, READABLE text centered inside:
-   Line 1: ROOM NAME in BOLD CAPS (e.g. "LIVING ROOM", "KITCHEN", "MASTER BEDROOM")
-   Line 2: dimensions (e.g. "12' × 16'")
-   Line 3: area (e.g. "192 sq.ft")
-   Use large, clean sans-serif font. Text must be BLACK and fully readable.
-6. Doors shown as quarter-circle arcs, main entrance labeled "ENTRANCE"
-7. Windows as double parallel lines on exterior walls
-8. Simple furniture outlines in light grey:
-   - Living: sofa + table  - Bedroom: bed rectangle  - Kitchen: L-counter + sink circle
-   - Dining: table + chairs  - Bathroom: WC + basin
-9. Dimension lines with tick marks on exterior walls
-10. North arrow (top-left), scale bar (bottom), title block (bottom-right): "CasaMuse ${preferences.style} | ${plotDims} | ${landArea} sq.ft"
+=== OUTDOOR FEATURES ===
+${hasGarage ? `✅ Garage/Parking: Place on ${garagePlacement} side, connect to entrance pathway` : "❌ NO garage, parking, or driveway — do NOT draw any."}
+${hasGarden ? `✅ Garden: Place as ${gardenPlacement}` : "❌ NO garden, lawn, or landscape — do NOT draw any."}
 
-CRITICAL RULES:
-- Room count must be EXACTLY: ${checklist} — no more, no fewer
-- Do NOT invent extra rooms (no storage, closet, lobby, foyer, passage, utility unless listed)
-- Corridors are circulation space only — do NOT label them as rooms
-- All text must be correctly spelled, legible, and properly positioned inside rooms
-- The result must look like a professional architectural blueprint, not an artistic illustration`;
+=== INPUT RULES (CRITICAL) ===
+1. Use ONLY the rooms listed above. Do NOT add any extra rooms.
+2. Do NOT generate storage rooms, closets, lobbies, foyers, passages, utility rooms, or any room not in the list.
+3. No duplicate rooms unless explicitly listed above with numbering.
+4. If total room area exceeds land size, reduce room sizes proportionally — never exceed plot boundary.
+
+=== ROOM PLACEMENT LOGIC ===
+- Living Room: Near main entrance
+- Bedrooms: Private area, away from main entrance
+- Kitchen: Adjacent to dining room or living room
+- Bathrooms: Attached to bedrooms when specified, otherwise along hallways
+- Dining Room: Between kitchen and living room
+- Study Room: Quiet area, away from entrance
+- Balcony: Attached to living room or bedroom exterior wall
+
+=== LAYOUT RULES ===
+- All rooms must have clear rectangular boundaries
+- No rooms may overlap
+- All rooms must be connected logically via hallways or doors
+- Every room must be accessible
+- Include walls, doors, and windows in the layout
+- Outer walls: 9 inches thick (draw as thick black lines)
+- Inner walls: 4.5 inches thick
+
+=== DRAWING STYLE — 2D ARCHITECTURAL BLUEPRINT ===
+- TOP-DOWN 2D VIEW ONLY — like an AutoCAD or architect's printed floor plan
+- White/light background with clean black wall lines
+- Draw a thick black rectangle for the plot boundary with dimension labels on all 4 sides
+- Color-fill each room with distinct pastel colors:
+  • Living Room = #D4E8FC (light blue)
+  • Master Bedroom = #FDDCBA (light orange)
+  • Bedroom = #E8D4F0 (light purple)
+  • Kitchen = #FFF3CD (light yellow)
+  • Dining = #D4F1F4 (light cyan)
+  • Bathroom = #C8F0F0 (light teal)
+  • Study = #FCE4EC (light pink)
+  • Balcony = #E8F5E9 (light green)
+  ${hasGarage ? "• Parking = #E9ECEF (light grey)" : ""}
+  ${hasGarden ? "• Garden = #D4EDDA (green)" : ""}
+  • Corridors/Hallways = #F5F5DC (beige) — do NOT label these as rooms
+
+=== LABELING RULES (CRITICAL) ===
+Every room MUST have clear, readable text CENTERED inside the room:
+- Line 1: ROOM NAME in BOLD UPPERCASE (e.g., "LIVING ROOM", "KITCHEN", "MASTER BEDROOM")
+- Line 2: Dimensions (e.g., "12' × 16'")
+- Line 3: Area (e.g., "192 sq.ft")
+- Use large, clean, sans-serif font
+- Text must be BLACK and fully legible against the pastel background
+- If multiple rooms of same type exist, number them: "BEDROOM 1", "BEDROOM 2", "BATHROOM 1", "BATHROOM 2"
+- Avoid any spelling mistakes
+
+=== ARCHITECTURAL SYMBOLS ===
+- Doors: Quarter-circle arc swings, main door labeled "ENTRANCE"
+- Windows: Double parallel lines on exterior walls
+- Furniture outlines (light grey, simple):
+  • Living: sofa + coffee table
+  • Bedroom: bed rectangle + side table
+  • Kitchen: L-shaped counter + sink circle
+  • Dining: table + chairs
+  • Bathroom: WC symbol + basin
+- North arrow in top-left corner
+- Scale bar at bottom
+- Title block (bottom-right): "CasaMuse ${preferences.style} | ${plotDims} | ${landArea} sq.ft"
+
+=== VALIDATION CHECKLIST (verify before final output) ===
+☐ Room count matches EXACTLY: ${checklist}
+☐ No extra rooms beyond the list above
+☐ No duplicate rooms unless user requested multiples
+☐ Room sizes are realistic and within standard ranges
+☐ Total area fits within ${landArea} sq.ft plot boundary
+☐ Rooms are logically arranged and connected
+☐ All labels are correctly spelled, centered, and readable
+☐ ${hasGarage ? "Parking is on " + garagePlacement + " side" : "No parking/garage drawn"}
+☐ ${hasGarden ? "Garden is placed as " + gardenPlacement : "No garden/lawn drawn"}
+${preferences.vastuCompliant ? "☐ Vastu directions are followed" : ""}
+
+If any validation rule fails, regenerate the floor plan until all checks pass.
+
+Generate the floor plan image now.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -115,7 +173,7 @@ CRITICAL RULES:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3.1-flash-image-preview',
+        model: 'google/gemini-3-pro-image-preview',
         messages: [{ role: 'user', content: prompt }],
         modalities: ['image', 'text']
       }),
@@ -124,6 +182,19 @@ CRITICAL RULES:
     if (!response.ok) {
       const errorText = await response.text();
       console.error('AI Gateway error:', response.status, errorText);
+      
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment.", success: false }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Usage limit reached. Please add credits.", success: false }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       throw new Error(`AI Gateway error: ${response.status}`);
     }
 
