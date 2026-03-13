@@ -101,8 +101,14 @@ const AIRenderedView = () => {
       } else {
         throw new Error(data?.error || "Failed to generate view");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating view:', error);
+      const msg = error?.message || '';
+      if (msg.includes('429') || msg.includes('Rate limit')) {
+        toast.error("Rate limited — retrying in a few seconds...");
+      } else if (msg.includes('402')) {
+        toast.error("AI usage limit reached. Please add credits.");
+      }
       return false;
     } finally {
       setGeneratingViews(prev => {
