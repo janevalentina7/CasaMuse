@@ -5,9 +5,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-function buildRoomTable(rooms: any[]): { table: string; totalCount: number; checklist: string; totalArea: number } {
+function buildRoomTable(rooms: any[]): { table: string; totalCount: number; checklist: string; totalArea: number; labelGuide: string } {
   const lines: string[] = [];
   const checkLines: string[] = [];
+  const labelLines: string[] = [];
   let totalArea = 0;
   let totalCount = 0;
 
@@ -19,10 +20,14 @@ function buildRoomTable(rooms: any[]): { table: string; totalCount: number; chec
 
     for (let i = 0; i < count; i++) {
       const label = count > 1 ? `${room.roomName} ${i + 1}` : room.roomName;
-      lines.push(`| ${label} | ${room.width}' × ${room.height}' | ${area} sq.ft |${room.attachedBathroom ? ' + Attached Bath 5\'×8\'' : ''}`);
+      const upperLabel = label.toUpperCase();
+      lines.push(`- ${label}: exactly ${room.width} feet wide × ${room.height} feet tall = ${area} sq.ft${room.attachedBathroom ? ' (+ Attached Bathroom 5ft × 8ft = 40 sq.ft)' : ''}`);
       checkLines.push(label);
+      // Exact label text the AI must write inside each room
+      labelLines.push(`Inside "${upperLabel}" write exactly:\n  "${upperLabel}"\n  "${room.width}' × ${room.height}'"\n  "${area} sq.ft"`);
       if (room.attachedBathroom) {
         checkLines.push(`${label} Bath`);
+        labelLines.push(`Inside "${upperLabel} BATH" write exactly:\n  "BATHROOM"\n  "5' × 8'"\n  "40 sq.ft"`);
       }
     }
   });
@@ -32,6 +37,7 @@ function buildRoomTable(rooms: any[]): { table: string; totalCount: number; chec
     totalCount,
     checklist: checkLines.join(", "),
     totalArea,
+    labelGuide: labelLines.join("\n"),
   };
 }
 
