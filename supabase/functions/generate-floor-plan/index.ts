@@ -41,12 +41,14 @@ serve(async (req) => {
     });
 
     const circulationArea = Math.max(0, Math.round(parseFloat(landArea) - totalRoomArea));
-    const outdoorFeatures = preferences.outdoorFeatures?.join(", ") || "None";
+    const outdoorFeatures = preferences.outdoorFeatures?.length > 0 ? preferences.outdoorFeatures.join(", ") : "";
     const plotDimensions = plotLength && plotBreadth 
       ? `${plotLength}'-0" × ${plotBreadth}'-0"` 
       : `Approx. ${Math.round(Math.sqrt(parseFloat(landArea)))}'-0" × ${Math.round(parseFloat(landArea) / Math.sqrt(parseFloat(landArea)))}'-0"`;
-    const garagePlacement = preferences.garagePlacement || "Front";
-    const gardenPlacement = preferences.gardenPlacement || "Front Garden";
+    const hasGarage = preferences.outdoorFeatures?.includes("Garage") || preferences.outdoorFeatures?.includes("Parking");
+    const hasGarden = preferences.outdoorFeatures?.includes("Garden") || preferences.outdoorFeatures?.includes("Front Garden") || preferences.outdoorFeatures?.includes("Back Garden");
+    const garagePlacement = hasGarage ? (preferences.garagePlacement || "Front") : null;
+    const gardenPlacement = hasGarden ? (preferences.gardenPlacement || "Front Garden") : null;
 
     const prompt = `You are a professional architectural planning AI. Generate ONE clean, accurate, construction-style 2D floor plan image.
 
