@@ -15,40 +15,45 @@ serve(async (req) => {
 
     console.log("Generating floor plan with data:", { landArea, plotLength, plotBreadth, northDirection, rooms, preferences });
 
+    const parsedLandArea = Number.parseFloat(String(landArea || "0"));
+    if (!Number.isFinite(parsedLandArea) || parsedLandArea <= 0) {
+      throw new Error('Invalid land area input');
+    }
+
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
+    const outdoorFeatureIds: string[] = Array.isArray(preferences?.outdoorFeatures)
+      ? preferences.outdoorFeatures
+          .map((feature: unknown) => String(feature).trim().toLowerCase())
+          .filter(Boolean)
+      : [];
+
+    const garageFeatureAliases = ["car_parking", "car parking", "parking", "garage"];
+    const gardenFeatureAliases = ["garden", "front garden", "back garden", "landscape", "landscaping"];
+
+    const hasGarage = outdoorFeatureIds.some((feature) => garageFeatureAliases.includes(feature));
+    const hasGarden = outdoorFeatureIds.some((feature) => gardenFeatureAliases.includes(feature));
+
+    const selectedOutdoorFeatures = [
+      ...(hasGarage ? [`Garage/Parking (${preferences?.garagePlacement || "Front"})`] : []),
+      ...(hasGarden ? [`Garden (${preferences?.gardenPlacement || "Front Garden"})`] : []),
+      ...outdoorFeatureIds
+        .filter((feature) => !garageFeatureAliases.includes(feature) && !gardenFeatureAliases.includes(feature))
+        .map((feature) => feature.replace(/_/g, " ")),
+    ];
+
+    const forbiddenOutdoorFeatures = [
+      ...(!hasGarage ? ["Garage", "Car Parking", "Driveway", "Parking Bay"] : []),
+      ...(!hasGarden ? ["Garden", "Lawn", "Landscape Zone", "Planter Bed"] : []),
+    ];
+
     // Build strict room manifest — the ONLY rooms allowed
     const roomManifest: string[] = [];
     const roomChecklist: string[] = [];
     let totalRoomArea = 0;
-
-    rooms.forEach((room: any) => {
-      const count = room.count || 1;
-      const area = room.width * room.height;
-      totalRoomArea += area * count + (room.attachedBathroom ? 40 * count : 0);
-
-      for (let i = 0; i < count; i++) {
-        const label = count > 1 ? `${room.roomName} ${i + 1}` : room.roomName;
-        roomManifest.push(`• ${label}: ${room.width}'-0" × ${room.height}'-0" (${area} sq.ft)${room.attachedBathroom ? ` + Attached Bathroom 5'-0" × 8'-0" (40 sq.ft)` : ''}`);
-        roomChecklist.push(`☐ ${label} — drawn? labeled? colored? furnished?`);
-        if (room.attachedBathroom) {
-          roomChecklist.push(`☐ Bathroom (${label}) — drawn? labeled? colored? furnished?`);
-        }
-      }
-    });
-
-    const circulationArea = Math.max(0, Math.round(parseFloat(landArea) - totalRoomArea));
-    const outdoorFeatures = preferences.outdoorFeatures?.length > 0 ? preferences.outdoorFeatures.join(", ") : "";
-    const plotDimensions = plotLength && plotBreadth 
-      ? `${plotLength}'-0" × ${plotBreadth}'-0"` 
-      : `Approx. ${Math.round(Math.sqrt(parseFloat(landArea)))}'-0" × ${Math.round(parseFloat(landArea) / Math.sqrt(parseFloat(landArea)))}'-0"`;
-    const hasGarage = preferences.outdoorFeatures?.includes("Garage") || preferences.outdoorFeatures?.includes("Parking");
-    const hasGarden = preferences.outdoorFeatures?.includes("Garden") || preferences.outdoorFeatures?.includes("Front Garden") || preferences.outdoorFeatures?.includes("Back Garden");
-    const garagePlacement = hasGarage ? (preferences.garagePlacement || "Front") : null;
-    const gardenPlacement = hasGarden ? (preferences.gardenPlacement || "Front Garden") : null;
 
     const prompt = `You are a professional architectural planning AI. Generate ONE clean, accurate, construction-style 2D floor plan image.
 
