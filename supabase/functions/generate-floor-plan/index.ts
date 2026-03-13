@@ -81,8 +81,9 @@ Total allowed rooms: ${roomManifest.length}
 • North Direction: ${northDirection || "Up"}
 ${preferences.vastuCompliant ? "• VASTU SHASTRA COMPLIANT — follow directional placement rules." : ""}
 • Corridors/Circulation: ~${circulationArea > 0 ? circulationArea : 30} sq.ft (unlabeled connecting space)
-• Outdoor: ${outdoorFeatures}
-• Garage: ${garagePlacement} side | Garden: ${gardenPlacement}
+${outdoorFeatures ? `• Outdoor Features: ${outdoorFeatures}` : "• Outdoor Features: NONE — do NOT draw any garden, garage, parking, or outdoor areas."}
+${garagePlacement ? `• Garage Placement: ${garagePlacement} side` : "• ⚠️ NO GARAGE — do NOT draw any garage or parking area."}
+${gardenPlacement ? `• Garden Placement: ${gardenPlacement}` : "• ⚠️ NO GARDEN — do NOT draw any garden area."}
 
 ═══════════════════════════════════════════
  STEP 3 — LAYOUT PLANNING
