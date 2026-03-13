@@ -41,12 +41,14 @@ serve(async (req) => {
     });
 
     const circulationArea = Math.max(0, Math.round(parseFloat(landArea) - totalRoomArea));
-    const outdoorFeatures = preferences.outdoorFeatures?.join(", ") || "None";
+    const outdoorFeatures = preferences.outdoorFeatures?.length > 0 ? preferences.outdoorFeatures.join(", ") : "";
     const plotDimensions = plotLength && plotBreadth 
       ? `${plotLength}'-0" × ${plotBreadth}'-0"` 
       : `Approx. ${Math.round(Math.sqrt(parseFloat(landArea)))}'-0" × ${Math.round(parseFloat(landArea) / Math.sqrt(parseFloat(landArea)))}'-0"`;
-    const garagePlacement = preferences.garagePlacement || "Front";
-    const gardenPlacement = preferences.gardenPlacement || "Front Garden";
+    const hasGarage = preferences.outdoorFeatures?.includes("Garage") || preferences.outdoorFeatures?.includes("Parking");
+    const hasGarden = preferences.outdoorFeatures?.includes("Garden") || preferences.outdoorFeatures?.includes("Front Garden") || preferences.outdoorFeatures?.includes("Back Garden");
+    const garagePlacement = hasGarage ? (preferences.garagePlacement || "Front") : null;
+    const gardenPlacement = hasGarden ? (preferences.gardenPlacement || "Front Garden") : null;
 
     const prompt = `You are a professional architectural planning AI. Generate ONE clean, accurate, construction-style 2D floor plan image.
 
@@ -79,8 +81,9 @@ Total allowed rooms: ${roomManifest.length}
 • North Direction: ${northDirection || "Up"}
 ${preferences.vastuCompliant ? "• VASTU SHASTRA COMPLIANT — follow directional placement rules." : ""}
 • Corridors/Circulation: ~${circulationArea > 0 ? circulationArea : 30} sq.ft (unlabeled connecting space)
-• Outdoor: ${outdoorFeatures}
-• Garage: ${garagePlacement} side | Garden: ${gardenPlacement}
+${outdoorFeatures ? `• Outdoor Features: ${outdoorFeatures}` : "• Outdoor Features: NONE — do NOT draw any garden, garage, parking, or outdoor areas."}
+${garagePlacement ? `• Garage Placement: ${garagePlacement} side` : "• ⚠️ NO GARAGE — do NOT draw any garage or parking area."}
+${gardenPlacement ? `• Garden Placement: ${gardenPlacement}` : "• ⚠️ NO GARDEN — do NOT draw any garden area."}
 
 ═══════════════════════════════════════════
  STEP 3 — LAYOUT PLANNING
@@ -131,8 +134,9 @@ COLOR-CODED ROOMS:
 • Dining → #D4F1F4         • Bathroom/Toilet → #C8F0F0
 • Corridor → #F5F5DC       • Utility → #FFF8DC
 • Pooja Room → #FFEEBA     • Study/Office → #E8EAF6
-• Balcony → #FFFFFF border  • Garden → #D4EDDA
-• Parking/Garage → #E9ECEF
+• Balcony → #FFFFFF border
+${hasGarden ? "• Garden → #D4EDDA" : ""}
+${hasGarage ? "• Parking/Garage → #E9ECEF" : ""}
 
 ARCHITECTURAL SYMBOLS:
 DOORS: Quarter-circle swing arcs. Main entrance = thicker arc labeled "ENTRANCE".
