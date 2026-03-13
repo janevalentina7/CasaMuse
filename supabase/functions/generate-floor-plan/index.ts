@@ -5,6 +5,36 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+function buildRoomTable(rooms: any[]): { table: string; totalCount: number; checklist: string; totalArea: number } {
+  const lines: string[] = [];
+  const checkLines: string[] = [];
+  let totalArea = 0;
+  let totalCount = 0;
+
+  rooms.forEach((room: any) => {
+    const count = room.count || 1;
+    const area = room.width * room.height;
+    totalArea += area * count + (room.attachedBathroom ? 40 * count : 0);
+    totalCount += count + (room.attachedBathroom ? count : 0);
+
+    for (let i = 0; i < count; i++) {
+      const label = count > 1 ? `${room.roomName} ${i + 1}` : room.roomName;
+      lines.push(`| ${label} | ${room.width}' × ${room.height}' | ${area} sq.ft |${room.attachedBathroom ? ' + Attached Bath 5\'×8\'' : ''}`);
+      checkLines.push(label);
+      if (room.attachedBathroom) {
+        checkLines.push(`${label} Bath`);
+      }
+    }
+  });
+
+  return {
+    table: lines.join("\n"),
+    totalCount,
+    checklist: checkLines.join(", "),
+    totalArea,
+  };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -12,8 +42,7 @@ serve(async (req) => {
 
   try {
     const { landArea, plotLength, plotBreadth, northDirection, rooms, preferences } = await req.json();
-
-    console.log("Generating floor plan with data:", { landArea, plotLength, plotBreadth, northDirection, rooms, preferences });
+    console.log("Generating floor plan with data:", JSON.stringify({ landArea, rooms: rooms?.length, preferences: preferences?.style }));
 
     const parsedLandArea = Number.parseFloat(String(landArea || "0"));
     if (!Number.isFinite(parsedLandArea) || parsedLandArea <= 0) {
@@ -21,187 +50,63 @@ serve(async (req) => {
     }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
-    }
+    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
-    const outdoorFeatureIds: string[] = Array.isArray(preferences?.outdoorFeatures)
-      ? preferences.outdoorFeatures
-          .map((feature: unknown) => String(feature).trim().toLowerCase())
-          .filter(Boolean)
+    // Outdoor feature detection
+    const outdoorIds: string[] = Array.isArray(preferences?.outdoorFeatures)
+      ? preferences.outdoorFeatures.map((f: unknown) => String(f).trim().toLowerCase()).filter(Boolean)
       : [];
 
-    const garageFeatureAliases = ["car_parking", "car parking", "parking", "garage"];
-    const gardenFeatureAliases = ["garden", "front garden", "back garden", "landscape", "landscaping"];
-
-    const hasGarage = outdoorFeatureIds.some((feature) => garageFeatureAliases.includes(feature));
-    const hasGarden = outdoorFeatureIds.some((feature) => gardenFeatureAliases.includes(feature));
+    const hasGarage = outdoorIds.some(f => ["car_parking", "parking", "garage"].includes(f));
+    const hasGarden = outdoorIds.some(f => ["garden", "front garden", "back garden", "landscape"].includes(f));
     const garagePlacement = hasGarage ? (preferences?.garagePlacement || "Front") : null;
     const gardenPlacement = hasGarden ? (preferences?.gardenPlacement || "Front Garden") : null;
 
-    const selectedOutdoorFeatures = [
-      ...(hasGarage ? [`Garage/Parking (${garagePlacement})`] : []),
-      ...(hasGarden ? [`Garden (${gardenPlacement})`] : []),
-      ...outdoorFeatureIds
-        .filter((feature) => !garageFeatureAliases.includes(feature) && !gardenFeatureAliases.includes(feature))
-        .map((feature) => feature.replace(/_/g, " ")),
-    ];
+    const { table: roomTable, totalCount, checklist, totalArea } = buildRoomTable(rooms);
 
-    const forbiddenOutdoorFeatures = [
-      ...(!hasGarage ? ["Garage", "Car Parking", "Driveway", "Parking Bay"] : []),
-      ...(!hasGarden ? ["Garden", "Lawn", "Landscape Zone", "Planter Bed"] : []),
-    ];
+    const plotDims = plotLength && plotBreadth
+      ? `${plotLength}' × ${plotBreadth}'`
+      : `${Math.round(Math.sqrt(parsedLandArea))}' × ${Math.round(parsedLandArea / Math.sqrt(parsedLandArea))}'`;
 
-    // Build strict room manifest — the ONLY rooms allowed
-    const roomManifest: string[] = [];
-    const roomChecklist: string[] = [];
-    let totalRoomArea = 0;
+    // Simplified, highly focused prompt
+    const prompt = `Generate a professional 2D architectural floor plan drawing. The output must look like a real architect's blueprint — clean vector-like lines on white background, NOT a 3D render, NOT a sketch, NOT a photograph.
 
-    rooms.forEach((room: any) => {
-      const count = room.count || 1;
-      const area = room.width * room.height;
-      totalRoomArea += area * count + (room.attachedBathroom ? 40 * count : 0);
+PLOT: ${plotDims} = ${landArea} sq.ft total | ${preferences.style} style | ${preferences.floors} floor(s) | North: ${northDirection || "Up"}
+${preferences.vastuCompliant ? "VASTU COMPLIANT: Living→NE, Master Bed→SW, Kitchen→SE, Pooja→NE, Bath→NW, Entry→N/E" : ""}
 
-      for (let i = 0; i < count; i++) {
-        const label = count > 1 ? `${room.roomName} ${i + 1}` : room.roomName;
-        roomManifest.push(`• ${label}: ${room.width}'-0" × ${room.height}'-0" (${area} sq.ft)${room.attachedBathroom ? ` + Attached Bathroom 5'-0" × 8'-0" (40 sq.ft)` : ''}`);
-        roomChecklist.push(`☐ ${label} — drawn? labeled? colored? furnished?`);
-        if (room.attachedBathroom) {
-          roomChecklist.push(`☐ Bathroom (${label}) — drawn? labeled? colored? furnished?`);
-        }
-      }
-    });
+EXACT ROOMS (draw ONLY these ${totalCount} spaces, nothing else):
+${roomTable}
 
-    const circulationArea = Math.max(0, Math.round(parsedLandArea - totalRoomArea));
-    const plotDimensions = plotLength && plotBreadth
-      ? `${plotLength}'-0" × ${plotBreadth}'-0"`
-      : `Approx. ${Math.round(Math.sqrt(parsedLandArea))}'-0" × ${Math.round(parsedLandArea / Math.sqrt(parsedLandArea))}'-0"`;
+${hasGarage ? `PARKING: ${garagePlacement} side` : "NO parking/garage/driveway — do not draw any."}
+${hasGarden ? `GARDEN: ${gardenPlacement}` : "NO garden/lawn/landscape — do not draw any."}
 
-    const prompt = `You are a professional architectural planning AI. Generate ONE clean, accurate, construction-style 2D floor plan image.
+DRAWING RULES:
+1. TOP-DOWN 2D VIEW ONLY — like an AutoCAD floor plan printout
+2. White background, black walls (outer walls thick 9", inner 4.5")
+3. Thick black rectangle for plot boundary with dimension labels on all 4 sides
+4. Each room is a colored rectangle:
+   - Living=#D4E8FC, Master Bed=#FDDCBA, Bedroom=#E8D4F0, Kitchen=#FFF3CD
+   - Dining=#D4F1F4, Bathroom=#C8F0F0, Corridor=#F5F5DC (unlabeled)
+   ${hasGarage ? "- Parking=#E9ECEF" : ""}${hasGarden ? "- Garden=#D4EDDA" : ""}
+5. LABELING — Every room must have CLEAR, READABLE text centered inside:
+   Line 1: ROOM NAME in BOLD CAPS (e.g. "LIVING ROOM", "KITCHEN", "MASTER BEDROOM")
+   Line 2: dimensions (e.g. "12' × 16'")
+   Line 3: area (e.g. "192 sq.ft")
+   Use large, clean sans-serif font. Text must be BLACK and fully readable.
+6. Doors shown as quarter-circle arcs, main entrance labeled "ENTRANCE"
+7. Windows as double parallel lines on exterior walls
+8. Simple furniture outlines in light grey:
+   - Living: sofa + table  - Bedroom: bed rectangle  - Kitchen: L-counter + sink circle
+   - Dining: table + chairs  - Bathroom: WC + basin
+9. Dimension lines with tick marks on exterior walls
+10. North arrow (top-left), scale bar (bottom), title block (bottom-right): "CasaMuse ${preferences.style} | ${plotDims} | ${landArea} sq.ft"
 
-═══════════════════════════════════════════
- STEP 1 — INPUT VALIDATION (MANDATORY)
-═══════════════════════════════════════════
-Allowed Room List (ONLY these rooms exist — nothing else):
-${roomManifest.join("\n")}
-
-Total allowed rooms: ${roomManifest.length}
-⚠️ ONLY rooms in this list may appear. Zero exceptions.
-
-═══════════════════════════════════════════
- STEP 2 — ROOM GENERATION RULES
-═══════════════════════════════════════════
-• Generate EXACTLY the number of rooms specified above.
-• If 3 bedrooms requested → draw exactly 3. If 1 kitchen → draw exactly 1.
-❌ Do NOT add extra rooms.
-❌ Do NOT create duplicate rooms beyond the specified count.
-❌ Do NOT add these unless explicitly listed above:
-   Storage room, Closet, Corridor label, Hallway label, Utility room, Pantry, Study room, Wash area, Lobby, Foyer, Passage
-• Circulation space (corridors) connects rooms but is NOT labeled as a separate room.
-• Outdoor rule: draw ONLY explicitly allowed outdoor features; forbidden outdoor features must be completely absent.
-
-═══════════════════════════════════════════
- PROJECT BRIEF
-═══════════════════════════════════════════
-• Plot Size: ${plotDimensions} (Total: ${landArea} sq ft)
-• Floors: ${preferences.floors}
-• Style: ${preferences.style}
-• North Direction: ${northDirection || "Up"}
-${preferences.vastuCompliant ? "• VASTU SHASTRA COMPLIANT — follow directional placement rules." : ""}
-• Corridors/Circulation: ~${circulationArea > 0 ? circulationArea : 30} sq.ft (unlabeled connecting space)
-• Allowed Outdoor Features: ${selectedOutdoorFeatures.length > 0 ? selectedOutdoorFeatures.join(", ") : "NONE (indoor footprint only)"}
-• Forbidden Outdoor Features: ${forbiddenOutdoorFeatures.length > 0 ? forbiddenOutdoorFeatures.join(", ") : "NONE"}
-${garagePlacement ? `• Garage Placement: ${garagePlacement} side` : "• ⚠️ NO GARAGE OR PARKING — do NOT draw any garage, parking, driveway, or car bay."}
-${gardenPlacement ? `• Garden Placement: ${gardenPlacement}` : "• ⚠️ NO GARDEN OR LANDSCAPE — do NOT draw any lawn, planter bed, courtyard-garden, or green zone."}
-
-═══════════════════════════════════════════
- STEP 3 — LAYOUT PLANNING
-═══════════════════════════════════════════
-Arrange rooms logically within the plot:
-• Entrance → Living Room → Dining → Kitchen
-• Bedrooms → private rear zone, away from entrance
-• Bathrooms → share plumbing walls; attached baths adjoin their bedroom
-• Walking corridors → 3.5'–5' wide (NOT labeled as rooms)
-• All rooms → rectangular shapes, no overlapping
-• PLOT BOUNDARY: Thick black rectangle with dimension lines on all 4 sides.
-• WALLS: Outer = 9" thick dark lines. Inner partitions = 4.5".
-${preferences.vastuCompliant ? `VASTU PLACEMENT:
-   - Living Room → NE / E / N
-   - Master Bedroom → SW
-   - Kitchen → SE (cooking facing East)
-   - Pooja Room → NE
-   - Bathrooms → NW / W
-   - Entrance → N or E` : ""}
-
-═══════════════════════════════════════════
- STEP 4 — DUPLICATE ROOM PREVENTION
-═══════════════════════════════════════════
-Before rendering, COUNT every room drawn:
-${roomChecklist.join("\n")}
-If any room count exceeds the allowed list → REMOVE the extra immediately.
-The final output MUST exactly match the input counts.
-
-═══════════════════════════════════════════
- STEP 5 — CORRECT LABELING
-═══════════════════════════════════════════
-Every room MUST show exactly 3 centered lines:
-  Line 1: ROOM NAME — BOLD UPPERCASE (e.g., "MASTER BEDROOM")
-  Line 2: Area: [w × h] sq.ft
-  Line 3: Dimensions (e.g., 12'-0" × 14'-0")
-• Black text, legible on pastel background.
-• Standard architectural names ONLY. Correct spelling required.
-✔ Living Room  ✔ Master Bedroom  ✔ Bedroom  ✔ Kitchen
-✔ Dining Area  ✔ Bathroom  ✔ Balcony  ✔ Toilet
-❌ No spelling mistakes. ❌ No incomplete words. ❌ No made-up names.
-
-═══════════════════════════════════════════
- STEP 6 — ARCHITECTURAL DRAWING QUALITY
-═══════════════════════════════════════════
-COLOR-CODED ROOMS:
-• Living Room → #D4E8FC    • Master Bedroom → #FDDCBA
-• Bedroom → #E8D4F0        • Kitchen → #FFF3CD
-• Dining → #D4F1F4         • Bathroom/Toilet → #C8F0F0
-• Corridor → #F5F5DC       • Utility → #FFF8DC
-• Pooja Room → #FFEEBA     • Study/Office → #E8EAF6
-• Balcony → #FFFFFF border
-${hasGarden ? "• Garden → #D4EDDA" : ""}
-${hasGarage ? "• Parking/Garage → #E9ECEF" : ""}
-
-ARCHITECTURAL SYMBOLS:
-DOORS: Quarter-circle swing arcs. Main entrance = thicker arc labeled "ENTRANCE".
-WINDOWS: Parallel blue lines on exterior walls.
-FURNITURE (grey outlines):
-  Living → sofa, coffee table, TV unit
-  Bedroom → bed + pillow marks, wardrobe, side tables
-  Master Bedroom → king bed, walk-in wardrobe, dressing table
-  Kitchen → L-counter, sink ○, stove □□, fridge □
-  Dining → table + chair ○/□
-  Bathroom → WC □, shower, basin ○
-DIMENSIONS: Lines with ticks on every wall. Format: feet-inches (12'-0").
-${preferences.floors > 1 ? "STAIRCASE: Step lines with UP arrow, labeled 'UP'." : ""}
-
-TITLE BLOCK & LEGEND:
-• NORTH ARROW: Bold "N" + arrow, top-left corner.
-• SCALE BAR: Bottom center — "Scale: 1:50".
-• TITLE BLOCK (bottom-right): "CasaMuse — ${preferences.style} Residence" | Plot: ${plotDimensions} | ${landArea} sq.ft
-• COLOR LEGEND: Small swatches with room type names.
-
-═══════════════════════════════════════════
- STEP 7 — FINAL VALIDATION CHECK
-═══════════════════════════════════════════
-Before output, verify ALL of these:
-☐ Generated room count matches input: ${roomManifest.length} rooms exactly?
-☐ No extra rooms added (no storage, closet, hallway, utility, etc.)?
-☐ No duplicate rooms beyond specified count?
-☐ All labels spelled correctly with 3-line format?
-☐ All dimensions match the manifest?
-☐ Plot boundary with 4-side dimensions drawn?
-☐ If garage/parking is forbidden, there are zero garage, driveway, parking labels, or parking outlines?
-☐ If garden/landscape is forbidden, there are zero garden/lawn/green landscaped zones?
-☐ Professional blueprint quality — clean lines, no artifacts?
-
-ONLY generate the image after ALL 7 steps are validated.`;
-
+CRITICAL RULES:
+- Room count must be EXACTLY: ${checklist} — no more, no fewer
+- Do NOT invent extra rooms (no storage, closet, lobby, foyer, passage, utility unless listed)
+- Corridors are circulation space only — do NOT label them as rooms
+- All text must be correctly spelled, legible, and properly positioned inside rooms
+- The result must look like a professional architectural blueprint, not an artistic illustration`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -210,7 +115,7 @@ ONLY generate the image after ALL 7 steps are validated.`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-image',
+        model: 'google/gemini-3.1-flash-image-preview',
         messages: [{ role: 'user', content: prompt }],
         modalities: ['image', 'text']
       }),
@@ -226,9 +131,7 @@ ONLY generate the image after ALL 7 steps are validated.`;
     const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
     const description = data.choices?.[0]?.message?.content || "Professional 2D floor plan generated.";
 
-    if (!imageUrl) {
-      throw new Error('No image generated');
-    }
+    if (!imageUrl) throw new Error('No image generated');
 
     return new Response(
       JSON.stringify({ imageUrl, description, success: true }),
