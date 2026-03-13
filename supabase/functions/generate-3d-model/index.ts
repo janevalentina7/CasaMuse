@@ -42,14 +42,11 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-image',
+        model: 'google/gemini-3.1-flash-image-preview',
         messages: [
           {
             role: 'user',
-            content: [
-              { type: 'text', text: prompt },
-              { type: 'image_url', image_url: { url: floorPlanImageUrl } }
-            ]
+            content: prompt
           }
         ],
         modalities: ['image', 'text']
