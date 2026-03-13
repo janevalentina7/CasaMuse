@@ -227,7 +227,12 @@ function reserveOutdoorAreas(
   return { indoorRect, outdoorRects };
 }
 
-function packInZone(rooms: PlannedRoom[], zone: Rect, gap = 1.2): { placed: Array<PlannedRoom & { rect: Rect }>; overflow: PlannedRoom[] } {
+function packInZone(
+  rooms: PlannedRoom[],
+  zone: Rect,
+  gap = 1.2,
+  minScale = 0.5
+): { placed: Array<PlannedRoom & { rect: Rect }>; overflow: PlannedRoom[] } {
   const placed: Array<PlannedRoom & { rect: Rect }> = [];
   const overflow: PlannedRoom[] = [];
 
@@ -236,18 +241,25 @@ function packInZone(rooms: PlannedRoom[], zone: Rect, gap = 1.2): { placed: Arra
   let rowHeight = 0;
 
   rooms.forEach((room) => {
-    if (room.width > zone.width - gap * 2 || room.height > zone.height - gap * 2) {
+    const maxWidth = Math.max(1, zone.width - gap * 2);
+    const maxHeight = Math.max(1, zone.height - gap * 2);
+
+    const scaleToFit = Math.min(maxWidth / room.width, maxHeight / room.height, 1);
+    if (scaleToFit < minScale) {
       overflow.push(room);
       return;
     }
 
-    if (cursorX + room.width > zone.x + zone.width - gap) {
+    const drawWidth = room.width * scaleToFit;
+    const drawHeight = room.height * scaleToFit;
+
+    if (cursorX + drawWidth > zone.x + zone.width - gap) {
       cursorX = zone.x + gap;
       cursorY += rowHeight + gap;
       rowHeight = 0;
     }
 
-    if (cursorY + room.height > zone.y + zone.height - gap) {
+    if (cursorY + drawHeight > zone.y + zone.height - gap) {
       overflow.push(room);
       return;
     }
@@ -257,13 +269,13 @@ function packInZone(rooms: PlannedRoom[], zone: Rect, gap = 1.2): { placed: Arra
       rect: {
         x: cursorX,
         y: cursorY,
-        width: room.width,
-        height: room.height,
+        width: drawWidth,
+        height: drawHeight,
       },
     });
 
-    cursorX += room.width + gap;
-    rowHeight = Math.max(rowHeight, room.height);
+    cursorX += drawWidth + gap;
+    rowHeight = Math.max(rowHeight, drawHeight);
   });
 
   return { placed, overflow };
