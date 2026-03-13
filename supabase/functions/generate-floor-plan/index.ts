@@ -5,10 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-function buildRoomTable(rooms: any[]): { table: string; totalCount: number; checklist: string; totalArea: number; labelGuide: string } {
+function buildRoomTable(rooms: any[]): { table: string; totalCount: number; checklist: string; totalArea: number } {
   const lines: string[] = [];
   const checkLines: string[] = [];
-  const labelLines: string[] = [];
   let totalArea = 0;
   let totalCount = 0;
 
@@ -20,14 +19,10 @@ function buildRoomTable(rooms: any[]): { table: string; totalCount: number; chec
 
     for (let i = 0; i < count; i++) {
       const label = count > 1 ? `${room.roomName} ${i + 1}` : room.roomName;
-      const upperLabel = label.toUpperCase();
-      lines.push(`- ${label}: exactly ${room.width} feet wide × ${room.height} feet tall = ${area} sq.ft${room.attachedBathroom ? ' (+ Attached Bathroom 5ft × 8ft = 40 sq.ft)' : ''}`);
+      lines.push(`| ${label} | ${room.width}' × ${room.height}' | ${area} sq.ft |${room.attachedBathroom ? ' + Attached Bath 5\'×8\'' : ''}`);
       checkLines.push(label);
-      // Exact label text the AI must write inside each room
-      labelLines.push(`Inside "${upperLabel}" write exactly:\n  "${upperLabel}"\n  "${room.width}' × ${room.height}'"\n  "${area} sq.ft"`);
       if (room.attachedBathroom) {
         checkLines.push(`${label} Bath`);
-        labelLines.push(`Inside "${upperLabel} BATH" write exactly:\n  "BATHROOM"\n  "5' × 8'"\n  "40 sq.ft"`);
       }
     }
   });
@@ -37,7 +32,6 @@ function buildRoomTable(rooms: any[]): { table: string; totalCount: number; chec
     totalCount,
     checklist: checkLines.join(", "),
     totalArea,
-    labelGuide: labelLines.join("\n"),
   };
 }
 
@@ -68,47 +62,51 @@ serve(async (req) => {
     const garagePlacement = hasGarage ? (preferences?.garagePlacement || "Front") : null;
     const gardenPlacement = hasGarden ? (preferences?.gardenPlacement || "Front Garden") : null;
 
-    const { table: roomTable, totalCount, checklist, totalArea, labelGuide } = buildRoomTable(rooms);
+    const { table: roomTable, totalCount, checklist, totalArea } = buildRoomTable(rooms);
 
     const plotDims = plotLength && plotBreadth
       ? `${plotLength}' × ${plotBreadth}'`
       : `${Math.round(Math.sqrt(parsedLandArea))}' × ${Math.round(parsedLandArea / Math.sqrt(parsedLandArea))}'`;
 
-    const prompt = `Generate a professional 2D architectural floor plan image. It must look like a real architect's CAD blueprint printed on white paper — clean black lines, colored room fills, and perfectly readable text labels.
+    // Simplified, highly focused prompt
+    const prompt = `Generate a professional 2D architectural floor plan drawing. The output must look like a real architect's blueprint — clean vector-like lines on white background, NOT a 3D render, NOT a sketch, NOT a photograph.
 
-PLOT: ${plotDims} (${landArea} sq.ft) | ${preferences.style} | ${preferences.floors} floor(s) | North: ${northDirection || "Up"}
-${preferences.vastuCompliant ? "VASTU: Living→NE, Master Bed→SW, Kitchen→SE, Pooja→NE, Bath→NW, Entry→N/E" : ""}
+PLOT: ${plotDims} = ${landArea} sq.ft total | ${preferences.style} style | ${preferences.floors} floor(s) | North: ${northDirection || "Up"}
+${preferences.vastuCompliant ? "VASTU COMPLIANT: Living→NE, Master Bed→SW, Kitchen→SE, Pooja→NE, Bath→NW, Entry→N/E" : ""}
 
-ROOMS TO DRAW (ONLY these — no extras):
+EXACT ROOMS (draw ONLY these ${totalCount} spaces, nothing else):
 ${roomTable}
 
-${hasGarage ? `PARKING: ${garagePlacement} side` : "NO parking/garage/driveway."}
-${hasGarden ? `GARDEN: ${gardenPlacement}` : "NO garden/lawn/landscape."}
+${hasGarage ? `PARKING: ${garagePlacement} side` : "NO parking/garage/driveway — do not draw any."}
+${hasGarden ? `GARDEN: ${gardenPlacement}` : "NO garden/lawn/landscape — do not draw any."}
 
-STYLE:
-- Top-down 2D view, white background
-- Thick black outer walls (9"), thinner inner walls (4.5")
-- Plot boundary: thick black rectangle with dimension lines on all 4 sides
-- Room fills: Living=#D4E8FC, Master Bed=#FDDCBA, Bedroom=#E8D4F0, Kitchen=#FFF3CD, Dining=#D4F1F4, Bath=#C8F0F0${hasGarage ? ", Parking=#E9ECEF" : ""}${hasGarden ? ", Garden=#D4EDDA" : ""}
-- Doors: quarter-circle swing arcs; main door labeled "ENTRANCE"
-- Windows: parallel lines on outer walls
-- Light grey furniture outlines (sofa, beds, counters, WC)
-- North arrow top-left, title block bottom-right
+DRAWING RULES:
+1. TOP-DOWN 2D VIEW ONLY — like an AutoCAD floor plan printout
+2. White background, black walls (outer walls thick 9", inner 4.5")
+3. Thick black rectangle for plot boundary with dimension labels on all 4 sides
+4. Each room is a colored rectangle:
+   - Living=#D4E8FC, Master Bed=#FDDCBA, Bedroom=#E8D4F0, Kitchen=#FFF3CD
+   - Dining=#D4F1F4, Bathroom=#C8F0F0, Corridor=#F5F5DC (unlabeled)
+   ${hasGarage ? "- Parking=#E9ECEF" : ""}${hasGarden ? "- Garden=#D4EDDA" : ""}
+5. LABELING — Every room must have CLEAR, READABLE text centered inside:
+   Line 1: ROOM NAME in BOLD CAPS (e.g. "LIVING ROOM", "KITCHEN", "MASTER BEDROOM")
+   Line 2: dimensions (e.g. "12' × 16'")
+   Line 3: area (e.g. "192 sq.ft")
+   Use large, clean sans-serif font. Text must be BLACK and fully readable.
+6. Doors shown as quarter-circle arcs, main entrance labeled "ENTRANCE"
+7. Windows as double parallel lines on exterior walls
+8. Simple furniture outlines in light grey:
+   - Living: sofa + table  - Bedroom: bed rectangle  - Kitchen: L-counter + sink circle
+   - Dining: table + chairs  - Bathroom: WC + basin
+9. Dimension lines with tick marks on exterior walls
+10. North arrow (top-left), scale bar (bottom), title block (bottom-right): "CasaMuse ${preferences.style} | ${plotDims} | ${landArea} sq.ft"
 
-EXACT TEXT LABELS (copy these exactly into each room — large black sans-serif font, centered):
-${labelGuide}
-
-DIMENSION ACCURACY IS CRITICAL:
-- The proportions of each room rectangle MUST visually match its stated width × height ratio
-- A 12' × 16' room must look taller than wide; a 10' × 12' room must look slightly taller than wide
-- Write dimension lines with tick marks on all exterior and interior walls showing feet measurements
-- Every dimension number in the labels must EXACTLY match the numbers listed above — do not round, change, or invent dimensions
-
-RULES:
-- Draw EXACTLY ${totalCount} labeled spaces — no more, no fewer: ${checklist}
-- Do NOT add unlisted rooms (no storage, closet, lobby, foyer, passage, utility, wash area)
-- Corridors connect rooms but are NOT labeled
-- All text must be correctly spelled and fully legible`;
+CRITICAL RULES:
+- Room count must be EXACTLY: ${checklist} — no more, no fewer
+- Do NOT invent extra rooms (no storage, closet, lobby, foyer, passage, utility unless listed)
+- Corridors are circulation space only — do NOT label them as rooms
+- All text must be correctly spelled, legible, and properly positioned inside rooms
+- The result must look like a professional architectural blueprint, not an artistic illustration`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -117,7 +115,7 @@ RULES:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-pro-image-preview',
+        model: 'google/gemini-3.1-flash-image-preview',
         messages: [{ role: 'user', content: prompt }],
         modalities: ['image', 'text']
       }),
