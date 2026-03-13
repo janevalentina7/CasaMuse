@@ -368,20 +368,23 @@ serve(async (req) => {
     const frontPrimary = plannedRooms.filter((room) => ["living", "dining", "kitchen"].includes(room.type));
     const others = plannedRooms.filter((room) => room.type === "other");
 
-    const backPack = packInZone(bedrooms, backZone);
-    const midPack = packInZone([...bathrooms, ...others], midZone);
-    const frontPack = packInZone(frontPrimary, frontZone);
+    let backPack = packInZone(bedrooms, backZone, 1.2, 0.55);
+    let midPack = packInZone([...bathrooms, ...others], midZone, 1.2, 0.55);
+    let frontPack = packInZone(frontPrimary, frontZone, 1.2, 0.55);
 
     let placedRooms = [...backPack.placed, ...midPack.placed, ...frontPack.placed];
-    const overflowRooms = [...backPack.overflow, ...midPack.overflow, ...frontPack.overflow];
+    let overflowRooms = [...backPack.overflow, ...midPack.overflow, ...frontPack.overflow];
 
     if (overflowRooms.length > 0) {
-      const fallbackPack = packInZone(overflowRooms, indoorRect, 1);
-      placedRooms = [...placedRooms, ...fallbackPack.placed];
+      const fallbackOrder = [...bedrooms, ...bathrooms, ...others, ...frontPrimary].sort((a, b) => b.area - a.area);
+      const fallbackPack = packInZone(fallbackOrder, indoorRect, 1, 0.45);
 
       if (fallbackPack.overflow.length > 0) {
-        throw new Error("Unable to place all rooms without overlap. Please reduce room count or increase land area.");
+        throw new Error("Unable to place all rooms within the plot. Reduce room count or increase land area.");
       }
+
+      placedRooms = fallbackPack.placed;
+      overflowRooms = [];
     }
 
     for (let i = 0; i < placedRooms.length; i++) {
