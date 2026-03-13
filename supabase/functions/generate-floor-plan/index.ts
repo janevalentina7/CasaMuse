@@ -15,10 +15,42 @@ serve(async (req) => {
 
     console.log("Generating floor plan with data:", { landArea, plotLength, plotBreadth, northDirection, rooms, preferences });
 
+    const parsedLandArea = Number.parseFloat(String(landArea || "0"));
+    if (!Number.isFinite(parsedLandArea) || parsedLandArea <= 0) {
+      throw new Error('Invalid land area input');
+    }
+
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
+
+    const outdoorFeatureIds: string[] = Array.isArray(preferences?.outdoorFeatures)
+      ? preferences.outdoorFeatures
+          .map((feature: unknown) => String(feature).trim().toLowerCase())
+          .filter(Boolean)
+      : [];
+
+    const garageFeatureAliases = ["car_parking", "car parking", "parking", "garage"];
+    const gardenFeatureAliases = ["garden", "front garden", "back garden", "landscape", "landscaping"];
+
+    const hasGarage = outdoorFeatureIds.some((feature) => garageFeatureAliases.includes(feature));
+    const hasGarden = outdoorFeatureIds.some((feature) => gardenFeatureAliases.includes(feature));
+    const garagePlacement = hasGarage ? (preferences?.garagePlacement || "Front") : null;
+    const gardenPlacement = hasGarden ? (preferences?.gardenPlacement || "Front Garden") : null;
+
+    const selectedOutdoorFeatures = [
+      ...(hasGarage ? [`Garage/Parking (${garagePlacement})`] : []),
+      ...(hasGarden ? [`Garden (${gardenPlacement})`] : []),
+      ...outdoorFeatureIds
+        .filter((feature) => !garageFeatureAliases.includes(feature) && !gardenFeatureAliases.includes(feature))
+        .map((feature) => feature.replace(/_/g, " ")),
+    ];
+
+    const forbiddenOutdoorFeatures = [
+      ...(!hasGarage ? ["Garage", "Car Parking", "Driveway", "Parking Bay"] : []),
+      ...(!hasGarden ? ["Garden", "Lawn", "Landscape Zone", "Planter Bed"] : []),
+    ];
 
     // Build strict room manifest — the ONLY rooms allowed
     const roomManifest: string[] = [];
@@ -40,15 +72,10 @@ serve(async (req) => {
       }
     });
 
-    const circulationArea = Math.max(0, Math.round(parseFloat(landArea) - totalRoomArea));
-    const outdoorFeatures = preferences.outdoorFeatures?.length > 0 ? preferences.outdoorFeatures.join(", ") : "";
-    const plotDimensions = plotLength && plotBreadth 
-      ? `${plotLength}'-0" × ${plotBreadth}'-0"` 
-      : `Approx. ${Math.round(Math.sqrt(parseFloat(landArea)))}'-0" × ${Math.round(parseFloat(landArea) / Math.sqrt(parseFloat(landArea)))}'-0"`;
-    const hasGarage = preferences.outdoorFeatures?.includes("Garage") || preferences.outdoorFeatures?.includes("Parking");
-    const hasGarden = preferences.outdoorFeatures?.includes("Garden") || preferences.outdoorFeatures?.includes("Front Garden") || preferences.outdoorFeatures?.includes("Back Garden");
-    const garagePlacement = hasGarage ? (preferences.garagePlacement || "Front") : null;
-    const gardenPlacement = hasGarden ? (preferences.gardenPlacement || "Front Garden") : null;
+    const circulationArea = Math.max(0, Math.round(parsedLandArea - totalRoomArea));
+    const plotDimensions = plotLength && plotBreadth
+      ? `${plotLength}'-0" × ${plotBreadth}'-0"`
+      : `Approx. ${Math.round(Math.sqrt(parsedLandArea))}'-0" × ${Math.round(parsedLandArea / Math.sqrt(parsedLandArea))}'-0"`;
 
     const prompt = `You are a professional architectural planning AI. Generate ONE clean, accurate, construction-style 2D floor plan image.
 
@@ -71,6 +98,7 @@ Total allowed rooms: ${roomManifest.length}
 ❌ Do NOT add these unless explicitly listed above:
    Storage room, Closet, Corridor label, Hallway label, Utility room, Pantry, Study room, Wash area, Lobby, Foyer, Passage
 • Circulation space (corridors) connects rooms but is NOT labeled as a separate room.
+• Outdoor rule: draw ONLY explicitly allowed outdoor features; forbidden outdoor features must be completely absent.
 
 ═══════════════════════════════════════════
  PROJECT BRIEF
@@ -81,9 +109,10 @@ Total allowed rooms: ${roomManifest.length}
 • North Direction: ${northDirection || "Up"}
 ${preferences.vastuCompliant ? "• VASTU SHASTRA COMPLIANT — follow directional placement rules." : ""}
 • Corridors/Circulation: ~${circulationArea > 0 ? circulationArea : 30} sq.ft (unlabeled connecting space)
-${outdoorFeatures ? `• Outdoor Features: ${outdoorFeatures}` : "• Outdoor Features: NONE — do NOT draw any garden, garage, parking, or outdoor areas."}
-${garagePlacement ? `• Garage Placement: ${garagePlacement} side` : "• ⚠️ NO GARAGE — do NOT draw any garage or parking area."}
-${gardenPlacement ? `• Garden Placement: ${gardenPlacement}` : "• ⚠️ NO GARDEN — do NOT draw any garden area."}
+• Allowed Outdoor Features: ${selectedOutdoorFeatures.length > 0 ? selectedOutdoorFeatures.join(", ") : "NONE (indoor footprint only)"}
+• Forbidden Outdoor Features: ${forbiddenOutdoorFeatures.length > 0 ? forbiddenOutdoorFeatures.join(", ") : "NONE"}
+${garagePlacement ? `• Garage Placement: ${garagePlacement} side` : "• ⚠️ NO GARAGE OR PARKING — do NOT draw any garage, parking, driveway, or car bay."}
+${gardenPlacement ? `• Garden Placement: ${gardenPlacement}` : "• ⚠️ NO GARDEN OR LANDSCAPE — do NOT draw any lawn, planter bed, courtyard-garden, or green zone."}
 
 ═══════════════════════════════════════════
  STEP 3 — LAYOUT PLANNING
@@ -167,6 +196,8 @@ Before output, verify ALL of these:
 ☐ All labels spelled correctly with 3-line format?
 ☐ All dimensions match the manifest?
 ☐ Plot boundary with 4-side dimensions drawn?
+☐ If garage/parking is forbidden, there are zero garage, driveway, parking labels, or parking outlines?
+☐ If garden/landscape is forbidden, there are zero garden/lawn/green landscaped zones?
 ☐ Professional blueprint quality — clean lines, no artifacts?
 
 ONLY generate the image after ALL 7 steps are validated.`;
