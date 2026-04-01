@@ -12,7 +12,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const MESHY_API_KEY = Deno.env.get('meshy');
+  const MESHY_API_KEY = Deno.env.get('Meshyai');
   if (!MESHY_API_KEY) {
     return new Response(
       JSON.stringify({ error: 'MESHY_API_KEY is not configured', success: false }),
