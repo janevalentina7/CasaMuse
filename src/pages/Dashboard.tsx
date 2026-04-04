@@ -53,6 +53,11 @@ const Dashboard = () => {
   };
 
   const handleNewDesign = async () => {
+    if (!isOwner && projects.length >= limits.maxProjects) {
+      toast.error(`Project limit reached (${limits.maxProjects}). Upgrade your plan!`);
+      navigate("/pricing");
+      return;
+    }
     try {
       const project = await createProject({ project_name: "New Design", current_stage: "design" });
       navigate("/design", { state: { projectId: project.id } });
