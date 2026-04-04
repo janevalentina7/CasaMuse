@@ -2,7 +2,7 @@ import { useLocation, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, ArrowLeft, ArrowRight, Box, Loader2, Cuboid, Download, Eye, RotateCcw } from "lucide-react";
+import { Home, ArrowLeft, ArrowRight, Box, Loader2, Cuboid, Download, Eye, RotateCcw, Lock } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import PipelineProgress from "@/components/3d/PipelineProgress";
 import { useState, useEffect, useRef, useCallback, Suspense, useMemo } from "react";
@@ -14,6 +14,8 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF, Stage, Html } from "@react-three/drei";
 import ModelErrorBoundary from "@/components/3d/ModelErrorBoundary";
 import HouseConnectors from "@/components/3d/HouseConnectors";
+import { useSubscription } from "@/hooks/useSubscription";
+import UpgradeModal from "@/components/UpgradeModal";
 
 interface ViewImage {
   url: string;
