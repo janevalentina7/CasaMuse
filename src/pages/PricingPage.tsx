@@ -63,7 +63,7 @@ const plans = [
     features: [
       { text: "Everything in Pro", included: true },
       { text: "Ultra-accurate floor plans", included: true },
-      { text: "Unlimited project saves", included: true },
+      { text: "6 project saves", included: true },
       { text: "Ultra HD AI renders", included: true },
       { text: "Advanced cost breakdown", included: true },
       { text: "High-detail 3D models", included: true },
