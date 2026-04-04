@@ -37,7 +37,7 @@ const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   },
   pro: {
     maxRooms: 99,
-    maxProjects: 20,
+    maxProjects: 4,
     maxGenerations: 2,
     allowedStyles: ["Modern", "Contemporary", "Traditional", "Mediterranean", "Colonial", "Minimalist", "Craftsman"],
     canDownload3D: true,
