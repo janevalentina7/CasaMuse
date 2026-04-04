@@ -528,17 +528,31 @@ const Interactive3DView = () => {
 
           {/* Download section */}
           {succeededModels.length > 0 && (
-            <Card className="glass-card">
+            <Card className={`glass-card ${!canAccess("canDownload3D") ? "relative" : ""}`}>
               <CardContent className="p-4">
-                <div className="flex flex-wrap gap-2 justify-center">
-                  {succeededModels.map(([key, task]) => (
-                    <Button key={key} variant="outline" size="sm" asChild>
-                      <a href={task.modelUrl!} download={`${task.label.replace(/[: ]/g, '_')}.glb`}>
-                        <Download className="w-4 h-4 mr-2" />{task.label}.glb
-                      </a>
+                {canAccess("canDownload3D") ? (
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {succeededModels.map(([key, task]) => (
+                      <Button key={key} variant="outline" size="sm" asChild>
+                        <a href={task.modelUrl!} download={`${task.label.replace(/[: ]/g, '_')}.glb`}>
+                          <Download className="w-4 h-4 mr-2" />{task.label}.glb
+                        </a>
+                      </Button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center space-y-2 py-4">
+                    <Lock className="w-8 h-8 mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">3D model download requires Pro plan</p>
+                    <Button
+                      variant="hero"
+                      size="sm"
+                      onClick={() => setUpgradeModal({ open: true, feature: "3D Model Download", plan: "pro" })}
+                    >
+                      Upgrade to Pro
                     </Button>
-                  ))}
-                </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
