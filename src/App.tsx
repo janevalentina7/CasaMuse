@@ -17,6 +17,7 @@ import CostEstimationPage from "./pages/CostEstimationPage";
 import DesignSummary from "./pages/DesignSummary";
 import Dashboard from "./pages/Dashboard";
 import PricingPage from "./pages/PricingPage";
+import CheckoutPage from "./pages/CheckoutPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
