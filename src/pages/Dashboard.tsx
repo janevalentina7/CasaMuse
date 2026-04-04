@@ -23,6 +23,7 @@ const STAGE_LABELS: Record<string, string> = {
 const Dashboard = () => {
   const { displayName, signOut } = useAuth();
   const isOwner = useIsOwner();
+  const { plan, limits, remainingGenerations } = useSubscription();
   const { fetchProjects, deleteProject, createProject } = useProjectStorage();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<CloudProject[]>([]);
