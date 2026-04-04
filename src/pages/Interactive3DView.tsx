@@ -55,6 +55,8 @@ const LoadingFallback = () => (
 );
 
 const Interactive3DView = () => {
+  const { canAccess, canGenerate3D, incrementGeneration, remainingGenerations, plan, isOwner } = useSubscription();
+  const [upgradeModal, setUpgradeModal] = useState<{ open: boolean; feature: string; plan: "pro" | "pro_plus" }>({ open: false, feature: "", plan: "pro" });
   const location = useLocation();
   const navigate = useNavigate();
   
