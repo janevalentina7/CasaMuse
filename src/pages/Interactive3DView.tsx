@@ -589,14 +589,31 @@ const Interactive3DView = () => {
                 <ArrowLeft className="w-4 h-4 mr-2" />Previous: AI Rendered Views
               </Button>
             </Link>
-            <Link to="/vr-walkthrough" state={{ imageUrl, description, formData, exteriorViews, interiorViews }}>
-              <Button variant="hero" size="lg">
-                Next: VR Walkthrough<ArrowRight className="w-4 h-4 ml-2" />
+            {canAccess("canVRWalkthrough") ? (
+              <Link to="/vr-walkthrough" state={{ imageUrl, description, formData, exteriorViews, interiorViews }}>
+                <Button variant="hero" size="lg">
+                  Next: VR Walkthrough<ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
+            ) : (
+              <Button
+                variant="hero"
+                size="lg"
+                onClick={() => setUpgradeModal({ open: true, feature: "VR Walkthrough", plan: "pro" })}
+              >
+                <Lock className="w-4 h-4 mr-2" />VR Walkthrough (Pro)
               </Button>
-            </Link>
+            )}
           </div>
         </div>
       </main>
+
+      <UpgradeModal
+        open={upgradeModal.open}
+        onOpenChange={(open) => setUpgradeModal((prev) => ({ ...prev, open }))}
+        feature={upgradeModal.feature}
+        requiredPlan={upgradeModal.plan}
+      />
     </div>
   );
 };
