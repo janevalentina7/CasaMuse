@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProjectStorage, type CloudProject } from "@/hooks/useProjectStorage";
+import { useIsOwner } from "@/hooks/useIsOwner";
 
 const STAGE_LABELS: Record<string, string> = {
   'design': 'Design Form',
