@@ -41,7 +41,7 @@ const plans = [
     features: [
       { text: "Unlimited rooms & floor plans", included: true },
       { text: "Smart AI layout optimization", included: true },
-      { text: "20 project saves", included: true },
+      { text: "4 project saves", included: true },
       { text: "High-quality AI renders", included: true },
       { text: "Detailed cost estimation", included: true },
       { text: "3D model (standard quality)", included: true },
@@ -63,7 +63,7 @@ const plans = [
     features: [
       { text: "Everything in Pro", included: true },
       { text: "Ultra-accurate floor plans", included: true },
-      { text: "Unlimited project saves", included: true },
+      { text: "6 project saves", included: true },
       { text: "Ultra HD AI renders", included: true },
       { text: "Advanced cost breakdown", included: true },
       { text: "High-detail 3D models", included: true },
@@ -213,7 +213,7 @@ const PricingPage = () => {
                   {[
                     ["Floor Plan", "Basic", "Smart AI", "Ultra-accurate"],
                     ["Max Rooms", "4", "Unlimited", "Unlimited"],
-                    ["Project Saves", "2", "20", "Unlimited"],
+                    ["Project Saves", "2", "4", "6"],
                     ["AI Renders", "Low quality", "High quality", "Ultra HD"],
                     ["3D Model", "Preview only", "Standard", "High-detail"],
                     ["3D Download", "❌", ".glb, .obj", "All formats"],
