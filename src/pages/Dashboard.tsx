@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProjectStorage, type CloudProject } from "@/hooks/useProjectStorage";
+import { useIsOwner } from "@/hooks/useIsOwner";
 
 const STAGE_LABELS: Record<string, string> = {
   'design': 'Design Form',
@@ -20,6 +21,7 @@ const STAGE_LABELS: Record<string, string> = {
 
 const Dashboard = () => {
   const { displayName, signOut } = useAuth();
+  const isOwner = useIsOwner();
   const { fetchProjects, deleteProject, createProject } = useProjectStorage();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<CloudProject[]>([]);
@@ -103,6 +105,7 @@ const Dashboard = () => {
               <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
                 <User className="w-4 h-4" />
                 <span>{displayName}</span>
+                {isOwner && <Badge className="bg-gradient-primary text-white text-xs">Owner</Badge>}
               </div>
               <Button variant="hero" size="sm" onClick={handleNewDesign}>
                 <Plus className="w-4 h-4 mr-2" />New Design
