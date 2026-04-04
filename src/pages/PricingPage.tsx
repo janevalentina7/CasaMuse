@@ -2,10 +2,23 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, Check, X, Zap, Crown, ArrowLeft, Star } from "lucide-react";
+import { Home, Check, X, Zap, Crown, ArrowLeft, Star, AlertTriangle } from "lucide-react";
 import { useSubscription, PLAN_PRICES, type PlanType } from "@/hooks/useSubscription";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-
+import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 const plans = [
   {
     key: "free" as PlanType,
@@ -77,7 +90,9 @@ const plans = [
 
 const PricingPage = () => {
   const { plan: currentPlan, isOwner } = useSubscription();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [cancelling, setCancelling] = useState(false);
 
   const handleSelectPlan = (planKey: PlanType) => {
     if (planKey === "free") return;
@@ -86,6 +101,22 @@ const PricingPage = () => {
       return;
     }
     navigate(`/checkout?plan=${planKey}`);
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!user) return;
+    setCancelling(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ subscription_plan: "free" as any })
+      .eq("user_id", user.id);
+    setCancelling(false);
+    if (error) {
+      toast.error("Failed to cancel subscription. Please contact support.");
+      return;
+    }
+    toast.success("Subscription cancelled. You're now on the Free plan.");
+    window.location.reload();
   };
 
   return (
@@ -230,6 +261,38 @@ const PricingPage = () => {
               </table>
             </CardContent>
           </Card>
+
+          {/* Cancel Subscription */}
+          {!isOwner && currentPlan !== "free" && (
+            <div className="text-center pt-4">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                    <AlertTriangle className="w-4 h-4 mr-2" />
+                    Cancel Subscription
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Cancel your subscription?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      You'll be downgraded to the Free plan immediately. You'll lose access to premium features like 3D downloads, VR walkthroughs, and high-quality renders.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Keep My Plan</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleCancelSubscription}
+                      disabled={cancelling}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {cancelling ? "Cancelling..." : "Yes, Cancel"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          )}
         </div>
       </main>
     </div>
