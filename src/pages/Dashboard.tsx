@@ -1,13 +1,14 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Home, Plus, Trash2, Eye, ArrowRight, LogOut, User } from "lucide-react";
+import { Home, Plus, Trash2, Eye, ArrowRight, LogOut, User, Crown, Zap } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProjectStorage, type CloudProject } from "@/hooks/useProjectStorage";
 import { useIsOwner } from "@/hooks/useIsOwner";
+import { useSubscription, PLAN_PRICES } from "@/hooks/useSubscription";
 
 const STAGE_LABELS: Record<string, string> = {
   'design': 'Design Form',
