@@ -16,6 +16,7 @@ import VRWalkthroughPage from "./pages/VRWalkthroughPage";
 import CostEstimationPage from "./pages/CostEstimationPage";
 import DesignSummary from "./pages/DesignSummary";
 import Dashboard from "./pages/Dashboard";
+import PricingPage from "./pages/PricingPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/vr-walkthrough" element={<ProtectedRoute><VRWalkthroughPage /></ProtectedRoute>} />
             <Route path="/cost-estimation" element={<ProtectedRoute><CostEstimationPage /></ProtectedRoute>} />
             <Route path="/design-summary" element={<ProtectedRoute><DesignSummary /></ProtectedRoute>} />
+            <Route path="/pricing" element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

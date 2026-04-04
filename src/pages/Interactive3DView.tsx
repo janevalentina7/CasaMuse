@@ -2,7 +2,7 @@ import { useLocation, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, ArrowLeft, ArrowRight, Box, Loader2, Cuboid, Download, Eye, RotateCcw } from "lucide-react";
+import { Home, ArrowLeft, ArrowRight, Box, Loader2, Cuboid, Download, Eye, RotateCcw, Lock } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import PipelineProgress from "@/components/3d/PipelineProgress";
 import { useState, useEffect, useRef, useCallback, Suspense, useMemo } from "react";
@@ -14,6 +14,8 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF, Stage, Html } from "@react-three/drei";
 import ModelErrorBoundary from "@/components/3d/ModelErrorBoundary";
 import HouseConnectors from "@/components/3d/HouseConnectors";
+import { useSubscription } from "@/hooks/useSubscription";
+import UpgradeModal from "@/components/UpgradeModal";
 
 interface ViewImage {
   url: string;
@@ -53,6 +55,8 @@ const LoadingFallback = () => (
 );
 
 const Interactive3DView = () => {
+  const { canAccess, canGenerate3D, incrementGeneration, remainingGenerations, plan, isOwner } = useSubscription();
+  const [upgradeModal, setUpgradeModal] = useState<{ open: boolean; feature: string; plan: "pro" | "pro_plus" }>({ open: false, feature: "", plan: "pro" });
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -524,17 +528,31 @@ const Interactive3DView = () => {
 
           {/* Download section */}
           {succeededModels.length > 0 && (
-            <Card className="glass-card">
+            <Card className={`glass-card ${!canAccess("canDownload3D") ? "relative" : ""}`}>
               <CardContent className="p-4">
-                <div className="flex flex-wrap gap-2 justify-center">
-                  {succeededModels.map(([key, task]) => (
-                    <Button key={key} variant="outline" size="sm" asChild>
-                      <a href={task.modelUrl!} download={`${task.label.replace(/[: ]/g, '_')}.glb`}>
-                        <Download className="w-4 h-4 mr-2" />{task.label}.glb
-                      </a>
+                {canAccess("canDownload3D") ? (
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {succeededModels.map(([key, task]) => (
+                      <Button key={key} variant="outline" size="sm" asChild>
+                        <a href={task.modelUrl!} download={`${task.label.replace(/[: ]/g, '_')}.glb`}>
+                          <Download className="w-4 h-4 mr-2" />{task.label}.glb
+                        </a>
+                      </Button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center space-y-2 py-4">
+                    <Lock className="w-8 h-8 mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">3D model download requires Pro plan</p>
+                    <Button
+                      variant="hero"
+                      size="sm"
+                      onClick={() => setUpgradeModal({ open: true, feature: "3D Model Download", plan: "pro" })}
+                    >
+                      Upgrade to Pro
                     </Button>
-                  ))}
-                </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -571,14 +589,31 @@ const Interactive3DView = () => {
                 <ArrowLeft className="w-4 h-4 mr-2" />Previous: AI Rendered Views
               </Button>
             </Link>
-            <Link to="/vr-walkthrough" state={{ imageUrl, description, formData, exteriorViews, interiorViews }}>
-              <Button variant="hero" size="lg">
-                Next: VR Walkthrough<ArrowRight className="w-4 h-4 ml-2" />
+            {canAccess("canVRWalkthrough") ? (
+              <Link to="/vr-walkthrough" state={{ imageUrl, description, formData, exteriorViews, interiorViews }}>
+                <Button variant="hero" size="lg">
+                  Next: VR Walkthrough<ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
+            ) : (
+              <Button
+                variant="hero"
+                size="lg"
+                onClick={() => setUpgradeModal({ open: true, feature: "VR Walkthrough", plan: "pro" })}
+              >
+                <Lock className="w-4 h-4 mr-2" />VR Walkthrough (Pro)
               </Button>
-            </Link>
+            )}
           </div>
         </div>
       </main>
+
+      <UpgradeModal
+        open={upgradeModal.open}
+        onOpenChange={(open) => setUpgradeModal((prev) => ({ ...prev, open }))}
+        feature={upgradeModal.feature}
+        requiredPlan={upgradeModal.plan}
+      />
     </div>
   );
 };

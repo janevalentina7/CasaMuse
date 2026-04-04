@@ -1,13 +1,14 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Home, Plus, Trash2, Eye, ArrowRight, LogOut, User } from "lucide-react";
+import { Home, Plus, Trash2, Eye, ArrowRight, LogOut, User, Crown, Zap } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProjectStorage, type CloudProject } from "@/hooks/useProjectStorage";
 import { useIsOwner } from "@/hooks/useIsOwner";
+import { useSubscription, PLAN_PRICES } from "@/hooks/useSubscription";
 
 const STAGE_LABELS: Record<string, string> = {
   'design': 'Design Form',
@@ -22,6 +23,7 @@ const STAGE_LABELS: Record<string, string> = {
 const Dashboard = () => {
   const { displayName, signOut } = useAuth();
   const isOwner = useIsOwner();
+  const { plan, limits, remainingGenerations } = useSubscription();
   const { fetchProjects, deleteProject, createProject } = useProjectStorage();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<CloudProject[]>([]);
@@ -51,6 +53,11 @@ const Dashboard = () => {
   };
 
   const handleNewDesign = async () => {
+    if (!isOwner && projects.length >= limits.maxProjects) {
+      toast.error(`Project limit reached (${limits.maxProjects}). Upgrade your plan!`);
+      navigate("/pricing");
+      return;
+    }
     try {
       const project = await createProject({ project_name: "New Design", current_stage: "design" });
       navigate("/design", { state: { projectId: project.id } });
@@ -105,7 +112,16 @@ const Dashboard = () => {
               <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
                 <User className="w-4 h-4" />
                 <span>{displayName}</span>
-                {isOwner && <Badge className="bg-gradient-primary text-white text-xs">Owner</Badge>}
+                {isOwner ? (
+                  <Badge className="bg-gradient-primary text-white text-xs">Owner</Badge>
+                ) : (
+                  <Link to="/pricing">
+                    <Badge variant="secondary" className="cursor-pointer hover:bg-secondary/80 text-xs">
+                      {plan === "pro_plus" ? <><Crown className="w-3 h-3 mr-1" />Pro+</> :
+                       plan === "pro" ? <><Zap className="w-3 h-3 mr-1" />Pro</> : "Free"}
+                    </Badge>
+                  </Link>
+                )}
               </div>
               <Button variant="hero" size="sm" onClick={handleNewDesign}>
                 <Plus className="w-4 h-4 mr-2" />New Design
