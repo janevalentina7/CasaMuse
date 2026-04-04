@@ -90,7 +90,9 @@ const plans = [
 
 const PricingPage = () => {
   const { plan: currentPlan, isOwner } = useSubscription();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [cancelling, setCancelling] = useState(false);
 
   const handleSelectPlan = (planKey: PlanType) => {
     if (planKey === "free") return;
@@ -99,6 +101,22 @@ const PricingPage = () => {
       return;
     }
     navigate(`/checkout?plan=${planKey}`);
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!user) return;
+    setCancelling(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ subscription_plan: "free" as any })
+      .eq("user_id", user.id);
+    setCancelling(false);
+    if (error) {
+      toast.error("Failed to cancel subscription. Please contact support.");
+      return;
+    }
+    toast.success("Subscription cancelled. You're now on the Free plan.");
+    window.location.reload();
   };
 
   return (
