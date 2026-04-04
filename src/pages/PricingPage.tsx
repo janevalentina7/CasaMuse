@@ -213,7 +213,7 @@ const PricingPage = () => {
                   {[
                     ["Floor Plan", "Basic", "Smart AI", "Ultra-accurate"],
                     ["Max Rooms", "4", "Unlimited", "Unlimited"],
-                    ["Project Saves", "2", "20", "Unlimited"],
+                    ["Project Saves", "2", "4", "6"],
                     ["AI Renders", "Low quality", "High quality", "Ultra HD"],
                     ["3D Model", "Preview only", "Standard", "High-detail"],
                     ["3D Download", "❌", ".glb, .obj", "All formats"],
