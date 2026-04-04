@@ -40,6 +40,7 @@ const App = () => (
             <Route path="/vr-walkthrough" element={<ProtectedRoute><VRWalkthroughPage /></ProtectedRoute>} />
             <Route path="/cost-estimation" element={<ProtectedRoute><CostEstimationPage /></ProtectedRoute>} />
             <Route path="/design-summary" element={<ProtectedRoute><DesignSummary /></ProtectedRoute>} />
+            <Route path="/pricing" element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
