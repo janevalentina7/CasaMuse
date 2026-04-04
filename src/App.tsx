@@ -42,6 +42,7 @@ const App = () => (
             <Route path="/cost-estimation" element={<ProtectedRoute><CostEstimationPage /></ProtectedRoute>} />
             <Route path="/design-summary" element={<ProtectedRoute><DesignSummary /></ProtectedRoute>} />
             <Route path="/pricing" element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />
+            <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

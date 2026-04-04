@@ -85,10 +85,7 @@ const PricingPage = () => {
       toast.info("You're already on this plan!");
       return;
     }
-    // Payment not yet integrated
-    toast.info("Payment integration coming soon! Contact support to upgrade.", {
-      duration: 5000,
-    });
+    navigate(`/checkout?plan=${planKey}`);
   };
 
   return (
