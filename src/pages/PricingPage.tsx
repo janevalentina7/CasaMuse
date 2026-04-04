@@ -33,7 +33,7 @@ const plans = [
     key: "pro" as PlanType,
     name: "Pro",
     price: "₹4,000",
-    period: "one-time",
+    period: "month",
     description: "Full design toolkit",
     icon: Zap,
     color: "border-blue-500",
