@@ -16,6 +16,7 @@ import VRWalkthroughPage from "./pages/VRWalkthroughPage";
 import CostEstimationPage from "./pages/CostEstimationPage";
 import DesignSummary from "./pages/DesignSummary";
 import Dashboard from "./pages/Dashboard";
+import PricingPage from "./pages/PricingPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
