@@ -200,9 +200,39 @@ const PricingPage = () => {
                       ))}
                     </ul>
                     {isCurrent || (isOwner && p.key === "pro_plus") ? (
-                      <Button variant="outline" className="w-full" disabled>
-                        {isOwner ? "Your Plan (Owner)" : "Current Plan"}
-                      </Button>
+                      <div className="space-y-2">
+                        <Button variant="outline" className="w-full" disabled>
+                          {isOwner ? "Your Plan (Owner)" : "Current Plan"}
+                        </Button>
+                        {!isOwner && p.key !== "free" && isCurrent && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm" className="w-full text-destructive hover:text-destructive hover:bg-destructive/10">
+                                <AlertTriangle className="w-4 h-4 mr-2" />
+                                Cancel Subscription
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Cancel your subscription?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  You'll be downgraded to the Free plan immediately. You'll lose access to premium features like 3D downloads, VR walkthroughs, and high-quality renders.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Keep My Plan</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={handleCancelSubscription}
+                                  disabled={cancelling}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  {cancelling ? "Cancelling..." : "Yes, Cancel"}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
                     ) : p.key === "free" ? (
                       <Button variant="outline" className="w-full" disabled>
                         Free Forever
