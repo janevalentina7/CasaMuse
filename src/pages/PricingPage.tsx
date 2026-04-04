@@ -55,7 +55,7 @@ const plans = [
     key: "pro_plus" as PlanType,
     name: "Pro+",
     price: "₹6,000",
-    period: "one-time",
+    period: "month",
     description: "Premium experience",
     icon: Crown,
     color: "border-purple-500",
