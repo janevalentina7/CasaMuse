@@ -19,7 +19,10 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           display_name: string | null
+          generation_count: number
           id: string
+          subscription_expires_at: string | null
+          subscription_plan: Database["public"]["Enums"]["subscription_plan"]
           updated_at: string
           user_id: string
         }
@@ -27,7 +30,10 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          generation_count?: number
           id?: string
+          subscription_expires_at?: string | null
+          subscription_plan?: Database["public"]["Enums"]["subscription_plan"]
           updated_at?: string
           user_id: string
         }
@@ -35,7 +41,10 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          generation_count?: number
           id?: string
+          subscription_expires_at?: string | null
+          subscription_plan?: Database["public"]["Enums"]["subscription_plan"]
           updated_at?: string
           user_id?: string
         }
@@ -116,9 +125,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      reset_generation_count: {
+        Args: { target_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      subscription_plan: "free" | "pro" | "pro_plus"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -247,6 +261,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      subscription_plan: ["free", "pro", "pro_plus"],
     },
   },
 } as const
