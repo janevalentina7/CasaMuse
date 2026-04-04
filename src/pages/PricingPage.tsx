@@ -41,7 +41,7 @@ const plans = [
     features: [
       { text: "Unlimited rooms & floor plans", included: true },
       { text: "Smart AI layout optimization", included: true },
-      { text: "20 project saves", included: true },
+      { text: "4 project saves", included: true },
       { text: "High-quality AI renders", included: true },
       { text: "Detailed cost estimation", included: true },
       { text: "3D model (standard quality)", included: true },
