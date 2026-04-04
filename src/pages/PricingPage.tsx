@@ -11,7 +11,7 @@ const plans = [
     key: "free" as PlanType,
     name: "Free",
     price: "₹0",
-    period: "forever",
+    period: "month",
     description: "Explore basic features",
     icon: Star,
     color: "border-border",
