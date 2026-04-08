@@ -411,13 +411,24 @@ const Interactive3DView = () => {
       }
       return [];
     }
-    // Unified: show all succeeded
-    return succeededModels.map(([key, t]) => ({
-      key,
-      url: t.modelUrl!,
-      position: modelPositions[key] || [0, 0, 0] as [number, number, number],
-    }));
-  }, [viewMode, selectedView, tasks, succeededModels, modelPositions]);
+
+    // Unified: show ONE primary exterior model (front or 360) as the main house
+    // Each Meshy conversion already produces a full 3D house from a single image
+    const primaryExteriorKey = succeededModels.find(([k]) => k.includes("front"))?.[0]
+      || succeededModels.find(([k]) => k.includes("360"))?.[0]
+      || succeededModels.find(([k]) => k.startsWith("ext_"))?.[0];
+
+    const result: Array<{ key: string; url: string; position: [number, number, number] }> = [];
+
+    if (primaryExteriorKey) {
+      const task = tasks[primaryExteriorKey];
+      if (task?.modelUrl) {
+        result.push({ key: primaryExteriorKey, url: task.modelUrl, position: [0, 0, 0] });
+      }
+    }
+
+    return result;
+  }, [viewMode, selectedView, tasks, succeededModels]);
 
   if (!imageUrl || !formData) {
     return (
