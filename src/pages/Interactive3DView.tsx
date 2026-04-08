@@ -534,7 +534,7 @@ const Interactive3DView = () => {
                 {/* Canvas */}
                 <ModelErrorBoundary>
                   <div className="w-full h-[600px] rounded-lg overflow-hidden bg-muted/10 border border-border">
-                    <Canvas camera={{ position: [8, 8, 8], fov: 50 }}>
+                    <Canvas camera={{ position: [15, 12, 15], fov: 50 }}>
                       <Suspense fallback={<LoadingFallback />}>
                         <Stage environment="city" intensity={0.5} adjustCamera={modelsToDisplay.length === 1}>
                           {modelsToDisplay.map(m => (
