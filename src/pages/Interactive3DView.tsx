@@ -152,6 +152,9 @@ const Interactive3DView = () => {
   }, [stopPolling]);
 
   const submitToMeshy = useCallback(async (key: string, imgUrl: string, label: string, category: "exterior" | "interior") => {
+    // Stop any existing polling for this key
+    stopPolling(key);
+
     updateTasks(prev => ({
       ...prev,
       [key]: { taskId: "", status: "PENDING", progress: 0, modelUrl: null, label, imageUrl: imgUrl, category },
@@ -179,7 +182,15 @@ const Interactive3DView = () => {
       }));
       toast.error(`Failed to submit "${label}" to 3D conversion.`);
     }
-  }, [pollTask, updateTasks]);
+  }, [pollTask, updateTasks, stopPolling]);
+
+  // Regenerate a single view's 3D model
+  const regenerateView = useCallback((key: string) => {
+    const task = tasksRef.current[key];
+    if (!task) return;
+    toast.info(`Regenerating 3D model for "${task.label}"...`);
+    submitToMeshy(key, task.imageUrl, task.label, task.category);
+  }, [submitToMeshy]);
 
   // Wait for all tasks of a category to complete using ref instead of state hack
   const waitForCategory = useCallback((category: "exterior" | "interior"): Promise<void> => {
