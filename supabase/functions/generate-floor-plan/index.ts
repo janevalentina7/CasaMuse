@@ -101,24 +101,28 @@ ${hasGarden ? `✅ Garden: Place as ${gardenPlacement}` : '❌ NO garden, lawn, 
 - Utility/Store: #ECEFF1 (light grey)
 - Hallway/Circulation: Light yellow dotted overlay
 - Balcony/Open areas: #E8F5E9 (light green)
-${hasGarage ? '- Parking: Light asphalt grey' : ''}
-${hasGarden ? '- Garden: Natural green with tree symbols' : ''}
+${hasGarage ? '- Parking: #E9ECEF (light asphalt grey) — draw a TOP-DOWN car outline (sedan shape rectangle ~6\'×15\') inside the parking space to show vehicle placement' : ''}
+${hasGarden ? '- Garden: #D4EDDA (natural green) with tree symbols (circles for canopy)' : ''}
 - Corridors/Hallways = #F5F5DC (beige) — do NOT label these as rooms
 
 === MANDATORY LABELING ===
 Every room MUST have clear, readable text CENTERED inside the room:
 - Line 1: ROOM NAME in BOLD UPPERCASE (e.g., "LIVING ROOM", "KITCHEN", "MASTER BEDROOM")
-- Line 2: Dimensions (e.g., "12' × 16'")
-- Line 3: Area (e.g., "192 sq.ft")
+- Line 2: EXACT dimensions matching the room list above (e.g., "12' × 16'")
+- Line 3: CALCULATED area = width × height (e.g., "192 sq.ft") — this MUST be mathematically correct
 - Use large, clean, sans-serif font
 - Text must be BLACK and fully legible against the pastel background
 - If multiple rooms of same type exist, number them: "BEDROOM 1", "BEDROOM 2"
+- CRITICAL: The dimensions shown MUST match the room sizes specified in the EXACT ROOM LIST above. Do NOT invent or approximate dimensions.
 
-=== DIMENSION MARKINGS ===
-- Show dimensions for each room length and width
-- Show total plot boundary dimensions on all 4 sides
-- Standard architectural dimension lines with arrows
-- Units in feet and inches (Indian standard)
+=== DIMENSION MARKINGS (ACCURACY IS CRITICAL) ===
+- Show dimension lines OUTSIDE each room with exact measurements matching the room list
+- Each dimension line must have tick marks/arrows at both ends
+- Show total plot boundary dimensions on all 4 sides: ${plotDims}
+- Room dimensions MUST be proportional to each other (a 12'×16' room must visually appear larger than a 7'×10' room)
+- Area labels MUST equal width × height exactly (e.g., 12×16 = 192 sq.ft, NOT 180 or 200)
+- Units in feet (Indian standard)
+- Double-check: every labeled dimension must be arithmetically consistent with the labeled area
 
 === DOORS & WINDOWS ===
 - Doors: Show opening arc direction clearly (quarter-circle arc swings)
