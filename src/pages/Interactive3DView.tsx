@@ -151,20 +151,20 @@ const Interactive3DView = () => {
     }
   }, [stopPolling]);
 
-  const submitToMeshy = useCallback(async (key: string, imageUrl: string, label: string, category: "exterior" | "interior") => {
-    setTasks(prev => ({
+  const submitToMeshy = useCallback(async (key: string, imgUrl: string, label: string, category: "exterior" | "interior") => {
+    updateTasks(prev => ({
       ...prev,
-      [key]: { taskId: "", status: "PENDING", progress: 0, modelUrl: null, label, imageUrl, category },
+      [key]: { taskId: "", status: "PENDING", progress: 0, modelUrl: null, label, imageUrl: imgUrl, category },
     }));
 
     try {
       const { data, error } = await supabase.functions.invoke("image-to-3d-meshy", {
-        body: { action: "create", imageUrl },
+        body: { action: "create", imageUrl: imgUrl },
       });
       if (error) throw error;
       if (!data?.taskId) throw new Error("No task ID returned");
 
-      setTasks(prev => ({
+      updateTasks(prev => ({
         ...prev,
         [key]: { ...prev[key], taskId: data.taskId },
       }));
@@ -173,28 +173,26 @@ const Interactive3DView = () => {
       setTimeout(() => pollTask(key, data.taskId), 3000);
     } catch (err) {
       console.error(`Failed to submit ${key}:`, err);
-      setTasks(prev => ({
+      updateTasks(prev => ({
         ...prev,
-        [key]: { ...prev[key], status: "FAILED" },
+        [key]: { ...prev[key], status: "FAILED" as const },
       }));
       toast.error(`Failed to submit "${label}" to 3D conversion.`);
     }
-  }, [pollTask]);
+  }, [pollTask, updateTasks]);
 
-  // Wait for all tasks of a category to complete
+  // Wait for all tasks of a category to complete using ref instead of state hack
   const waitForCategory = useCallback((category: "exterior" | "interior"): Promise<void> => {
     return new Promise((resolve) => {
       const check = () => {
-        setTasks(current => {
-          const categoryTasks = Object.values(current).filter(t => t.category === category);
-          const allDone = categoryTasks.length > 0 && categoryTasks.every(t => t.status === "SUCCEEDED" || t.status === "FAILED");
-          if (allDone) {
-            resolve();
-          } else {
-            setTimeout(check, 2000);
-          }
-          return current;
-        });
+        const current = tasksRef.current;
+        const categoryTasks = Object.values(current).filter(t => t.category === category);
+        const allDone = categoryTasks.length > 0 && categoryTasks.every(t => t.status === "SUCCEEDED" || t.status === "FAILED");
+        if (allDone) {
+          resolve();
+        } else {
+          setTimeout(check, 2000);
+        }
       };
       setTimeout(check, 5000);
     });
@@ -218,7 +216,6 @@ const Interactive3DView = () => {
              k.includes("top") || k.includes("aerial") || k.includes("bird");
     });
 
-    // If no directional keys found, fall back to first entry as "front"
     const exteriorToSubmit = directionalExterior.length > 0 ? directionalExterior : extEntries.slice(0, 1);
 
     toast.info("Starting 3D model generation — exterior first, then interior...");
@@ -236,7 +233,7 @@ const Interactive3DView = () => {
       }
 
       await waitForCategory("exterior");
-      const extSucceeded = Object.values(tasks).filter(t => t.category === "exterior" && t.status === "SUCCEEDED").length;
+      const extSucceeded = Object.values(tasksRef.current).filter(t => t.category === "exterior" && t.status === "SUCCEEDED").length;
       toast.success(`Exterior done! ${extSucceeded} model(s) ready.`);
     }
 
@@ -253,7 +250,7 @@ const Interactive3DView = () => {
       }
 
       await waitForCategory("interior");
-      const intSucceeded = Object.values(tasks).filter(t => t.category === "interior" && t.status === "SUCCEEDED").length;
+      const intSucceeded = Object.values(tasksRef.current).filter(t => t.category === "interior" && t.status === "SUCCEEDED").length;
       toast.success(`Interior done! ${intSucceeded} model(s) ready.`);
     }
 
@@ -264,7 +261,7 @@ const Interactive3DView = () => {
 
     setPipelineStage("complete");
     toast.success("All 3D models generated! Viewing unified house model.");
-  }, [exteriorViews, interiorViews, submitToMeshy, waitForCategory, tasks]);
+  }, [exteriorViews, interiorViews, submitToMeshy, waitForCategory]);
 
   // Auto-start pipeline on mount
   useEffect(() => {
