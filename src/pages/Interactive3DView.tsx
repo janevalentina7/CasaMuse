@@ -152,6 +152,9 @@ const Interactive3DView = () => {
   }, [stopPolling]);
 
   const submitToMeshy = useCallback(async (key: string, imgUrl: string, label: string, category: "exterior" | "interior") => {
+    // Stop any existing polling for this key
+    stopPolling(key);
+
     updateTasks(prev => ({
       ...prev,
       [key]: { taskId: "", status: "PENDING", progress: 0, modelUrl: null, label, imageUrl: imgUrl, category },
@@ -179,7 +182,15 @@ const Interactive3DView = () => {
       }));
       toast.error(`Failed to submit "${label}" to 3D conversion.`);
     }
-  }, [pollTask, updateTasks]);
+  }, [pollTask, updateTasks, stopPolling]);
+
+  // Regenerate a single view's 3D model
+  const regenerateView = useCallback((key: string) => {
+    const task = tasksRef.current[key];
+    if (!task) return;
+    toast.info(`Regenerating 3D model for "${task.label}"...`);
+    submitToMeshy(key, task.imageUrl, task.label, task.category);
+  }, [submitToMeshy]);
 
   // Wait for all tasks of a category to complete using ref instead of state hack
   const waitForCategory = useCallback((category: "exterior" | "interior"): Promise<void> => {
@@ -517,6 +528,15 @@ const Interactive3DView = () => {
                       )}
                       <span className="truncate">{task.label}</span>
                       <span className="ml-auto">{task.progress}%</span>
+                      {(task.status === "SUCCEEDED" || task.status === "FAILED") && (
+                        <button
+                          onClick={() => regenerateView(key)}
+                          className="ml-1 p-0.5 rounded hover:bg-muted"
+                          title="Regenerate this 3D model"
+                        >
+                          <RotateCcw className="w-3 h-3 text-muted-foreground hover:text-primary" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -529,7 +549,7 @@ const Interactive3DView = () => {
             <Card className="glass-card border-2">
               <CardContent className="p-4 space-y-4">
                 {/* View mode toggle */}
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex gap-2">
                     <Button
                       variant={viewMode === "unified" ? "default" : "outline"}
@@ -546,23 +566,44 @@ const Interactive3DView = () => {
                       <Eye className="w-4 h-4 mr-2" />Individual View
                     </Button>
                   </div>
-                  {viewMode === "individual" && selectedView && (
-                    <Badge>{tasks[selectedView]?.label}</Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {viewMode === "individual" && selectedView && (
+                      <Badge>{tasks[selectedView]?.label}</Badge>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        Object.keys(tasksRef.current).forEach(key => regenerateView(key));
+                      }}
+                    >
+                      <RotateCcw className="w-4 h-4 mr-2" />Regenerate All
+                    </Button>
+                  </div>
                 </div>
 
-                {/* Individual model selector */}
+                {/* Individual model selector with regenerate */}
                 {viewMode === "individual" && (
                   <div className="flex flex-wrap gap-2">
                     {succeededModels.map(([key, task]) => (
-                      <Button
-                        key={key}
-                        variant={selectedView === key ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setSelectedView(key)}
-                      >
-                        {task.label}
-                      </Button>
+                      <div key={key} className="flex items-center gap-1">
+                        <Button
+                          variant={selectedView === key ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setSelectedView(key)}
+                        >
+                          {task.label}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="px-2"
+                          onClick={() => regenerateView(key)}
+                          title="Regenerate this 3D model"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     ))}
                   </div>
                 )}
