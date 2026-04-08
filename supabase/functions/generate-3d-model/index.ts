@@ -24,9 +24,15 @@ serve(async (req) => {
       `${room.count}x ${room.roomName} (${room.width}'×${room.height}')`
     ).join(', ');
 
-    // Concise, focused prompts for speed
+    // Find matching room dimensions for interior views
+    const matchedRoom = specificRoom ? rooms.find((r: any) => 
+      r.roomName.toLowerCase().includes(specificRoom.toLowerCase()) || 
+      specificRoom.toLowerCase().includes(r.roomName.toLowerCase())
+    ) : null;
+    const roomDimensions = matchedRoom ? `${matchedRoom.width}'×${matchedRoom.height}' (${matchedRoom.width * matchedRoom.height} sq.ft)` : '';
+
     const prompt = view === 'interior' && specificRoom
-      ? `Generate a photorealistic COMPLETE FULL ROOM interior render of a ${specificRoom} in a ${preferences.style} style Indian home. CRITICAL: Show the ENTIRE ROOM from a wide-angle perspective — include ALL four walls, floor, ceiling, doors, and windows visible. Show complete furniture arrangement, lighting fixtures on ceiling, flooring pattern, wall paint/texture, curtains on windows, and all décor items placed naturally throughout the room. The image must look like a complete architectural interior photograph taken with a wide-angle lens showing the full room space — NOT a close-up of individual furniture pieces. ${preferences.style} design aesthetic. Well-lit, inviting atmosphere. High quality architectural visualization with full spatial context.`
+      ? `Generate a photorealistic COMPLETE FULL ROOM interior render of a ${specificRoom} in a ${preferences.style} style Indian home.${roomDimensions ? ` Room dimensions: ${roomDimensions}. The room proportions must accurately reflect these dimensions — ${matchedRoom.width > matchedRoom.height ? 'wider than deep' : matchedRoom.height > matchedRoom.width ? 'deeper than wide' : 'square shaped'}.` : ''} CRITICAL: Show the ENTIRE ROOM from a wide-angle perspective — include ALL four walls, floor, ceiling, doors, and windows visible. Show complete furniture arrangement, lighting fixtures on ceiling, flooring pattern, wall paint/texture, curtains on windows, and all décor items placed naturally throughout the room. The image must look like a complete architectural interior photograph taken with a wide-angle lens showing the full room space — NOT a close-up of individual furniture pieces. ${preferences.style} design aesthetic. Well-lit, inviting atmosphere. High quality architectural visualization with full spatial context.`
       : view === 'top'
       ? `Generate a photorealistic aerial/bird's eye view of a ${preferences.style} style Indian house. ${landArea} sq ft, ${preferences.floors} floors. Show roof, garden, parking, property boundary. Architectural visualization quality.`
       : view === 'back'
