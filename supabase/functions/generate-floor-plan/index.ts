@@ -150,12 +150,13 @@ Every room MUST have clear, readable text CENTERED inside the room:
 - Study Room: Quiet area, away from entrance
 - Balcony: Attached to living room or bedroom exterior wall
 
-=== FURNITURE OUTLINES (light grey, simple) ===
+=== FURNITURE OUTLINES (light grey, simple top-down symbols) ===
 - Living: sofa + coffee table
 - Bedroom: bed rectangle + side table
 - Kitchen: L-shaped counter + sink circle
 - Dining: table + chairs
 - Bathroom: WC symbol + basin
+${hasGarage ? '- Parking/Garage: Draw a TOP-DOWN CAR OUTLINE (sedan shape ~6\'×15\', with wheels visible as small rectangles at corners, windshield line, and mirror bumps). The car must be clearly recognizable as an automobile viewed from above. Show driveway entry path.' : ''}
 
 === ORIENTATION ===
 - Show NORTH direction arrow prominently in top-left corner
