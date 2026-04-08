@@ -26,7 +26,7 @@ serve(async (req) => {
 
     // Concise, focused prompts for speed
     const prompt = view === 'interior' && specificRoom
-      ? `Generate a photorealistic interior render of a ${specificRoom} in a ${preferences.style} style Indian home. Show realistic furniture, lighting, flooring, and décor appropriate for this room. ${preferences.style} design aesthetic. Well-lit, inviting atmosphere. High quality architectural visualization.`
+      ? `Generate a photorealistic COMPLETE FULL ROOM interior render of a ${specificRoom} in a ${preferences.style} style Indian home. CRITICAL: Show the ENTIRE ROOM from a wide-angle perspective — include ALL four walls, floor, ceiling, doors, and windows visible. Show complete furniture arrangement, lighting fixtures on ceiling, flooring pattern, wall paint/texture, curtains on windows, and all décor items placed naturally throughout the room. The image must look like a complete architectural interior photograph taken with a wide-angle lens showing the full room space — NOT a close-up of individual furniture pieces. ${preferences.style} design aesthetic. Well-lit, inviting atmosphere. High quality architectural visualization with full spatial context.`
       : view === 'top'
       ? `Generate a photorealistic aerial/bird's eye view of a ${preferences.style} style Indian house. ${landArea} sq ft, ${preferences.floors} floors. Show roof, garden, parking, property boundary. Architectural visualization quality.`
       : view === 'back'
