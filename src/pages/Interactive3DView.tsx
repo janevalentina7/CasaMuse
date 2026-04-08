@@ -125,8 +125,8 @@ const Interactive3DView = () => {
       if (data.status === "SUCCEEDED" && data.modelUrl) {
         stopPolling(key);
         const proxiedUrl = proxyGlbUrl(data.modelUrl);
-        setTasks(prev => {
-          const updated: Record<string, MeshyTaskInfo> = { ...prev, [key]: { ...prev[key], status: "SUCCEEDED" as const, progress: 100, modelUrl: proxiedUrl } };
+        updateTasks(prev => {
+          const updated = { ...prev, [key]: { ...prev[key], status: "SUCCEEDED" as const, progress: 100, modelUrl: proxiedUrl } };
           viewCache.saveMeshyTasks(updated);
           return updated;
         });
@@ -135,14 +135,14 @@ const Interactive3DView = () => {
 
       if (data.status === "FAILED") {
         stopPolling(key);
-        setTasks(prev => ({
+        updateTasks(prev => ({
           ...prev,
-          [key]: { ...prev[key], status: "FAILED", progress: 0 },
+          [key]: { ...prev[key], status: "FAILED" as const, progress: 0 },
         }));
         return;
       }
 
-      setTasks(prev => ({
+      updateTasks(prev => ({
         ...prev,
         [key]: { ...prev[key], status: data.status, progress: data.progress || prev[key]?.progress || 0 },
       }));
