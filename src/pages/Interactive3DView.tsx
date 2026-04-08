@@ -84,11 +84,21 @@ const Interactive3DView = () => {
   }
 
   const [tasks, setTasks] = useState<Record<string, MeshyTaskInfo>>(initialTasks);
+  const tasksRef = useRef<Record<string, MeshyTaskInfo>>(initialTasks);
   const [pipelineStage, setPipelineStage] = useState<PipelineStage>(hasCachedMeshy ? "complete" : "idle");
   const [selectedView, setSelectedView] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"unified" | "individual">("unified");
   const pollIntervalsRef = useRef<Record<string, ReturnType<typeof setInterval>>>({});
   const hasStarted = useRef(hasCachedMeshy);
+
+  // Keep tasksRef in sync with state
+  const updateTasks = useCallback((updater: (prev: Record<string, MeshyTaskInfo>) => Record<string, MeshyTaskInfo>) => {
+    setTasks(prev => {
+      const next = updater(prev);
+      tasksRef.current = next;
+      return next;
+    });
+  }, []);
 
   const stopPolling = useCallback((key?: string) => {
     if (key) {
