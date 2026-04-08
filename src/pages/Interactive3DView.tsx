@@ -549,7 +549,7 @@ const Interactive3DView = () => {
             <Card className="glass-card border-2">
               <CardContent className="p-4 space-y-4">
                 {/* View mode toggle */}
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex gap-2">
                     <Button
                       variant={viewMode === "unified" ? "default" : "outline"}
@@ -566,9 +566,20 @@ const Interactive3DView = () => {
                       <Eye className="w-4 h-4 mr-2" />Individual View
                     </Button>
                   </div>
-                  {viewMode === "individual" && selectedView && (
-                    <Badge>{tasks[selectedView]?.label}</Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {viewMode === "individual" && selectedView && (
+                      <Badge>{tasks[selectedView]?.label}</Badge>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        Object.keys(tasksRef.current).forEach(key => regenerateView(key));
+                      }}
+                    >
+                      <RotateCcw className="w-4 h-4 mr-2" />Regenerate All
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Individual model selector with regenerate */}
