@@ -528,6 +528,15 @@ const Interactive3DView = () => {
                       )}
                       <span className="truncate">{task.label}</span>
                       <span className="ml-auto">{task.progress}%</span>
+                      {(task.status === "SUCCEEDED" || task.status === "FAILED") && (
+                        <button
+                          onClick={() => regenerateView(key)}
+                          className="ml-1 p-0.5 rounded hover:bg-muted"
+                          title="Regenerate this 3D model"
+                        >
+                          <RotateCcw className="w-3 h-3 text-muted-foreground hover:text-primary" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
