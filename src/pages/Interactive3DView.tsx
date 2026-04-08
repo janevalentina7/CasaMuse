@@ -203,6 +203,9 @@ const Interactive3DView = () => {
     const extEntries = Object.entries(exteriorViews as Record<string, ViewImage>);
     const intEntries = Object.entries(interiorViews as Record<string, ViewImage>);
 
+    console.log("[3D Pipeline] Exterior views available:", extEntries.map(([k]) => k));
+    console.log("[3D Pipeline] Interior views available:", intEntries.map(([k]) => k));
+
     if (extEntries.length === 0 && intEntries.length === 0) {
       toast.error("No rendered views available. Go back and generate views first.");
       return;
@@ -217,16 +220,32 @@ const Interactive3DView = () => {
     });
 
     const exteriorToSubmit = directionalExterior.length > 0 ? directionalExterior : extEntries.slice(0, 1);
+    console.log("[3D Pipeline] Directional exterior to submit:", exteriorToSubmit.map(([k]) => k));
+
+    // Validate all views have valid URLs
+    const validExterior = exteriorToSubmit.filter(([key, view]) => {
+      if (!view?.url) {
+        console.warn(`[3D Pipeline] Skipping ${key} — no image URL`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validExterior.length === 0 && intEntries.length === 0) {
+      toast.error("No valid view images found. Please regenerate views first.");
+      return;
+    }
 
     toast.info("Starting 3D model generation — exterior first, then interior...");
 
     // Phase 1: Exterior (only directional views)
-    if (exteriorToSubmit.length > 0) {
+    if (validExterior.length > 0) {
       setPipelineStage("exterior");
-      toast.info(`Submitting ${exteriorToSubmit.length} exterior view(s) to Meshy AI...`);
+      toast.info(`Submitting ${validExterior.length} exterior view(s) to Meshy AI...`);
 
-      for (let i = 0; i < exteriorToSubmit.length; i += 3) {
-        const batch = exteriorToSubmit.slice(i, i + 3);
+      for (let i = 0; i < validExterior.length; i += 3) {
+        const batch = validExterior.slice(i, i + 3);
+        console.log("[3D Pipeline] Submitting batch:", batch.map(([k]) => k));
         await Promise.all(batch.map(([key, view]) =>
           submitToMeshy(`ext_${key}`, view.url, `Exterior: ${key}`, "exterior")
         ));
