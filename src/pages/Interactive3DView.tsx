@@ -200,16 +200,26 @@ const Interactive3DView = () => {
       return;
     }
 
+    // Only use directional exterior views (front, back, side, top) — skip 360/duplicates
+    const directionalExterior = extEntries.filter(([key]) => {
+      const k = key.toLowerCase();
+      return k.includes("front") || k.includes("back") || k.includes("rear") ||
+             k.includes("side") || k.includes("left") || k.includes("right") ||
+             k.includes("top") || k.includes("aerial") || k.includes("bird");
+    });
+
+    // If no directional keys found, fall back to first entry as "front"
+    const exteriorToSubmit = directionalExterior.length > 0 ? directionalExterior : extEntries.slice(0, 1);
+
     toast.info("Starting 3D model generation — exterior first, then interior...");
 
-    // Phase 1: Exterior
-    if (extEntries.length > 0) {
+    // Phase 1: Exterior (only directional views)
+    if (exteriorToSubmit.length > 0) {
       setPipelineStage("exterior");
-      toast.info(`Submitting ${extEntries.length} exterior view(s) to Meshy AI...`);
+      toast.info(`Submitting ${exteriorToSubmit.length} exterior view(s) to Meshy AI...`);
 
-      // Submit in batches of 3
-      for (let i = 0; i < extEntries.length; i += 3) {
-        const batch = extEntries.slice(i, i + 3);
+      for (let i = 0; i < exteriorToSubmit.length; i += 3) {
+        const batch = exteriorToSubmit.slice(i, i + 3);
         await Promise.all(batch.map(([key, view]) =>
           submitToMeshy(`ext_${key}`, view.url, `Exterior: ${key}`, "exterior")
         ));
