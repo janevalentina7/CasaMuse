@@ -1,73 +1,106 @@
-# Welcome to your Lovable project
+# Welcome to project
 
 ## Project info
 
 **URL**: https://lovable.dev/projects/0d49671a-9bc5-48d3-aae0-bf5f2fb91ec6
 
-## How can I edit this code?
+Overview
 
-There are several ways of editing your application.
+CasaMuse is an AI-powered platform that automates the process of architectural design by generating 2D floor plans, realistic interior and exterior visualizations, and 3D house models based on user inputs.
 
-**Use Lovable**
+The system further enhances user experience with VR walkthroughs and cost estimation, making home design simple, fast, and accessible.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/0d49671a-9bc5-48d3-aae0-bf5f2fb91ec6) and start prompting.
+✨ Features
+🧠 AI-based 2D Floor Plan Generation
+🏠 Interior & Exterior AI Rendering
+🧱 Image-to-3D Model Conversion
+🥽 VR Walkthrough Experience
+💰 Construction Cost Estimation
+👤 User Authentication & Project Saving
+💳 Subscription Plans (Free, Pro, Pro+)
+📱 Mobile-responsive Web Application
+🧩 Tech Stack
+Frontend
+HTML, CSS, JavaScript
+React.js
+Backend
+Node.js / Python
+Database
+MongoDB / MySQL
+APIs & Services
+AI Image Generation API
+Meshy AI (3D Model Generation)
+Payment Gateway (Razorpay / Stripe)
+Currency Conversion API
+🏗️ System Workflow
+User inputs requirements (area, rooms, style, etc.)
+AI generates 2D floor plan
+AI renders interior & exterior images
+Images are converted into a 3D model
+User explores via VR walkthrough
+System provides cost estimation
+User can save and manage projects
+🔐 Authentication & Storage
+Secure user login/signup
+JWT/session-based authentication
+Projects are saved and can be resumed anytime
+💳 Subscription Plans
+🟢 Free
+Basic floor plan
+Limited features
+❌ No 3D model
+🔵 Pro (₹4000)
+Up to 2 3D models
+Standard quality
+Cost estimation
+🟣 Pro+ (₹6000)
+Unlimited 3D models
+High-quality rendering
+VR walkthrough
+Priority processing
+⚙️ Installation & Setup
+# Clone the repository
+git clone https://github.com/your-username/casamuse.git
 
-Changes made via Lovable will be committed automatically to this repo.
+# Navigate to project folder
+cd casamuse
 
-**Use your preferred IDE**
+# Install dependencies
+npm install
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/0d49671a-9bc5-48d3-aae0-bf5f2fb91ec6) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+# Start the development server
+npm start
+🌐 Usage
+Open the application in your browser
+Sign up / log in
+Enter your house requirements
+Generate floor plan → render → 3D model
+Explore via VR and download outputs
+📊 Modules
+Authentication Module
+Input Module
+Floor Plan Generator
+Rendering Module
+3D Model Module
+VR Module
+Cost Estimation Module
+Subscription & Payment Module
+🔒 Constraints
+Depends on external APIs (AI, Meshy, cost estimation)
+Requires stable internet connection
+API usage limits may affect performance
+🌱 Sustainability
+Reduces design errors and material wastage
+Promotes efficient space utilization
+Uses optimized API calls to reduce computational load
+🚧 Future Enhancements
+AR (Augmented Reality) integration
+Real-time collaboration
+Advanced material customization
+Mobile application
+Energy-efficient design recommendations
+📚 References
+AI & Architecture research papers
+Meshy AI documentation
+Civil engineering design standards
+API documentation
