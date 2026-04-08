@@ -267,18 +267,42 @@ const Interactive3DView = () => {
   // Compute positions for unified view: arrange interior around exterior using floor plan
   // Build floor-plan-based positions using actual room dimensions from formData
   // Build floor-plan-based positions and room rectangles for connectors
+  // Compute positions: exterior views arranged as a house shell, interior rooms below
   const { modelPositions, roomRects } = useMemo(() => {
     const positions: Record<string, [number, number, number]> = {};
     const rects: Array<{ key: string; x: number; z: number; width: number; depth: number }> = [];
     const SCALE = 0.3;
+    const HOUSE_HALF = 4; // half-width of the house footprint for exterior spacing
+    const EXTERIOR_SPACING = 10; // distance between exterior views to prevent overlap
 
+    // Position exterior views based on their view direction — no overlapping
     exteriorTasks.forEach(([key]) => {
-      positions[key] = [0, 0, 0];
+      const viewName = key.replace(/^ext_/, "").toLowerCase();
+      if (viewName.includes("front") || viewName.includes("360")) {
+        positions[key] = [0, 0, -EXTERIOR_SPACING]; // front face
+      } else if (viewName.includes("back") || viewName.includes("rear")) {
+        positions[key] = [0, 0, EXTERIOR_SPACING]; // back face
+      } else if (viewName.includes("left")) {
+        positions[key] = [-EXTERIOR_SPACING, 0, 0]; // left side
+      } else if (viewName.includes("right")) {
+        positions[key] = [EXTERIOR_SPACING, 0, 0]; // right side
+      } else if (viewName.includes("side")) {
+        // Generic "side" — place at left
+        positions[key] = [-EXTERIOR_SPACING, 0, 0];
+      } else if (viewName.includes("top") || viewName.includes("aerial") || viewName.includes("bird")) {
+        positions[key] = [0, EXTERIOR_SPACING * 0.8, 0]; // top view elevated
+      } else {
+        // Fallback: place behind others
+        const existingCount = Object.keys(positions).filter(k => k.startsWith("ext_")).length;
+        positions[key] = [EXTERIOR_SPACING * 1.5 * existingCount, 0, 0];
+      }
     });
 
+    // Interior rooms: grid layout placed separately from exterior models
     const roomSelections: Array<{ roomId: string; size: string; count: number }> =
       formData?.rooms || [];
 
+    const INTERIOR_OFFSET_Z = EXTERIOR_SPACING * 2.5; // place interior grid well below exterior
     const roomLayouts: Array<{ key: string; width: number; depth: number }> = [];
     interiorTasks.forEach(([key]) => {
       const roomId = key.replace(/^int_/, "").replace(/_\d+$/, "");
@@ -298,31 +322,34 @@ const Interactive3DView = () => {
       roomLayouts.push({ key, width: width * SCALE, depth: depth * SCALE });
     });
 
-    let curX = 0, curZ = 0, rowMaxDepth = 0;
+    let curX = 0, curZ = INTERIOR_OFFSET_Z, rowMaxDepth = 0;
     const maxRowWidth = roomLayouts.length <= 4 ? 20 : 30;
+    const ROOM_GAP = 2; // generous gap between rooms to prevent overlap
 
     roomLayouts.forEach((room) => {
       if (curX + room.width > maxRowWidth && curX > 0) {
         curX = 0;
-        curZ += rowMaxDepth + 0.3;
+        curZ += rowMaxDepth + ROOM_GAP;
         rowMaxDepth = 0;
       }
       positions[room.key] = [curX + room.width / 2, 0, curZ + room.depth / 2];
       rects.push({ key: room.key, x: curX + room.width / 2, z: curZ + room.depth / 2, width: room.width, depth: room.depth });
-      curX += room.width + 0.3;
+      curX += room.width + ROOM_GAP;
       rowMaxDepth = Math.max(rowMaxDepth, room.depth);
     });
 
-    // Center around origin
+    // Center interior rooms around X origin
     if (rects.length > 0) {
-      let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+      let minX = Infinity, maxX = -Infinity;
       rects.forEach((r) => {
-        minX = Math.min(minX, r.x); maxX = Math.max(maxX, r.x);
-        minZ = Math.min(minZ, r.z); maxZ = Math.max(maxZ, r.z);
+        minX = Math.min(minX, r.x - r.width / 2);
+        maxX = Math.max(maxX, r.x + r.width / 2);
       });
-      const offsetX = (minX + maxX) / 2, offsetZ = (minZ + maxZ) / 2;
-      rects.forEach((r) => { r.x -= offsetX; r.z -= offsetZ; });
-      rects.forEach((r) => { positions[r.key] = [r.x, 0, r.z]; });
+      const offsetX = (minX + maxX) / 2;
+      rects.forEach((r) => {
+        r.x -= offsetX;
+        positions[r.key] = [r.x, 0, r.z];
+      });
     }
 
     return { modelPositions: positions, roomRects: rects };
