@@ -267,22 +267,7 @@ const Interactive3DView = () => {
       toast.success(`Exterior done! ${extSucceeded} model(s) ready.`);
     }
 
-    // Phase 2: Interior
-    if (intEntries.length > 0) {
-      setPipelineStage("interior");
-      toast.info(`Submitting ${intEntries.length} interior view(s) to Meshy AI...`);
-
-      for (let i = 0; i < intEntries.length; i += 3) {
-        const batch = intEntries.slice(i, i + 3);
-        await Promise.all(batch.map(([key, view]) =>
-          submitToMeshy(`int_${key}`, view.url, `Interior: ${key}`, "interior")
-        ));
-      }
-
-      await waitForCategory("interior");
-      const intSucceeded = Object.values(tasksRef.current).filter(t => t.category === "interior" && t.status === "SUCCEEDED").length;
-      toast.success(`Interior done! ${intSucceeded} model(s) ready.`);
-    }
+    // Interior 3D generation skipped — only exterior views are converted to 3D
 
     // Phase 3: Assembly
     setPipelineStage("assembly");
