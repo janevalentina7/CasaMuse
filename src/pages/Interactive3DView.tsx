@@ -611,9 +611,15 @@ const Interactive3DView = () => {
                 {/* Canvas */}
                 <ModelErrorBoundary>
                   <div className="w-full h-[600px] rounded-lg overflow-hidden bg-muted/10 border border-border">
-                    <Canvas camera={{ position: [15, 12, 15], fov: 50 }}>
+                    <Canvas
+                      camera={{
+                        position: viewMode === "individual" ? [3, 3, 3] : [15, 12, 15],
+                        fov: viewMode === "individual" ? 45 : 50,
+                      }}
+                      key={viewMode + (selectedView || "unified")}
+                    >
                       <Suspense fallback={<LoadingFallback />}>
-                        <Stage environment="city" intensity={0.5} adjustCamera={modelsToDisplay.length === 1}>
+                        <Stage environment="city" intensity={0.5} adjustCamera={false}>
                           {modelsToDisplay.map(m => (
                             <GLBModel key={m.key} url={m.url} position={m.position} />
                           ))}
@@ -621,7 +627,15 @@ const Interactive3DView = () => {
                             <HouseConnectors rooms={roomRects} />
                           )}
                         </Stage>
-                        <OrbitControls enablePan enableZoom enableRotate autoRotate={false} />
+                        <OrbitControls
+                          enablePan
+                          enableZoom
+                          enableRotate
+                          autoRotate={false}
+                          makeDefault
+                          minDistance={viewMode === "individual" ? 1 : 5}
+                          maxDistance={viewMode === "individual" ? 15 : 60}
+                        />
                       </Suspense>
                     </Canvas>
                   </div>
