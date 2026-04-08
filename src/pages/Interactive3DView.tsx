@@ -627,7 +627,15 @@ const Interactive3DView = () => {
                             <HouseConnectors rooms={roomRects} />
                           )}
                         </Stage>
-                        <OrbitControls enablePan enableZoom enableRotate autoRotate={false} />
+                        <OrbitControls
+                          enablePan
+                          enableZoom
+                          enableRotate
+                          autoRotate={false}
+                          makeDefault
+                          minDistance={viewMode === "individual" ? 1 : 5}
+                          maxDistance={viewMode === "individual" ? 15 : 60}
+                        />
                       </Suspense>
                     </Canvas>
                   </div>
