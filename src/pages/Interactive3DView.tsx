@@ -571,18 +571,28 @@ const Interactive3DView = () => {
                   )}
                 </div>
 
-                {/* Individual model selector */}
+                {/* Individual model selector with regenerate */}
                 {viewMode === "individual" && (
                   <div className="flex flex-wrap gap-2">
                     {succeededModels.map(([key, task]) => (
-                      <Button
-                        key={key}
-                        variant={selectedView === key ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setSelectedView(key)}
-                      >
-                        {task.label}
-                      </Button>
+                      <div key={key} className="flex items-center gap-1">
+                        <Button
+                          variant={selectedView === key ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setSelectedView(key)}
+                        >
+                          {task.label}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="px-2"
+                          onClick={() => regenerateView(key)}
+                          title="Regenerate this 3D model"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     ))}
                   </div>
                 )}
